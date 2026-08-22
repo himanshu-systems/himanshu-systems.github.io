@@ -25,7 +25,7 @@
   --accent: #0b7a6e;
   --accent-soft: #e6f2f0;
 
-  --serif: "Newsreader", ui-serif, Georgia, "Times New Roman", serif;
+  --serif: "Source Serif 4", ui-serif, Charter, Georgia, "Times New Roman", serif;
   --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   --measure: 34rem;
@@ -75,7 +75,10 @@ body {
   color: var(--text);
   font-family: var(--serif);
   font-size: 1.0625rem;
-  line-height: 1.65;
+  line-height: 1.7;
+  /* Source Serif 4 carries an optical-size axis: let the browser thin the
+     strokes for large headings and thicken them for small text. */
+  font-optical-sizing: auto;
   font-synthesis-weight: none;
   text-rendering: optimizeLegibility;
 }

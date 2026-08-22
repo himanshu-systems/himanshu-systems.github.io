@@ -44,7 +44,10 @@ const entries = await Promise.all(
   <header>
     <div class="masthead">
       <p class="eyebrow">Index</p>
-      <ThemeToggle />
+      <nav>
+        <a href={routeHref('/me')}>About me</a>
+        <ThemeToggle />
+      </nav>
     </div>
     <h1>{site.title}</h1>
     <p class="standfirst">{site.description}</p>
@@ -117,6 +120,25 @@ const entries = await Promise.all(
     letter-spacing: .16em;
     text-transform: uppercase;
     color: var(--faint);
+  }
+
+  nav {
+    display: flex;
+    align-items: center;
+    gap: 1.1rem;
+  }
+
+  nav a {
+    font-family: var(--mono);
+    font-size: .7rem;
+    letter-spacing: .04em;
+    color: var(--muted);
+    text-decoration: none;
+    transition: color .15s ease;
+  }
+
+  nav a:hover {
+    color: var(--accent);
   }
 
   h1 {

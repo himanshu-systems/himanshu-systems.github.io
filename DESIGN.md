@@ -107,18 +107,29 @@ The rules that make it work:
 Two faces, loaded from Google Fonts with real fallback stacks.
 
 ```css
---serif: "Newsreader", ui-serif, Georgia, "Times New Roman", serif;
+--serif: "Source Serif 4", ui-serif, Charter, Georgia, "Times New Roman", serif;
 --mono:  "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 ```
 
-**Newsreader** is a screen-first serif with optical sizing — it holds up at 17px
-body copy where a print serif goes muddy. **IBM Plex Mono** is the machine voice.
+**Source Serif 4** is the reading face. It was drawn for screen text rather than
+adapted from metal, so it has a large x-height, open apertures and low stroke
+contrast — the three things that decide whether small text stays legible. It
+carries a real optical-size axis (`opsz` 8–60), so `font-optical-sizing: auto` on
+`body` thickens the strokes at 17px body copy and thins them at display sizes.
+That is one font file doing the work of two.
+
+**IBM Plex Mono** is the machine voice: routes, dates, counts, labels. A reader
+can tell which kind of thing they are looking at before reading a word.
+
+The fallback stack matters. `ui-serif` catches the platform's own reading serif,
+and **Charter** — bundled with macOS — is the closest metric match if the
+webfont never arrives.
 
 | Role          | Size                                   | Notes                          |
 | ------------- | -------------------------------------- | ------------------------------ |
 | `h1`          | `clamp(2rem, 1.4rem + 2.4vw, 2.9rem)`  | weight 500, `-0.02em`, balanced|
 | `h2`          | `1.4rem`                               | weight 500                     |
-| body          | `1.0625rem` / `1.65`                   | 17px, the reading default      |
+| body          | `1.0625rem` / `1.7`                    | 17px, the reading default      |
 | row title     | `1.12rem`                              | weight 500                     |
 | blurb         | `0.92rem`                              | `--muted`                      |
 | route, mono   | `0.8rem`                               |                                |
@@ -196,6 +207,7 @@ mouse click does not draw a ring but a Tab key does.
 | `src/components/ThemeInit.astro`  | pre-paint theme stamp (`is:inline`, in head) |
 | `src/components/ThemeToggle.astro`| the system/light/dark cycle button           |
 | `src/pages/index.astro`           | the directory listing                        |
+| `src/pages/me.astro`              | the bio page; all copy sits in one `me` object|
 | `tools/chrome.mjs`                | the "← Collection" pill                      |
 
 `chrome.mjs` uses **literal colours, not tokens** — by design. It is injected
