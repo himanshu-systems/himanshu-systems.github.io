@@ -115,9 +115,7 @@ const me = {
         )}
       </div>
       {me.portrait && (
-        <div class="portrait-frame" title="Hover for the real colours">
-          <img class="portrait" src={asset(me.portrait.src)} alt={me.portrait.alt} width="640" height="800" />
-        </div>
+        <img class="portrait" src={asset(me.portrait.src)} alt={me.portrait.alt} width="640" height="800" />
       )}
     </div>
   </header>
@@ -272,42 +270,13 @@ const me = {
     gap: clamp(1.5rem, 4vw, 3rem);
   }
 
-  .portrait-frame {
-    position: relative;
-    overflow: hidden;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-  }
-
-  /* An --accent-tinted layer over a grayscale photo: a duotone that always
-     matches the site's own palette, and shifts with it between themes. */
-  .portrait-frame::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: var(--accent);
-    mix-blend-mode: color;
-    opacity: .55;
-    transition: opacity .5s ease;
-  }
-
-  .portrait-frame:hover::after,
-  .portrait-frame:active::after {
-    opacity: 0;
-  }
-
   .portrait {
     width: 100%;
     aspect-ratio: 4 / 5;
     object-fit: cover;
     display: block;
-    filter: grayscale(1) contrast(1.05);
-    transition: filter .5s ease;
-  }
-
-  .portrait-frame:hover .portrait,
-  .portrait-frame:active .portrait {
-    filter: grayscale(0) contrast(1);
+    border: 1px solid var(--border);
+    border-radius: 4px;
   }
 
   h1 {
@@ -529,7 +498,7 @@ const me = {
       grid-template-columns: 1fr;
     }
 
-    .portrait-frame {
+    .portrait {
       max-width: 11rem;
       order: -1;
       margin-bottom: .5rem;
