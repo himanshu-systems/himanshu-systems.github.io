@@ -1,6 +1,7 @@
 ---
 import Chrome from '../components/Chrome.astro';
 import ThemeInit from '../components/ThemeInit.astro';
+import FloatingShape from '../components/FloatingShape.astro';
 import { asset } from '../lib/paths';
 import '../styles/tokens.css';
 
@@ -12,6 +13,8 @@ interface Props {
   chrome?: boolean;
   wide?: boolean;
   noindex?: boolean;
+  /** Off on /admin -- a toy floating over a data-entry form is a liability, not a delight. */
+  floatingShape?: boolean;
 }
 
 const {
@@ -22,6 +25,7 @@ const {
   chrome = true,
   wide = false,
   noindex = false,
+  floatingShape = true,
 } = Astro.props;
 ---
 
@@ -46,6 +50,7 @@ const {
       <slot />
     </main>
     {chrome && <Chrome sourceUrl={sourceUrl} title={siteTitle} />}
+    {floatingShape && <FloatingShape />}
   </body>
 </html>
 

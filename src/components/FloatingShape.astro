@@ -1,17 +1,19 @@
 ---
 /**
- * The one deliberate illustration on an otherwise type-only site. Kept
- * consistent with the rest of the design system on purpose: a wireframe,
- * not a solid, coloured with --accent (so it's teal in light and the paler
- * dark-mode teal automatically, and re-tints live if the toggle is used
- * while this is on screen), sitting in a bordered box that matches the
- * portrait/gallery image treatment rather than floating free over the page.
+ * The one deliberate illustration on an otherwise type-only site. No box
+ * this time -- position: fixed, no border, no background, so it genuinely
+ * floats over whatever page is behind it rather than sitting in its own
+ * panel. Rendered from Doc.astro, so it's on every page that uses that
+ * layout, not just the about page -- except /admin, which opts out.
+ *
+ * pointer-events: none on the wrapper, auto only on the canvas itself, so
+ * the transparent space around the wireframe never blocks a click or a
+ * scroll on whatever's underneath it.
  */
 ---
 
-<div class="floating-shape">
+<div class="floating-shape" aria-hidden="true">
   <canvas id="floating-canvas"></canvas>
-  <p class="hint">Drag to spin</p>
 </div>
 
 <script>
@@ -46,7 +48,7 @@
 
   const geometry = new IcosahedronGeometry(1.35, 1);
   const wireframe = new WireframeGeometry(geometry);
-  const material = new LineBasicMaterial({ color: accentColor(), transparent: true, opacity: 0.85 });
+  const material = new LineBasicMaterial({ color: accentColor(), transparent: true, opacity: 0.9 });
   const shape = new LineSegments(wireframe, material);
   shape.rotation.set(0.3, 0.4, 0);
   scene.add(shape);
@@ -75,8 +77,8 @@
   let lastY = 0;
   // Idle drift, skipped entirely under reduced motion -- what's left is
   // purely the momentum from a visitor's own drag, not ambient autoplay.
-  let velY = reduceMotion ? 0 : 0.0018;
-  let velX = reduceMotion ? 0 : 0.0014;
+  let velY = reduceMotion ? 0 : 0.0016;
+  let velX = reduceMotion ? 0 : 0.0012;
 
   canvas.style.cursor = 'grab';
   canvas.style.touchAction = 'none';
@@ -117,9 +119,9 @@
       velX *= 0.985;
 
       if (!reduceMotion) {
-        shape.rotation.y += 0.0015;
+        shape.rotation.y += 0.0013;
         t += 0.01;
-        shape.position.y = Math.sin(t) * 0.12;
+        shape.position.y = Math.sin(t) * 0.15;
       }
     }
 
@@ -130,32 +132,34 @@
 
 <style>
   .floating-shape {
-    position: relative;
-    height: 20rem;
-    margin: clamp(2rem, 5vw, 3rem) 0 clamp(2.75rem, 6vw, 4rem);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: var(--surface);
-    overflow: hidden;
+    position: fixed;
+    right: clamp(1rem, 4vw, 2.5rem);
+    bottom: clamp(1rem, 4vw, 2.5rem);
+    width: 9rem;
+    height: 9rem;
+    z-index: 40;
+    pointer-events: none;
   }
 
   #floating-canvas {
     display: block;
     width: 100%;
     height: 100%;
-    cursor: grab;
+    pointer-events: auto;
   }
 
-  .hint {
-    position: absolute;
-    right: 0.9rem;
-    bottom: 0.75rem;
-    margin: 0;
-    font-family: var(--mono);
-    font-size: 0.66rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--faint);
-    pointer-events: none;
+  /* Out of the way on narrow screens -- there's no free corner left once
+     content is a single column, and the drag interaction competes with
+     scrolling on touch. */
+  @media (max-width: 30rem) {
+    .floating-shape {
+      display: none;
+    }
+  }
+
+  @media print {
+    .floating-shape {
+      display: none;
+    }
   }
 </style>

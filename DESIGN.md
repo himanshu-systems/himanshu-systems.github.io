@@ -220,17 +220,26 @@ The one deliberate illustration on an otherwise type-only site
 (`src/components/FloatingShape.astro`) — a wireframe icosahedron, not a
 solid, coloured with `--accent` so it's teal in light and the paler
 dark-mode teal automatically, and re-tints live via a `MutationObserver` on
-`data-theme` if the toggle is used while it's on screen. It sits in a
-bordered box matching the portrait/gallery treatment rather than floating
-free over the page, which is what keeps it feeling like part of this design
-system instead of a dropped-in demo.
+`data-theme` if the toggle is used while it's on screen.
+
+`position: fixed`, bottom-right, no border, no background — it floats over
+whatever page is actually behind it rather than sitting in its own panel,
+and it's rendered from `Doc.astro`, so it's on every page that layout
+serves, not just the about page. `/admin` is the one opt-out (`floatingShape={false}`
+on that page's `<Doc>`) — a toy floating over a data-entry form is a
+liability, not a delight, while someone's mid-edit. The wrapper is
+`pointer-events: none`; only the canvas itself is `auto`, so the
+transparent space around the wireframe never swallows a click or a scroll
+meant for whatever's underneath it. Hidden below `30rem` — there's no free
+corner left in a single-column layout, and dragging competes with
+scrolling on touch.
 
 Idle motion (slow spin, a small sine-wave bob) is skipped entirely under
 `prefers-reduced-motion`; what's left is only the momentum from a visitor's
 own drag, which decays back to a standstill. Three.js's own bundle doesn't
 tree-shake past roughly 500KB minified regardless of whether you import the
 whole namespace or name individual classes — that's the accepted cost of
-using the library at all, loaded only on this one page.
+using the library at all, loaded on every page it appears on.
 
 Spacing runs on a loose 4px-derived scale (`.3 / .45 / .7 / 1.1 / 1.5 / 2.5 / 3rem`).
 Section rhythm uses `clamp()` so it compresses on small screens instead of

@@ -2,7 +2,6 @@
 import Doc from "../layouts/Doc.astro";
 import ThemeToggle from "../components/ThemeToggle.astro";
 import SocialIcon from "../components/SocialIcon.astro";
-import FloatingShape from "../components/FloatingShape.astro";
 import { loadRegistry } from "../../tools/registry.mjs";
 import { asset, resolveImage, collection, routeHref } from "../lib/paths";
 import { getSiteContent } from "../lib/site";
@@ -57,8 +56,6 @@ const recentlyTried = (await getTriedRows()).slice(0, 3);
       }
     </div>
   </header>
-
-  <FloatingShape />
 
   {
     me.doing.length > 0 && (
