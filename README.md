@@ -1,4 +1,4 @@
-# HTML-DOCS-TO-Learn
+# himanshu-systems.github.io
 
 An [Astro](https://astro.build) site where every route is declared in one file,
 `pages.json`. A route is either **local** (HTML in this repo) or **external**
@@ -19,7 +19,7 @@ pages.json ──┬── local  → pages/*.html
   "site": {
     "title": "HTML DOCS TO Learn",
     "description": "…",
-    "base": "/HTML-DOCS-TO-Learn"
+    "base": ""
   },
   "pages": [
     { "route": "/about",       "type": "local",    "file": "pages/about.html" },
@@ -83,7 +83,7 @@ hand-maintained assets in `static/` instead.
 ## Commands
 
 ```bash
-npm run dev              # prepare + astro dev  → http://localhost:4321/HTML-DOCS-TO-Learn/
+npm run dev              # prepare + astro dev  → http://localhost:4321/
 npm run build            # prepare + astro build → dist/
 npm run build:refresh    # same, but refetch every imported page first
 npm run preview          # serve the built dist/
@@ -114,7 +114,7 @@ binary — see **Troubleshooting** below.
 2. `node tools/add.mjs --route /my-page --url <url> --title "My page"` — registers
    the route and downloads the snapshot in one step.
 3. `npm run dev` to check it, then commit `pages.json` and `imported/`.
-4. Push. The deploy workflow publishes it at `…/HTML-DOCS-TO-Learn/my-page/`.
+4. Push. The deploy workflow publishes it at `https://himanshu-systems.github.io/my-page/`.
 
 If the artifact needs a login, the import fails with a clear error — save the
 HTML into `pages/` and register it as a local page instead.

@@ -2,7 +2,7 @@
   "site": {
     "title": "HTML DOCS TO Learn",
     "description": "A collection of hand-written and imported HTML pages, all served from one GitHub Pages site.",
-    "base": "/HTML-DOCS-TO-Learn"
+    "base": ""
   },
   "pages": [
     {

@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { CACHE_DIR, rel } from './registry.mjs';
 
-const USER_AGENT = 'html-docs-to-learn-importer/1.0 (+https://github.com/himanshu-systems/HTML-DOCS-TO-Learn)';
+const USER_AGENT = 'html-docs-to-learn-importer/1.0 (+https://github.com/himanshu-systems/himanshu-systems.github.io)';
 
 export function snapshotPaths(page) {
   return {

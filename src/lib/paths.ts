@@ -1,7 +1,9 @@
 /**
  * Astro's BASE_URL arrives without a trailing slash for a project site
- * (`/HTML-DOCS-TO-Learn`), so joining it by template literal silently produces
- * `/HTML-DOCS-TO-Learnfavicon.svg`. Everything goes through these helpers instead.
+ * (`/my-repo`), so joining it by template literal silently produces
+ * `/my-repofavicon.svg`. Everything goes through these helpers instead. This site
+ * now serves from the domain root, where BASE_URL is just "/", but the helpers
+ * stay so a move back to a project path needs no other change.
  */
 const BASE = import.meta.env.BASE_URL.replace(/\/+$/, '');
 
