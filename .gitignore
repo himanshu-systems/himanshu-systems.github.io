@@ -7,3 +7,10 @@ public/
 
 node_modules/
 *.log
+
+# .env is committed on purpose -- it only holds the Supabase project URL and
+# publishable key, which are meant to be public (see supabase/README.md).
+# .env.local is for anything that ISN'T safe to commit -- never add the
+# Supabase service_role key or a GitHub PAT to a tracked file.
+.env.local
+.env.*.local

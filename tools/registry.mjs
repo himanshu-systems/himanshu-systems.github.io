@@ -152,6 +152,7 @@ export const RESERVED = {
   '/': 'the about page',
   '/pages': 'the generated collection index',
   '/tried': 'the experiments log',
+  '/admin': 'the admin page',
 };
 
 export function normalizeBase(base) {

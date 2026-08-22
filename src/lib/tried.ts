@@ -1,7 +1,15 @@
-import { tried, type TriedEntry } from '../data/tried';
+import { supabase } from './supabaseClient';
 import { routeHref } from './paths';
 
-export interface TriedRow extends TriedEntry {
+export interface TriedRow {
+  date: string;
+  title: string;
+  note: string;
+  description?: string;
+  image?: { src: string; alt: string };
+  outcome: string;
+  liked: string;
+  tags: string[];
   /** URL segment for this entry's own page: /tried/<slug>/ */
   slug: string;
   href: string;
@@ -9,36 +17,61 @@ export interface TriedRow extends TriedEntry {
   search: string;
 }
 
-function slugify(title: string): string {
-  const base = title
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-  return base || 'entry';
+interface Row {
+  slug: string;
+  date: string;
+  title: string;
+  note: string;
+  description: string | null;
+  image_src: string | null;
+  image_alt: string | null;
+  outcome: string;
+  liked: string;
+  tags: string[];
+}
+
+function toRow(row: Row): TriedRow {
+  const search = [row.title, row.note, row.description ?? '', row.outcome, row.liked, ...row.tags]
+    .join(' ')
+    .toLowerCase();
+
+  return {
+    date: row.date,
+    title: row.title,
+    note: row.note,
+    description: row.description ?? undefined,
+    image: row.image_src ? { src: row.image_src, alt: row.image_alt ?? '' } : undefined,
+    outcome: row.outcome,
+    liked: row.liked,
+    tags: row.tags ?? [],
+    slug: row.slug,
+    href: routeHref(`/tried/${row.slug}`),
+    search,
+  };
 }
 
 /**
- * Sorted newest first regardless of the order entries are written in
- * tried.ts, with a numeric suffix on any slug that collides (two entries
- * titled the same thing) so every entry still gets its own page.
+ * Only rows marked public -- this runs at build time with the publishable
+ * key, which RLS only lets read is_public = true rows (see
+ * supabase/schema.sql). A private entry simply isn't fetched, so its page
+ * doesn't exist on the built site until you flip it public and the site
+ * rebuilds.
+ *
+ * Ordered newest first; same-date entries break ties by when they were
+ * logged, so order is always deterministic even if you write entries out
+ * of date order in the admin page.
  */
-function buildRows(): TriedRow[] {
-  const sorted = [...tried].sort((a, b) => b.date.localeCompare(a.date));
-  const seen = new Map<string, number>();
+export async function getTriedRows(): Promise<TriedRow[]> {
+  const { data, error } = await supabase
+    .from('tried_entries')
+    .select('slug, date, title, note, description, image_src, image_alt, outcome, liked, tags')
+    .eq('is_public', true)
+    .order('date', { ascending: false })
+    .order('created_at', { ascending: false });
 
-  return sorted.map((entry) => {
-    const base = slugify(entry.title);
-    const count = seen.get(base) ?? 0;
-    seen.set(base, count + 1);
-    const slug = count === 0 ? base : `${base}-${count + 1}`;
+  if (error) {
+    throw new Error(`Could not load tried_entries from Supabase: ${error.message}`);
+  }
 
-    const search = [entry.title, entry.note, entry.description ?? '', entry.outcome, entry.liked, ...entry.tags]
-      .join(' ')
-      .toLowerCase();
-
-    return { ...entry, slug, href: routeHref(`/tried/${slug}`), search };
-  });
+  return (data ?? []).map(toRow);
 }
-
-export const triedRows: TriedRow[] = buildRows();

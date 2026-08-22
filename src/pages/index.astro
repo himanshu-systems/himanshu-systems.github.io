@@ -4,12 +4,12 @@ import ThemeToggle from "../components/ThemeToggle.astro";
 import { loadRegistry } from "../../tools/registry.mjs";
 import { asset, collection, routeHref } from "../lib/paths";
 import { me } from "../data/me";
-import { triedRows } from "../lib/tried";
+import { getTriedRows } from "../lib/tried";
 
 const { site } = await loadRegistry();
 
 // Newest 3, as a teaser -- the full, filterable log lives at /tried.
-const recentlyTried = triedRows.slice(0, 3);
+const recentlyTried = (await getTriedRows()).slice(0, 3);
 ---
 
 <Doc

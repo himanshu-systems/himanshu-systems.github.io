@@ -2,10 +2,11 @@
 import Doc from '../../layouts/Doc.astro';
 import { loadRegistry } from '../../../tools/registry.mjs';
 import { asset, routeHref } from '../../lib/paths';
-import { triedRows, type TriedRow } from '../../lib/tried';
+import { getTriedRows, type TriedRow } from '../../lib/tried';
 
-export function getStaticPaths() {
-  return triedRows.map((entry) => ({ params: { slug: entry.slug }, props: { entry } }));
+export async function getStaticPaths() {
+  const rows = await getTriedRows();
+  return rows.map((entry) => ({ params: { slug: entry.slug }, props: { entry } }));
 }
 
 const { entry } = Astro.props as { entry: TriedRow };

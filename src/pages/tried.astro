@@ -3,10 +3,10 @@ import Doc from '../layouts/Doc.astro';
 import ThemeToggle from '../components/ThemeToggle.astro';
 import { loadRegistry } from '../../tools/registry.mjs';
 import { home, collection } from '../lib/paths';
-import { triedRows } from '../lib/tried';
+import { getTriedRows } from '../lib/tried';
 
 const { site } = await loadRegistry();
-const entries = triedRows;
+const entries = await getTriedRows();
 ---
 
 <Doc

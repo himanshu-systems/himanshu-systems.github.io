@@ -4,6 +4,12 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # Fired by the Supabase Database Webhook on tried_entries (see
+  # supabase/README.md) whenever the admin page saves, publishes, or deletes
+  # an entry -- the build step re-fetches from Supabase, so this is what
+  # gets an edit live without a manual push.
+  repository_dispatch:
+    types: [content-updated]
 
 # Builds from the committed snapshots in imported/, so a deploy never depends on
 # an external host being up. Use "Refresh imported pages" to update them.

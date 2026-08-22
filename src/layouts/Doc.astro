@@ -11,6 +11,7 @@ interface Props {
   sourceUrl?: string | null;
   chrome?: boolean;
   wide?: boolean;
+  noindex?: boolean;
 }
 
 const {
@@ -20,6 +21,7 @@ const {
   sourceUrl = null,
   chrome = true,
   wide = false,
+  noindex = false,
 } = Astro.props;
 ---
 
@@ -29,6 +31,7 @@ const {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title === siteTitle ? title : `${title} · ${siteTitle}`}</title>
     {description && <meta name="description" content={description} />}
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
     <link rel="icon" href={asset('favicon.svg')} />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

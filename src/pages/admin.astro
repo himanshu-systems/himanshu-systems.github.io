@@ -1,0 +1,686 @@
+---
+import Doc from '../layouts/Doc.astro';
+import ThemeToggle from '../components/ThemeToggle.astro';
+import { loadRegistry } from '../../tools/registry.mjs';
+import { home, collection, routeHref } from '../lib/paths';
+
+const { site } = await loadRegistry();
+---
+
+<Doc title="Admin" siteTitle={site.title} chrome={false} noindex wide>
+  <header>
+    <div class="masthead">
+      <p class="eyebrow">Admin</p>
+      <nav>
+        <a href={home}>About</a>
+        <a href={collection}>Pages</a>
+        <a href={routeHref('/tried')}>Tried</a>
+        <ThemeToggle />
+      </nav>
+    </div>
+    <h1>Manage Tried entries</h1>
+    <p class="standfirst">
+      Log in to add, edit, delete, or flip an entry public or private. This
+      page isn't linked from anywhere on the site, but that isn't what keeps
+      it yours — logging in is. Saving triggers a rebuild automatically.
+    </p>
+  </header>
+
+  <section id="login-section">
+    <form id="login-form">
+      <label>
+        <span>Email</span>
+        <input type="email" id="login-email" autocomplete="username" required />
+      </label>
+      <label>
+        <span>Password</span>
+        <input type="password" id="login-password" autocomplete="current-password" required />
+      </label>
+      <button type="submit">Log in</button>
+      <p class="notice error" id="login-error" hidden></p>
+    </form>
+  </section>
+
+  <section id="admin-section" hidden>
+    <div class="admin-bar">
+      <span id="who"></span>
+      <button type="button" id="logout">Log out</button>
+    </div>
+
+    <form id="entry-form">
+      <p class="form-title" id="form-title">New entry</p>
+
+      <div class="grid2">
+        <label>
+          <span>Date</span>
+          <input type="date" id="f-date" required />
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" id="f-public" />
+          <span>Public — visible on the live site</span>
+        </label>
+      </div>
+
+      <label>
+        <span>Title</span>
+        <input type="text" id="f-title" required />
+      </label>
+
+      <label>
+        <span>Note <small>shows in every list and teaser</small></span>
+        <textarea id="f-note" rows="2" required></textarea>
+      </label>
+
+      <label>
+        <span>Description <small>optional — its own page only; a blank line starts a new paragraph</small></span>
+        <textarea id="f-description" rows="5"></textarea>
+      </label>
+
+      <div class="grid2">
+        <label>
+          <span>Outcome</span>
+          <input type="text" id="f-outcome" placeholder="worked, failed, mixed, ongoing…" required />
+        </label>
+        <label>
+          <span>Liked</span>
+          <input type="text" id="f-liked" placeholder="liked it, not for me…" required />
+        </label>
+      </div>
+
+      <label>
+        <span>Tags <small>comma separated</small></span>
+        <input type="text" id="f-tags" placeholder="systems, security" />
+      </label>
+
+      <div class="grid2">
+        <label>
+          <span>Image path <small>optional — a file already in static/images/</small></span>
+          <input type="text" id="f-image-src" placeholder="images/whatever.jpg" />
+        </label>
+        <label>
+          <span>Image alt text</span>
+          <input type="text" id="f-image-alt" />
+        </label>
+      </div>
+
+      <p class="notice" id="f-slug-note" hidden></p>
+
+      <div class="actions">
+        <button type="submit" id="save-button">Save</button>
+        <button type="button" id="cancel-edit" hidden>Cancel edit</button>
+      </div>
+
+      <p class="notice" id="form-status" hidden></p>
+    </form>
+
+    <h2>All entries</h2>
+    <ol class="rows" id="entry-list"></ol>
+    <p class="empty" id="list-empty" hidden>No entries yet.</p>
+  </section>
+</Doc>
+
+<script>
+  import { supabase } from '../lib/supabaseClient';
+  import { uniqueSlug } from '../lib/slug';
+
+  interface AdminEntry {
+    id: string;
+    slug: string;
+    date: string;
+    title: string;
+    note: string;
+    description: string | null;
+    image_src: string | null;
+    image_alt: string | null;
+    outcome: string;
+    liked: string;
+    tags: string[];
+    is_public: boolean;
+  }
+
+  function $(id: string) {
+    return document.getElementById(id)!;
+  }
+
+  const loginSection = $('login-section');
+  const adminSection = $('admin-section');
+  const loginForm = $('login-form') as HTMLFormElement;
+  const loginError = $('login-error');
+  const whoEl = $('who');
+
+  const listEl = $('entry-list');
+  const emptyEl = $('list-empty');
+
+  const form = $('entry-form') as HTMLFormElement;
+  const formTitle = $('form-title');
+  const cancelBtn = $('cancel-edit');
+  const slugNote = $('f-slug-note');
+  const statusEl = $('form-status');
+
+  const fields = {
+    date: $('f-date') as HTMLInputElement,
+    title: $('f-title') as HTMLInputElement,
+    note: $('f-note') as HTMLTextAreaElement,
+    description: $('f-description') as HTMLTextAreaElement,
+    outcome: $('f-outcome') as HTMLInputElement,
+    liked: $('f-liked') as HTMLInputElement,
+    tags: $('f-tags') as HTMLInputElement,
+    imageSrc: $('f-image-src') as HTMLInputElement,
+    imageAlt: $('f-image-alt') as HTMLInputElement,
+    isPublic: $('f-public') as HTMLInputElement,
+  };
+
+  let entries: AdminEntry[] = [];
+  let editingId: string | null = null;
+
+  function setStatus(message: string, isError = false) {
+    statusEl.textContent = message;
+    statusEl.hidden = false;
+    statusEl.classList.toggle('error', isError);
+  }
+
+  function resetForm() {
+    editingId = null;
+    form.reset();
+    formTitle.textContent = 'New entry';
+    cancelBtn.hidden = true;
+    slugNote.hidden = true;
+  }
+
+  function startEdit(entry: AdminEntry) {
+    editingId = entry.id;
+    fields.date.value = entry.date;
+    fields.title.value = entry.title;
+    fields.note.value = entry.note;
+    fields.description.value = entry.description ?? '';
+    fields.outcome.value = entry.outcome;
+    fields.liked.value = entry.liked;
+    fields.tags.value = entry.tags.join(', ');
+    fields.imageSrc.value = entry.image_src ?? '';
+    fields.imageAlt.value = entry.image_alt ?? '';
+    fields.isPublic.checked = entry.is_public;
+    formTitle.textContent = `Editing "${entry.title}"`;
+    cancelBtn.hidden = false;
+    slugNote.hidden = false;
+    slugNote.textContent = `URL: /tried/${entry.slug}/ — fixed once an entry exists, so links already shared never break.`;
+    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  async function loadEntries() {
+    const { data, error } = await supabase
+      .from('tried_entries')
+      .select('*')
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      setStatus(`Could not load entries: ${error.message}`, true);
+      return;
+    }
+    entries = (data ?? []) as AdminEntry[];
+    renderList();
+  }
+
+  function renderList() {
+    listEl.innerHTML = '';
+    emptyEl.hidden = entries.length !== 0;
+
+    for (const entry of entries) {
+      const li = document.createElement('li');
+      li.className = 'row';
+
+      const main = document.createElement('div');
+      main.className = 'entry-main';
+
+      const date = document.createElement('span');
+      date.className = 'date';
+      date.textContent = entry.date;
+
+      const body = document.createElement('span');
+      body.className = 'body';
+      const title = document.createElement('span');
+      title.className = 'title';
+      title.textContent = entry.title;
+      const note = document.createElement('span');
+      note.className = 'blurb';
+      note.textContent = entry.note;
+      body.append(title, note);
+
+      const status = document.createElement('span');
+      status.className = entry.is_public ? 'tag tag-public' : 'tag tag-private';
+      status.textContent = entry.is_public ? 'public' : 'private';
+
+      main.append(date, body, status);
+
+      const actions = document.createElement('div');
+      actions.className = 'entry-actions';
+
+      const toggleBtn = document.createElement('button');
+      toggleBtn.type = 'button';
+      toggleBtn.textContent = entry.is_public ? 'Make private' : 'Publish';
+      toggleBtn.addEventListener('click', () => togglePublic(entry));
+
+      const editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.textContent = 'Edit';
+      editBtn.addEventListener('click', () => startEdit(entry));
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.className = 'danger';
+      deleteBtn.textContent = 'Delete';
+      deleteBtn.addEventListener('click', () => deleteEntry(entry));
+
+      actions.append(toggleBtn, editBtn, deleteBtn);
+      li.append(main, actions);
+      listEl.append(li);
+    }
+  }
+
+  async function togglePublic(entry: AdminEntry) {
+    const { error } = await supabase
+      .from('tried_entries')
+      .update({ is_public: !entry.is_public })
+      .eq('id', entry.id);
+
+    if (error) {
+      setStatus(`Could not update: ${error.message}`, true);
+      return;
+    }
+    setStatus('Saved. The site will rebuild in about a minute.');
+    loadEntries();
+  }
+
+  async function deleteEntry(entry: AdminEntry) {
+    if (!confirm(`Delete "${entry.title}"? This can't be undone.`)) return;
+
+    const { error } = await supabase.from('tried_entries').delete().eq('id', entry.id);
+    if (error) {
+      setStatus(`Could not delete: ${error.message}`, true);
+      return;
+    }
+    if (editingId === entry.id) resetForm();
+    setStatus('Deleted. The site will rebuild in about a minute.');
+    loadEntries();
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const payload = {
+      date: fields.date.value,
+      title: fields.title.value.trim(),
+      note: fields.note.value.trim(),
+      description: fields.description.value.trim() || null,
+      outcome: fields.outcome.value.trim(),
+      liked: fields.liked.value.trim(),
+      tags: fields.tags.value
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean),
+      image_src: fields.imageSrc.value.trim() || null,
+      image_alt: fields.imageAlt.value.trim() || null,
+      is_public: fields.isPublic.checked,
+    };
+
+    if (editingId) {
+      const { error } = await supabase.from('tried_entries').update(payload).eq('id', editingId);
+      if (error) {
+        setStatus(`Could not save: ${error.message}`, true);
+        return;
+      }
+    } else {
+      const taken = new Set(entries.map((e) => e.slug));
+      const slug = uniqueSlug(payload.title, taken);
+      const { error } = await supabase.from('tried_entries').insert({ ...payload, slug });
+      if (error) {
+        setStatus(`Could not save: ${error.message}`, true);
+        return;
+      }
+    }
+
+    setStatus('Saved. The site will rebuild in about a minute.');
+    resetForm();
+    loadEntries();
+  });
+
+  cancelBtn.addEventListener('click', resetForm);
+
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    loginError.hidden = true;
+    const email = ($('login-email') as HTMLInputElement).value;
+    const password = ($('login-password') as HTMLInputElement).value;
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      loginError.textContent = error.message;
+      loginError.hidden = false;
+    }
+  });
+
+  $('logout').addEventListener('click', () => {
+    supabase.auth.signOut();
+  });
+
+  function showLoggedOut() {
+    loginSection.hidden = false;
+    adminSection.hidden = true;
+  }
+
+  function showLoggedIn(email: string) {
+    loginSection.hidden = true;
+    adminSection.hidden = false;
+    whoEl.textContent = email;
+    loadEntries();
+  }
+
+  supabase.auth.getSession().then(({ data }) => {
+    if (data.session?.user.email) showLoggedIn(data.session.user.email);
+    else showLoggedOut();
+  });
+
+  supabase.auth.onAuthStateChange((_event, session) => {
+    if (session?.user.email) showLoggedIn(session.user.email);
+    else showLoggedOut();
+  });
+</script>
+
+<style>
+  header {
+    margin-bottom: clamp(2.5rem, 6vw, 3.5rem);
+  }
+
+  .masthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .eyebrow {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: .7rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  nav {
+    display: flex;
+    align-items: center;
+    gap: 1.1rem;
+  }
+
+  nav a {
+    font-family: var(--mono);
+    font-size: .7rem;
+    letter-spacing: .04em;
+    color: var(--muted);
+    text-decoration: none;
+    transition: color .15s ease;
+  }
+
+  nav a:hover {
+    color: var(--accent);
+  }
+
+  h1 {
+    margin: 0 0 .8rem;
+  }
+
+  .standfirst {
+    margin: 0;
+    max-width: var(--measure);
+    font-size: 1.02rem;
+    color: var(--muted);
+    text-wrap: pretty;
+  }
+
+  h2 {
+    margin: 3rem 0 1rem;
+    font-family: var(--mono);
+    font-size: .7rem;
+    font-weight: 400;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--faint);
+    padding-bottom: .7rem;
+    border-bottom: 1px solid var(--border-strong);
+  }
+
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-width: 34rem;
+  }
+
+  #login-section form {
+    max-width: 22rem;
+  }
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: .35rem;
+    font-size: .85rem;
+    color: var(--muted);
+  }
+
+  label small {
+    font-weight: 400;
+    color: var(--faint);
+  }
+
+  label.checkbox {
+    flex-direction: row;
+    align-items: center;
+    gap: .55rem;
+    font-size: .88rem;
+  }
+
+  label.checkbox input {
+    width: auto;
+  }
+
+  input,
+  textarea {
+    font: inherit;
+    font-family: var(--serif);
+    font-size: .95rem;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: .55rem .65rem;
+  }
+
+  input:focus,
+  textarea:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+    border-color: var(--accent);
+  }
+
+  textarea {
+    resize: vertical;
+    line-height: 1.5;
+  }
+
+  .grid2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    align-items: end;
+  }
+
+  @media (max-width: 30rem) {
+    .grid2 {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  button {
+    align-self: flex-start;
+    font-family: var(--mono);
+    font-size: .78rem;
+    letter-spacing: .02em;
+    color: var(--muted);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: .5rem 1rem;
+    cursor: pointer;
+    transition: color .15s ease, border-color .15s ease;
+  }
+
+  button:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  button[type='submit'] {
+    color: var(--text);
+    border-color: var(--border-strong);
+  }
+
+  button.danger:hover {
+    /* The one deliberate exception to a single accent colour: a danger
+       affordance on a private, single-user tool, not the public site. */
+    color: #b3453a;
+    border-color: #b3453a;
+  }
+
+  .actions {
+    display: flex;
+    gap: .75rem;
+  }
+
+  .notice {
+    margin: 0;
+    font-size: .85rem;
+    color: var(--muted);
+  }
+
+  .notice.error {
+    color: #b3453a;
+  }
+
+  .admin-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 2.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: .78rem;
+    color: var(--muted);
+  }
+
+  .form-title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .row + .row {
+    border-top: 1px solid var(--border);
+  }
+
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 0;
+  }
+
+  .entry-main {
+    display: grid;
+    grid-template-columns: 6rem 1fr auto;
+    align-items: baseline;
+    gap: 1.5rem;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .date {
+    font-family: var(--mono);
+    font-size: .76rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .body {
+    display: flex;
+    flex-direction: column;
+    gap: .2rem;
+    min-width: 0;
+  }
+
+  .title {
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .blurb {
+    font-size: .85rem;
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .tag {
+    font-family: var(--mono);
+    font-size: .66rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .tag-public {
+    color: var(--accent);
+  }
+
+  .tag-private {
+    color: var(--faint);
+  }
+
+  .entry-actions {
+    display: flex;
+    gap: .5rem;
+    flex-wrap: wrap;
+  }
+
+  .entry-actions button {
+    padding: .35rem .7rem;
+    font-size: .7rem;
+  }
+
+  .empty {
+    padding: 2rem 0;
+    color: var(--muted);
+    font-size: .9rem;
+  }
+
+  @media (max-width: 40rem) {
+    .entry-main {
+      grid-template-columns: 1fr;
+      gap: .3rem;
+    }
+  }
+</style>
