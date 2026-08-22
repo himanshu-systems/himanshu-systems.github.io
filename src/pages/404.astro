@@ -1,0 +1,22 @@
+---
+import { loadRegistry } from '../../tools/registry.mjs';
+import Doc from '../layouts/Doc.astro';
+import { home } from '../lib/paths';
+
+const { site } = await loadRegistry();
+---
+
+<Doc title="Not found" siteTitle={site.title} chrome={false}>
+  <h1>No page on that route</h1>
+  <p>This route is not registered in <code>pages.json</code>.</p>
+  <p><a href={home}>Back to the collection</a></p>
+</Doc>
+
+<style>
+  h1 {
+    font-size: 1.8rem;
+  }
+  p {
+    color: var(--muted);
+  }
+</style>

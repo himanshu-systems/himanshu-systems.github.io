@@ -5,8 +5,8 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Build from the committed snapshots in imported/ so a deploy never depends on
-# an external host being up. Use the "Refresh imported pages" workflow to update them.
+# Builds from the committed snapshots in imported/, so a deploy never depends on
+# an external host being up. Use "Refresh imported pages" to update them.
 permissions:
   contents: read
   pages: write
@@ -24,20 +24,25 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
 
       - name: Configure Pages
         id: pages
         uses: actions/configure-pages@v5
 
-      - name: Build site
-        run: node tools/build.mjs
+      - name: Build
+        run: npm run build
         env:
+          # Overrides pages.json's site.base, so a custom domain or a repo
+          # rename needs no code change.
           BASE_PATH: ${{ steps.pages.outputs.base_path }}
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: site
+          path: dist
 
   deploy:
     needs: build

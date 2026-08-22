@@ -1,0 +1,107 @@
+---
+import Chrome from '../components/Chrome.astro';
+import { asset } from '../lib/paths';
+import '../styles/tokens.css';
+
+interface Props {
+  title: string;
+  siteTitle: string;
+  description?: string;
+  sourceUrl?: string | null;
+  chrome?: boolean;
+  wide?: boolean;
+}
+
+const {
+  title,
+  siteTitle,
+  description = '',
+  sourceUrl = null,
+  chrome = true,
+  wide = false,
+} = Astro.props;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title === siteTitle ? title : `${title} · ${siteTitle}`}</title>
+    {description && <meta name="description" content={description} />}
+    <link rel="icon" href={asset('favicon.svg')} />
+  </head>
+  <body>
+    <main class={wide ? 'doc doc--wide' : 'doc'}>
+      <slot />
+    </main>
+    {chrome && <Chrome sourceUrl={sourceUrl} title={siteTitle} />}
+  </body>
+</html>
+
+<style is:global>
+  .doc {
+    max-width: 46rem;
+    margin: 0 auto;
+    padding: 4rem 1.5rem 7rem;
+  }
+  .doc--wide {
+    max-width: 62rem;
+  }
+  .doc h1 {
+    font-size: clamp(1.7rem, 1.2rem + 2vw, 2.4rem);
+    line-height: 1.15;
+    letter-spacing: -.02em;
+    margin: 0 0 1rem;
+  }
+  .doc h2 {
+    margin: 2.5rem 0 .75rem;
+    font-size: 1.3rem;
+    letter-spacing: -.01em;
+  }
+  .doc h3 {
+    margin: 2rem 0 .5rem;
+    font-size: 1.05rem;
+  }
+  .doc hr {
+    border: 0;
+    border-top: 1px solid var(--border);
+    margin: 2.5rem 0;
+  }
+  .doc code {
+    font: .875em var(--mono);
+    background: var(--accent-soft);
+    padding: .15em .4em;
+    border-radius: 4px;
+  }
+  .doc pre {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem;
+    overflow-x: auto;
+  }
+  .doc pre code {
+    background: none;
+    padding: 0;
+  }
+  .doc table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .doc th,
+  .doc td {
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    padding: .5rem .6rem;
+  }
+  .doc img {
+    max-width: 100%;
+    height: auto;
+  }
+  .doc blockquote {
+    margin: 1.5rem 0;
+    padding-left: 1rem;
+    border-left: 3px solid var(--border);
+    color: var(--muted);
+  }
+</style>

@@ -1,0 +1,49 @@
+---
+import { readFile } from 'node:fs/promises';
+import { loadRegistry, classify } from '../../tools/registry.mjs';
+import Doc from '../layouts/Doc.astro';
+import Frame from '../layouts/Frame.astro';
+import Redirect from '../layouts/Redirect.astro';
+
+/**
+ * Every route Astro itself renders: local fragments, plus the embed and
+ * redirect shims. Complete HTML documents are handled by tools/prepare.mjs,
+ * which writes them straight into public/ - see classify() for why.
+ */
+export async function getStaticPaths() {
+  const { site, pages } = await loadRegistry();
+  const routes = [];
+
+  for (const page of pages) {
+    if ((await classify(page)) !== 'astro') continue;
+
+    const kind = page.type === 'local' ? 'fragment' : page.mode;
+    routes.push({
+      params: { route: page.route.slice(1) },
+      props: {
+        kind,
+        siteTitle: site.title,
+        title: page.title,
+        description: page.description,
+        chrome: page.chrome,
+        url: page.url ?? null,
+        html: kind === 'fragment' ? await readFile(page.absFile, 'utf8') : null,
+      },
+    });
+  }
+
+  return routes;
+}
+
+const { kind, siteTitle, title, description, chrome, url, html } = Astro.props;
+---
+
+{
+  kind === 'fragment' && (
+    <Doc title={title} siteTitle={siteTitle} description={description} chrome={chrome}>
+      <Fragment set:html={html} />
+    </Doc>
+  )
+}
+{kind === 'embed' && <Frame title={title} siteTitle={siteTitle} url={url} />}
+{kind === 'redirect' && <Redirect title={title} siteTitle={siteTitle} url={url} />}

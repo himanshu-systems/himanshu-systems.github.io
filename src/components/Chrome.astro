@@ -1,0 +1,16 @@
+---
+import { chromeMarkup } from '../../tools/chrome.mjs';
+import { home } from '../lib/paths';
+
+interface Props {
+  sourceUrl?: string | null;
+  title?: string;
+}
+
+const { sourceUrl = null, title = 'Collection' } = Astro.props;
+
+// Same markup the passthrough pages get, so both paths stay identical.
+const markup = chromeMarkup({ home, sourceUrl, title });
+---
+
+<Fragment set:html={markup} />

@@ -2,13 +2,14 @@
 
 <p>Every route on this site comes from one file: <code>pages.json</code>. A route is
 either <strong>local</strong> (an HTML file in this repository) or <strong>external</strong>
-(an HTML page that lives somewhere else, such as a Claude artifact).</p>
+(an HTML page that lives somewhere else, such as a Claude artifact). Astro turns
+the registry into static pages; GitHub Pages serves them.</p>
 
 <h2>Local pages</h2>
 
-<p>Point a route at a file. If the file is a full HTML document it is served
-untouched; if it is a fragment like this one, the build wraps it in a readable
-shell so you can write plain HTML without boilerplate.</p>
+<p>Point a route at a file. A fragment like this one is rendered through Astro's
+<code>Doc</code> layout, so you can write plain HTML without boilerplate. A file that
+is already a full document is served byte for byte instead.</p>
 
 <pre><code>{
   "route": "/about",
@@ -42,10 +43,19 @@ frees the route from anyone else's hosting.</p>
   "url": "https://claude.site/artifacts/..."
 }</code></pre>
 
+<h2>Two render paths</h2>
+
+<p>A complete HTML document cannot be nested inside an Astro layout &mdash; you would
+get <code>html</code>/<code>head</code>/<code>body</code> inside
+<code>html</code>/<code>head</code>/<code>body</code>, which browsers silently
+restructure. So imported snapshots and local full documents are written straight
+into <code>public/</code> and copied verbatim into the build. Fragments and the
+embed/redirect shims go through Astro properly.</p>
+
 <h2>Adding a page</h2>
 
 <pre><code>node tools/add.mjs --route /claude-demo --url https://claude.site/artifacts/... --title "Claude demo"
-npm run build</code></pre>
+npm run dev</code></pre>
 
 <p>The snapshot lands in <code>imported/</code> and is committed alongside the code,
 so a deploy never depends on the source being reachable.</p>

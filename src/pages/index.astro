@@ -1,0 +1,246 @@
+---
+import { loadRegistry, classify } from '../../tools/registry.mjs';
+import { hasSnapshot, readSnapshot } from '../../tools/importer.mjs';
+import Doc from '../layouts/Doc.astro';
+import { routeHref } from '../lib/paths';
+
+const { site, pages } = await loadRegistry();
+
+const BADGES = {
+  local: { label: 'Local', title: 'Authored in this repository' },
+  import: { label: 'Imported', title: 'Snapshot of an external page, hosted here' },
+  embed: { label: 'Embedded', title: 'Loaded from the source in an iframe' },
+  redirect: { label: 'Redirect', title: 'Sends visitors to the source URL' },
+};
+
+const cards = await Promise.all(
+  pages.map(async (page) => {
+    const kind = page.type === 'local' ? 'local' : page.mode;
+    const href = routeHref(page.route);
+
+    let meta = page.file ?? '';
+    if (page.type === 'external') {
+      meta = new URL(page.url).host;
+      if (page.mode === 'import' && hasSnapshot(page)) {
+        const snapshot = await readSnapshot(page);
+        if (snapshot.meta?.fetchedAt) meta += ` · snapshot ${snapshot.meta.fetchedAt.slice(0, 10)}`;
+      }
+    }
+
+    return {
+      href,
+      meta,
+      badge: BADGES[kind] ?? BADGES.local,
+      renderedBy: await classify(page),
+      title: page.title,
+      route: page.route,
+      description: page.description,
+      tags: page.tags,
+      search: [page.title, page.description, page.route, ...page.tags].join(' ').toLowerCase(),
+    };
+  }),
+);
+---
+
+<Doc title={site.title} siteTitle={site.title} description={site.description} chrome={false} wide>
+  <header>
+    <h1>{site.title}</h1>
+    <p>{site.description}</p>
+    <input
+      class="filter"
+      id="filter"
+      type="search"
+      placeholder={`Filter ${cards.length} page${cards.length === 1 ? '' : 's'}…`}
+      aria-label="Filter pages"
+      autocomplete="off"
+    />
+  </header>
+
+  <ul id="cards">
+    {
+      cards.map((card) => (
+        <li class="card" data-search={card.search}>
+          <a class="hit" href={card.href}>
+            <span class="badge" title={card.badge.title}>
+              {card.badge.label}
+            </span>
+            <h2>{card.title}</h2>
+            <p class="route">{card.route}</p>
+            {card.description && <p class="desc">{card.description}</p>}
+          </a>
+          {card.tags.length > 0 && (
+            <p class="tags">
+              {card.tags.map((tag) => (
+                <span>{tag}</span>
+              ))}
+            </p>
+          )}
+          <p class="src">{card.meta}</p>
+        </li>
+      ))
+    }
+  </ul>
+
+  <p class="empty" id="empty">Nothing matches that filter.</p>
+
+  <footer>
+    Routes are defined in <code>pages.json</code>. Imported pages are snapshots stored in
+    <code>imported/</code> and served from this domain.
+  </footer>
+</Doc>
+
+<script>
+  const input = document.getElementById('filter') as HTMLInputElement | null;
+  const cards = Array.from(document.querySelectorAll<HTMLElement>('#cards .card'));
+  const empty = document.getElementById('empty');
+
+  input?.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    let shown = 0;
+    for (const card of cards) {
+      const match = !q || (card.dataset.search ?? '').includes(q);
+      card.hidden = !match;
+      if (match) shown++;
+    }
+    if (empty) empty.style.display = shown ? 'none' : 'block';
+  });
+</script>
+
+<style>
+  header {
+    margin-bottom: 2.5rem;
+  }
+  h1 {
+    font-size: clamp(1.9rem, 1.3rem + 2.4vw, 2.8rem);
+    line-height: 1.1;
+    letter-spacing: -.025em;
+    margin: 0 0 .6rem;
+  }
+  header p {
+    color: var(--muted);
+    margin: 0;
+    max-width: 42rem;
+  }
+  .filter {
+    width: 100%;
+    max-width: 22rem;
+    margin: 1.75rem 0 0;
+    padding: .6rem .85rem;
+    font: inherit;
+    font-size: .95rem;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+  }
+  .filter:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+  }
+  .card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.1rem 1.2rem 1rem;
+    box-shadow: var(--shadow);
+    transition: transform .15s ease, border-color .15s ease;
+  }
+  .card:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent);
+  }
+  .card:has(.hit:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .hit {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+  }
+  .hit::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 14px;
+  }
+  .hit:focus-visible {
+    outline: none;
+  }
+  .card h2 {
+    font-size: 1.06rem;
+    line-height: 1.3;
+    letter-spacing: -.01em;
+    margin: .55rem 0 .2rem;
+  }
+  .route {
+    font: .78rem var(--mono);
+    color: var(--muted);
+    margin: 0;
+  }
+  .desc {
+    color: var(--muted);
+    font-size: .9rem;
+    margin: .5rem 0 0;
+  }
+  .badge {
+    display: inline-block;
+    font-size: .68rem;
+    font-weight: 600;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    padding: .2rem .5rem;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem;
+    margin: .25rem 0 0;
+    position: relative;
+  }
+  .tags span {
+    font-size: .7rem;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: .1rem .5rem;
+  }
+  .src {
+    font-size: .75rem;
+    color: var(--muted);
+    margin: 0;
+    word-break: break-word;
+    position: relative;
+  }
+  .empty {
+    color: var(--muted);
+    font-size: .95rem;
+    padding: 2rem 0;
+    display: none;
+  }
+  footer {
+    margin-top: 3.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: .82rem;
+  }
+  footer code {
+    font-family: var(--mono);
+  }
+</style>

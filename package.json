@@ -2,15 +2,23 @@
   "name": "html-docs-to-learn",
   "private": true,
   "type": "module",
-  "description": "A single GitHub Pages site that routes to local HTML pages and imported external HTML pages.",
+  "description": "An Astro site that routes to local HTML pages and imported external HTML pages, deployed to GitHub Pages.",
   "scripts": {
-    "build": "node tools/build.mjs",
-    "dev": "node tools/build.mjs --base= && node tools/serve.mjs",
+    "prepare:pages": "node tools/prepare.mjs",
+    "dev": "node tools/prepare.mjs && astro dev",
+    "start": "npm run dev",
+    "build": "node tools/prepare.mjs && astro build",
+    "build:refresh": "node tools/prepare.mjs --refresh && astro build",
+    "preview": "astro preview",
     "import": "node tools/import.mjs",
     "add": "node tools/add.mjs",
-    "serve": "node tools/serve.mjs"
+    "check": "astro check",
+    "whichnode": "node -e \"console.log(process.version + ' | ' + process.execPath)\""
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22.12.0"
+  },
+  "dependencies": {
+    "astro": "^7.2.4"
   }
 }

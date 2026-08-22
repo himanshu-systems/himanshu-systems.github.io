@@ -1,0 +1,35 @@
+---
+import '../styles/tokens.css';
+
+interface Props {
+  title: string;
+  siteTitle: string;
+  url: string;
+}
+
+const { title, siteTitle, url } = Astro.props;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="refresh" content={`0; url=${url}`} />
+    <link rel="canonical" href={url} />
+    <meta name="robots" content="noindex" />
+    <title>{title} · {siteTitle}</title>
+  </head>
+  <body>
+    <div class="wrap">
+      <p>Redirecting to <a href={url}>{url}</a>&hellip;</p>
+    </div>
+    <script is:inline set:html={`location.replace(${JSON.stringify(url)});`} />
+  </body>
+</html>
+
+<style>
+  .wrap {
+    max-width: 34rem;
+    margin: 0 auto;
+    padding: 5rem 1.5rem;
+  }
+</style>

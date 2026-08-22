@@ -1,0 +1,82 @@
+---
+import { home, asset } from '../lib/paths';
+import '../styles/tokens.css';
+
+interface Props {
+  title: string;
+  siteTitle: string;
+  url: string;
+}
+
+const { title, siteTitle, url } = Astro.props;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title} · {siteTitle}</title>
+    <link rel="icon" href={asset('favicon.svg')} />
+  </head>
+  <body>
+    <div class="bar">
+      <a href={home}>&#8592; Collection</a>
+      <strong>{title}</strong>
+      <span class="spacer"></span>
+      <span class="hint">Blank below? The source blocks embedding &mdash;</span>
+      <a href={url} target="_blank" rel="noopener noreferrer">open it directly &#8599;</a>
+    </div>
+    <iframe src={url} title={title} loading="lazy" referrerpolicy="no-referrer"></iframe>
+  </body>
+</html>
+
+<style>
+  html,
+  body {
+    height: 100%;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+  }
+  .bar {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .5rem .9rem;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    font-size: .82rem;
+  }
+  .bar a {
+    color: var(--accent);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .bar a:hover {
+    text-decoration: underline;
+  }
+  .bar strong {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .spacer {
+    flex: 1;
+  }
+  .hint {
+    color: var(--muted);
+  }
+  @media (max-width: 40rem) {
+    .hint {
+      display: none;
+    }
+  }
+  iframe {
+    flex: 1;
+    width: 100%;
+    border: 0;
+    background: var(--bg);
+  }
+</style>
