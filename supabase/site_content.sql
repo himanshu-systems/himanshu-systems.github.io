@@ -75,8 +75,12 @@ values (
     {"src":"images/work-3.svg","alt":"Placeholder image three","caption":""}
   ]'::jsonb,
   '[
-    {"label":"github","text":"@himanshu-systems","href":"https://github.com/himanshu-systems"},
-    {"label":"email","text":"himanshuchavdacodes@gmail.com","href":"mailto:himanshuchavdacodes@gmail.com"}
+        {"label":"github","text":"@himanshu-systems","href":"https://github.com/himanshu-systems"},
+    {"label":"email","text":"himanshu.tech.profile@gmail.com","href":"mailto:himanshu.tech.profile@gmail.com"},
+    {"label":"twitter","text":"@himanshu_","href":"https://twitter.com/himanshu_systems"},
+    {"label":"linkedin","text":"@himanshu-systems","href":"https://www.linkedin.com/in/himanshuchavda/"},
+    {"label":"instagram","text":"@himanshu_","href":"https://www.instagram.com/himanshu.nihilist/"}
+    
   ]'::jsonb
 )
 on conflict (id) do nothing;
