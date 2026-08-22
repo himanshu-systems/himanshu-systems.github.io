@@ -1,0 +1,84 @@
+---
+/** Cycles system → light → dark. ThemeInit (in <head>) applies the saved value. */
+---
+
+<button id="theme-toggle" type="button" aria-label="Change theme">
+  <span class="glyph" aria-hidden="true"></span>
+  <span class="label">system</span>
+</button>
+
+<script>
+  const KEY = 'theme';
+  const order = ['system', 'light', 'dark'] as const;
+  type Mode = (typeof order)[number];
+
+  const stamp = (mode: Mode) => {
+    const root = document.documentElement;
+    if (mode === 'system') root.removeAttribute('data-theme');
+    else root.setAttribute('data-theme', mode);
+  };
+
+  const read = (): Mode => {
+    try {
+      const saved = localStorage.getItem(KEY) as Mode | null;
+      return saved && order.includes(saved) ? saved : 'system';
+    } catch {
+      return 'system';
+    }
+  };
+
+  let mode = read();
+
+  const button = document.getElementById('theme-toggle');
+  const label = button?.querySelector('.label');
+
+  const paint = () => {
+    if (label) label.textContent = mode;
+    button?.setAttribute('title', `Theme: ${mode}`);
+  };
+
+  paint();
+
+  button?.addEventListener('click', () => {
+    mode = order[(order.indexOf(mode) + 1) % order.length];
+    stamp(mode);
+    try {
+      localStorage.setItem(KEY, mode);
+    } catch {
+      /* private mode: the choice just does not persist */
+    }
+    paint();
+  });
+</script>
+
+<style>
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: .5em;
+    padding: .3rem .6rem .3rem .5rem;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: .7rem;
+    letter-spacing: .04em;
+    cursor: pointer;
+    transition: color .15s ease, border-color .15s ease;
+  }
+
+  button:hover {
+    color: var(--text);
+    border-color: var(--border-strong);
+  }
+
+  .glyph {
+    width: .7em;
+    height: .7em;
+    border-radius: 50%;
+    border: 1px solid currentColor;
+    /* Half-filled disc: reads as "contrast" in either theme. */
+    background: linear-gradient(to right, currentColor 50%, transparent 50%);
+  }
+</style>

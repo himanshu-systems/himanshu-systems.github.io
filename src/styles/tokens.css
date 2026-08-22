@@ -1,42 +1,114 @@
+/*
+ * Design tokens. See DESIGN.md for the reasoning behind these values.
+ *
+ * Theme resolution has three states, so every token is defined three times:
+ *   :root                                    complete light palette
+ *   prefers-color-scheme + :not([data-theme="light"])   system dark
+ *   [data-theme="dark"]                      explicit toggle
+ * Components read tokens only. A colour defined solely inside a media or
+ * [data-theme] block never applies in the unstamped state.
+ */
+
 :root {
   color-scheme: light dark;
-  --bg: #fbfaf8;
+
+  /* Cool ink neutrals - deliberately not warm cream. */
+  --bg: #fbfbfc;
   --surface: #ffffff;
-  --border: #e5e1da;
-  --text: #201d1a;
-  --muted: #6b6660;
-  --accent: #b8552a;
-  --accent-soft: #f6eae2;
-  --shadow: 0 1px 2px rgba(32, 29, 26, .06), 0 8px 24px -16px rgba(32, 29, 26, .3);
-  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --border: #e6e7ea;
+  --border-strong: #d3d5da;
+  --text: #14161a;
+  --muted: #61666f;
+  --faint: #6d737c;
+
+  /* One accent, spent only on hover, focus and active state. */
+  --accent: #0b7a6e;
+  --accent-soft: #e6f2f0;
+
+  --serif: "Newsreader", ui-serif, Georgia, "Times New Roman", serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --measure: 34rem;
+  --page: 58rem;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #17150f;
-    --surface: #201d17;
-    --border: #37322a;
-    --text: #f1ece4;
-    --muted: #a29a8e;
-    --accent: #e08a5b;
-    --accent-soft: #2e241c;
-    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px -16px rgba(0, 0, 0, .8);
+  :root:not([data-theme="light"]) {
+    --bg: #0c0e11;
+    --surface: #14171b;
+    --border: #22262c;
+    --border-strong: #333941;
+    --text: #e9eaec;
+    --muted: #8a9099;
+    --faint: #7d838d;
+
+    --accent: #4ecbb8;
+    --accent-soft: #12241f;
   }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0c0e11;
+  --surface: #14171b;
+  --border: #22262c;
+  --border-strong: #333941;
+  --text: #e9eaec;
+  --muted: #8a9099;
+  --faint: #7d838d;
+
+  --accent: #4ecbb8;
+  --accent-soft: #12241f;
 }
 
 * {
   box-sizing: border-box;
 }
 
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font: 16px/1.6 var(--sans);
+html {
   -webkit-text-size-adjust: 100%;
 }
 
+body {
+  margin: 0;
+  /* Explicit, from a token: a transparent body borrows the host's ground. */
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--serif);
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  font-synthesis-weight: none;
+  text-rendering: optimizeLegibility;
+}
+
 a {
-  color: var(--accent);
+  color: inherit;
+  text-decoration-color: var(--border-strong);
+  text-underline-offset: .18em;
+  text-decoration-thickness: 1px;
+}
+
+a:hover {
+  text-decoration-color: var(--accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

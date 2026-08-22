@@ -26,16 +26,19 @@ export function chromeMarkup({ home, sourceUrl = null, title = 'Collection' } = 
 #__collection_bar a {
   all: unset;
   cursor: pointer;
-  background: #201d1a;
-  color: #fbfaf8;
-  font-size: 12px;
+  /* Literal colours on purpose: this is injected into pages whose styling we
+     do not control, so it cannot depend on the site's tokens. */
+  background: #14161a;
+  color: #fbfbfc;
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
   line-height: 1;
-  letter-spacing: .01em;
+  letter-spacing: .04em;
   padding: 9px 13px;
   white-space: nowrap;
 }
-#__collection_bar a:hover { background: #3a352f; }
-#__collection_bar a:focus-visible { outline: 2px solid #e08a5b; outline-offset: -2px; }
+#__collection_bar a:hover { background: #2b2f36; color: #4ecbb8; }
+#__collection_bar a:focus-visible { outline: 2px solid #4ecbb8; outline-offset: -2px; }
 @media print { #__collection_bar { display: none; } }
 </style>
 <div id="__collection_bar" role="navigation" aria-label="Collection">

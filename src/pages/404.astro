@@ -7,16 +7,22 @@ const { site } = await loadRegistry();
 ---
 
 <Doc title="Not found" siteTitle={site.title} chrome={false}>
+  <p class="code">404</p>
   <h1>No page on that route</h1>
-  <p>This route is not registered in <code>pages.json</code>.</p>
-  <p><a href={home}>Back to the collection</a></p>
+  <p class="lede">This route is not registered in <code>pages.json</code>.</p>
+  <p><a href={home}>Back to the index</a></p>
 </Doc>
 
 <style>
-  h1 {
-    font-size: 1.8rem;
+  .code {
+    font-family: var(--mono);
+    font-size: .7rem;
+    letter-spacing: .16em;
+    color: var(--faint);
+    margin: 0 0 1.5rem;
   }
-  p {
+
+  .lede {
     color: var(--muted);
   }
 </style>

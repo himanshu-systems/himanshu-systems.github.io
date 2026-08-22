@@ -1,5 +1,6 @@
 ---
 import Chrome from '../components/Chrome.astro';
+import ThemeInit from '../components/ThemeInit.astro';
 import { asset } from '../lib/paths';
 import '../styles/tokens.css';
 
@@ -29,9 +30,16 @@ const {
     <title>{title === siteTitle ? title : `${title} · ${siteTitle}`}</title>
     {description && <meta name="description" content={description} />}
     <link rel="icon" href={asset('favicon.svg')} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap"
+    />
+    <ThemeInit />
   </head>
   <body>
-    <main class={wide ? 'doc doc--wide' : 'doc'}>
+    <main class={wide ? 'shell shell--wide' : 'shell'}>
       <slot />
     </main>
     {chrome && <Chrome sourceUrl={sourceUrl} title={siteTitle} />}
@@ -39,69 +47,121 @@ const {
 </html>
 
 <style is:global>
-  .doc {
-    max-width: 46rem;
+  .shell {
+    max-width: var(--measure);
     margin: 0 auto;
-    padding: 4rem 1.5rem 7rem;
+    padding: clamp(3rem, 8vw, 6rem) 1.5rem 8rem;
   }
-  .doc--wide {
-    max-width: 62rem;
+
+  .shell--wide {
+    max-width: var(--page);
   }
-  .doc h1 {
-    font-size: clamp(1.7rem, 1.2rem + 2vw, 2.4rem);
-    line-height: 1.15;
+
+  /* Prose defaults, scoped so the index page can opt out per element. */
+  .shell h1 {
+    font-weight: 500;
+    font-size: clamp(2rem, 1.4rem + 2.4vw, 2.9rem);
+    line-height: 1.1;
     letter-spacing: -.02em;
-    margin: 0 0 1rem;
+    text-wrap: balance;
+    margin: 0 0 1.5rem;
   }
-  .doc h2 {
-    margin: 2.5rem 0 .75rem;
-    font-size: 1.3rem;
+
+  .shell h2 {
+    font-weight: 500;
+    font-size: 1.4rem;
+    line-height: 1.25;
     letter-spacing: -.01em;
+    text-wrap: balance;
+    margin: 3rem 0 .75rem;
   }
-  .doc h3 {
-    margin: 2rem 0 .5rem;
+
+  .shell h3 {
+    font-weight: 600;
     font-size: 1.05rem;
+    margin: 2.25rem 0 .5rem;
   }
-  .doc hr {
+
+  .shell p {
+    margin: 0 0 1.1rem;
+  }
+
+  .shell ul,
+  .shell ol {
+    padding-left: 1.2rem;
+  }
+
+  .shell li {
+    margin: .35rem 0;
+  }
+
+  .shell hr {
     border: 0;
     border-top: 1px solid var(--border);
-    margin: 2.5rem 0;
+    margin: 3rem 0;
   }
-  .doc code {
-    font: .875em var(--mono);
+
+  .shell code {
+    font-family: var(--mono);
+    font-size: .82em;
     background: var(--accent-soft);
     padding: .15em .4em;
-    border-radius: 4px;
+    border-radius: 3px;
   }
-  .doc pre {
+
+  .shell pre {
+    font-family: var(--mono);
+    font-size: .82rem;
+    line-height: 1.7;
     background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 1rem;
+    border-radius: 6px;
+    padding: 1rem 1.1rem;
     overflow-x: auto;
+    margin: 1.5rem 0;
   }
-  .doc pre code {
+
+  .shell pre code {
     background: none;
     padding: 0;
+    font-size: inherit;
   }
-  .doc table {
+
+  .shell table {
     width: 100%;
     border-collapse: collapse;
+    font-size: .95rem;
+    margin: 1.5rem 0;
+    font-variant-numeric: tabular-nums;
   }
-  .doc th,
-  .doc td {
+
+  .shell th {
+    font-weight: 600;
+    font-size: .72rem;
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+  }
+
+  .shell th,
+  .shell td {
     text-align: left;
     border-bottom: 1px solid var(--border);
-    padding: .5rem .6rem;
+    padding: .6rem .7rem .6rem 0;
+    vertical-align: top;
   }
-  .doc img {
+
+  .shell img {
     max-width: 100%;
     height: auto;
   }
-  .doc blockquote {
-    margin: 1.5rem 0;
-    padding-left: 1rem;
-    border-left: 3px solid var(--border);
+
+  .shell blockquote {
+    margin: 1.75rem 0;
+    padding-left: 1.1rem;
+    border-left: 2px solid var(--border-strong);
     color: var(--muted);
+    font-style: italic;
   }
 </style>
