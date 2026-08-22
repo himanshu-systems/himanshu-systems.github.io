@@ -63,6 +63,40 @@ const me = {
     },
   ],
 
+  /* Things you tried: worked, failed, mixed, still going — whatever actually
+     happened. outcome and liked are free text on purpose, so you are never
+     stuck picking from a fixed list; write what fits. */
+  log: [
+    {
+      date: '2026-08',
+      title: 'Something you tried',
+      note: 'What it was and what happened, in a sentence or two.',
+      outcome: 'worked',
+      liked: 'liked it',
+    },
+    {
+      date: '2026-07',
+      title: 'Something that did not pan out',
+      note: 'What you expected, and where it fell apart.',
+      outcome: 'failed',
+      liked: 'not for me',
+    },
+    {
+      date: '2026-06',
+      title: 'Something with a mixed result',
+      note: 'What worked, what did not, and why you kept part of it.',
+      outcome: 'mixed',
+      liked: 'mixed feelings',
+    },
+    {
+      date: '2026-05',
+      title: 'Something still in progress',
+      note: 'Where it stands right now.',
+      outcome: 'ongoing',
+      liked: 'liked it',
+    },
+  ],
+
   /* Screenshots, photos, anything visual. Drop files into static/images/ and
      point at them here. Captions are optional. */
   gallery: [
@@ -148,6 +182,29 @@ const me = {
               </li>
             );
           })}
+        </ol>
+      </section>
+    )
+  }
+
+  {
+    me.log.length > 0 && (
+      <section>
+        <h2>Tried</h2>
+        <ol class="rows">
+          {me.log.map((item) => (
+            <li class="row entry">
+              <span class="date">{item.date}</span>
+              <span class="body">
+                <span class="title">{item.title}</span>
+                {item.note && <span class="blurb">{item.note}</span>}
+              </span>
+              <span class="tags">
+                {item.outcome && <span class="tag">{item.outcome}</span>}
+                {item.liked && <span class="tag tag-liked">{item.liked}</span>}
+              </span>
+            </li>
+          ))}
         </ol>
       </section>
     )
@@ -373,6 +430,45 @@ const me = {
     word-break: break-word;
   }
 
+  /* Three columns: date, then the two-line body, then the outcome/liked pair
+     stacked and right-aligned — the same shape as the collection index's
+     meta column. Not a link, so no hover state. */
+  .entry {
+    display: grid;
+    grid-template-columns: 6rem 1fr auto;
+    align-items: baseline;
+    gap: 1.5rem;
+    padding: 1.1rem 0;
+  }
+
+  .date {
+    font-family: var(--mono);
+    font-size: .76rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tags {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: .3rem;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .tag {
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  .tag-liked {
+    color: var(--muted);
+  }
+
   .gallery {
     list-style: none;
     margin: 1.75rem 0 0;
@@ -418,6 +514,19 @@ const me = {
       grid-template-columns: 1fr;
       gap: .4rem;
       padding: 1rem 0;
+    }
+
+    .entry {
+      grid-template-columns: 1fr;
+      gap: .4rem;
+      padding: 1rem 0;
+    }
+
+    .tags {
+      flex-direction: row;
+      align-items: baseline;
+      gap: .8rem;
+      text-align: left;
     }
 
     a.pair:hover {
