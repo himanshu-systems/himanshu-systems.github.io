@@ -172,6 +172,19 @@ element that actually holds the two children** — the `<a>`, or the `<div>` in 
 inside the outer grid's first column and the row collapses to `10rem` wide. That
 bug shipped once already.
 
+The same rule applies to the three-column `.entry` rows on the about page and
+`/tried`: the grid goes directly on the `<a>` (or, on the about page, the `<li>`
+when there is nowhere to link yet), never on a wrapper around it.
+
+### Search
+
+`/pages` and `/tried` both filter with `src/lib/filter.ts`'s `matchesQuery`:
+every whitespace-separated word in the query must appear somewhere in the row,
+in any order. Typing "iit hackathon" matches a row containing both words in
+either order, not only that exact three-word phrase — a plain substring test
+would miss it. Nothing is scored or ranked; a small personal list doesn't need
+that, so query words either all match or they don't.
+
 ### Images
 
 Files live in `static/`, which is copied to the site root during `prepare`, so
@@ -216,22 +229,35 @@ mouse click does not draw a ring but a Tab key does.
 
 ## Files
 
-Two routes are hand-written Astro pages rather than registry entries: `/` is the
-about page and `/pages` is the generated collection index. A static Astro route
-silently beats the `[...route]` catch-all, so both are listed in `RESERVED` in
-`tools/registry.mjs` — registering either in `pages.json` now fails loudly
-instead of building a page nothing can reach.
+Three routes are hand-written Astro pages rather than registry entries: `/` is
+the about page, `/pages` is the generated collection index, and `/tried/<slug>`
+is each Tried entry's own page. A static Astro route silently beats the
+`[...route]` catch-all, so `/`, `/pages`, and anything under `/tried/` are
+rejected in `tools/registry.mjs` — registering one of them in `pages.json` now
+fails loudly instead of building a page nothing can reach.
 
-| File                              | Holds                                        |
-| --------------------------------- | -------------------------------------------- |
-| `src/styles/tokens.css`           | all three theme states, base element styles  |
-| `src/layouts/Doc.astro`           | `.shell`, font loading, global prose styles   |
-| `src/layouts/Frame.astro`         | the embed wrapper for `mode: "embed"`         |
-| `src/components/ThemeInit.astro`  | pre-paint theme stamp (`is:inline`, in head) |
-| `src/components/ThemeToggle.astro`| the system/light/dark cycle button           |
-| `src/pages/index.astro`           | the about page; all copy sits in one `me` object |
-| `src/pages/pages.astro`           | the generated collection index               |
-| `tools/chrome.mjs`                | the "← Collection" pill                      |
+**Content lives in `src/data/`, not in the page files.** `src/pages/index.astro`
+imports `me` from `src/data/me.ts`; `src/pages/tried.astro` and
+`src/pages/tried/[slug].astro` both import `triedRows` from `src/lib/tried.ts`,
+which reads `src/data/tried.ts`. Editing a bio line or logging a new attempt
+never means touching a `.astro` file.
+
+| File                                | Holds                                        |
+| ------------------------------------ | -------------------------------------------- |
+| `src/styles/tokens.css`             | all three theme states, base element styles  |
+| `src/layouts/Doc.astro`             | `.shell`, font loading, global prose styles   |
+| `src/layouts/Frame.astro`           | the embed wrapper for `mode: "embed"`         |
+| `src/components/ThemeInit.astro`    | pre-paint theme stamp (`is:inline`, in head) |
+| `src/components/ThemeToggle.astro`  | the system/light/dark cycle button           |
+| `src/data/me.ts`                    | about-page content — name, intro, work, gallery, elsewhere |
+| `src/data/tried.ts`                 | Tried entries — date, note, optional description/image, outcome, liked, tags |
+| `src/lib/tried.ts`                  | sorts tried.ts newest-first, builds each slug/href/search string once |
+| `src/lib/filter.ts`                 | `matchesQuery` — the live-filter matcher shared by /pages and /tried |
+| `src/pages/index.astro`             | the about page; renders `me` plus a 3-entry Tried teaser |
+| `src/pages/pages.astro`             | the generated collection index               |
+| `src/pages/tried.astro`             | the full, filterable Tried list              |
+| `src/pages/tried/[slug].astro`      | one entry's own page — image and full description, if set |
+| `tools/chrome.mjs`                  | the "← Collection" pill                      |
 
 `chrome.mjs` uses **literal colours, not tokens** — by design. It is injected
 into imported documents whose CSS we do not control, so it cannot depend on this
