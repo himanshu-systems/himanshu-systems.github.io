@@ -636,13 +636,37 @@ const { site } = await loadRegistry();
   });
 </script>
 
-<style>
+<style is:global>
+  /* is:global, deliberately: every row in the four list editors and every
+     row in the Tried entry list is built with document.createElement() at
+     runtime. Astro's scoped CSS works by stamping a data-astro-cid
+     attribute onto elements that exist in the template at build time --
+     anything created later in the client script never gets it, so a
+     scoped style here would silently never match most of this page. This
+     file is the only thing rendering on /admin, so there's nothing else
+     for these class names to collide with. */
   /* This page is a private tool, not the public showcase -- DESIGN.md's
      "no cards, hairlines only" rule is deliberately relaxed here. Panels
-     make a form with this many fields scannable in a way flat text can't. */
+     make a form with this many fields scannable in a way flat text can't.
+     Same reasoning for typography: the site's serif is a reading face, and
+     everything here is a form field or a button, not prose to read. A
+     system sans keeps every label and input reading as UI, not an essay
+     with boxes glued onto it. Every rule below that needs it repeats the
+     same literal stack -- Astro scopes styles per-component, so a custom
+     property would need a real element to hang off, which is more
+     indirection than five repeated font-family lines are worth. */
+
+  /* Everything below the header is UI, not prose -- override the shell's
+     serif default here rather than on each individual rule. The nav links,
+     buttons, dates, and tags below all set --mono explicitly already, so
+     they still win over this on the cascade. */
+  #login-section,
+  #admin-section {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  }
 
   header {
-    margin-bottom: clamp(2.5rem, 6vw, 3.5rem);
+    margin-bottom: clamp(1.75rem, 4vw, 2.5rem);
   }
 
   .masthead {
@@ -682,13 +706,20 @@ const { site } = await loadRegistry();
   }
 
   h1 {
-    margin: 0 0 .8rem;
+    margin: 0 0 .5rem;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 1.35rem;
+    font-weight: 600;
+    letter-spacing: -.01em;
+    color: var(--text);
   }
 
   .standfirst {
     margin: 0;
-    max-width: 40rem;
-    font-size: 1.02rem;
+    max-width: 34rem;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: .88rem;
+    line-height: 1.5;
     color: var(--muted);
     text-wrap: pretty;
   }
@@ -746,7 +777,9 @@ const { site } = await loadRegistry();
     display: flex;
     flex-direction: column;
     gap: .35rem;
-    font-size: .85rem;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: .82rem;
+    font-weight: 500;
     color: var(--muted);
   }
 
@@ -768,9 +801,8 @@ const { site } = await loadRegistry();
 
   input,
   textarea {
-    font: inherit;
-    font-family: var(--serif);
-    font-size: .95rem;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: .9rem;
     color: var(--text);
     background: var(--bg);
     border: 1px solid var(--border);
