@@ -70,7 +70,7 @@ const { site } = await loadRegistry();
 
           <label>
             <span>Intro</span>
-            <textarea id="a-intro" rows="4" required></textarea>
+            <textarea id="a-intro" rows="3"></textarea>
           </label>
 
           <label>
@@ -78,69 +78,93 @@ const { site } = await loadRegistry();
             <input type="text" id="a-now" />
           </label>
 
-          <div class="grid2">
-            <label>
-              <span>Portrait path <small>a file already in static/images/</small></span>
+          <div class="row-fields">
+            <label class="field-narrow">
+              <span>Portrait path <small>in static/images/</small></span>
               <input type="text" id="a-portrait-src" placeholder="images/portrait.jpg" />
             </label>
-            <label>
+            <label class="field-narrow">
               <span>Portrait alt text</span>
               <input type="text" id="a-portrait-alt" />
             </label>
           </div>
         </section>
 
-        <section class="panel">
-          <div class="panel-head">
-            <h2>What I do</h2>
+        <details class="panel collapsible" id="section-doing">
+          <summary>
+            <span class="chev" aria-hidden="true">▸</span>
+            <span>What I do</span>
+            <span class="count" id="count-doing">0</span>
+          </summary>
+          <div class="panel-body">
+            <div id="doing-list" class="list"></div>
             <button type="button" class="add-row" id="add-doing">+ Add row</button>
           </div>
-          <div id="doing-list" class="list"></div>
-        </section>
+        </details>
 
-        <section class="panel">
-          <div class="panel-head">
-            <h2>Selected work</h2>
+        <details class="panel collapsible" id="section-work">
+          <summary>
+            <span class="chev" aria-hidden="true">▸</span>
+            <span>Selected work</span>
+            <span class="count" id="count-work">0</span>
+          </summary>
+          <div class="panel-body">
+            <div id="work-list" class="list"></div>
             <button type="button" class="add-row" id="add-work">+ Add row</button>
           </div>
-          <div id="work-list" class="list"></div>
-        </section>
+        </details>
 
-        <section class="panel">
-          <div class="panel-head">
-            <h2>Images</h2>
+        <details class="panel collapsible" id="section-gallery">
+          <summary>
+            <span class="chev" aria-hidden="true">▸</span>
+            <span>Images</span>
+            <span class="count" id="count-gallery">0</span>
+          </summary>
+          <div class="panel-body">
+            <div id="gallery-list" class="list"></div>
             <button type="button" class="add-row" id="add-gallery">+ Add row</button>
           </div>
-          <div id="gallery-list" class="list"></div>
-        </section>
+        </details>
 
-        <section class="panel">
-          <div class="panel-head">
-            <h2>Elsewhere</h2>
+        <details class="panel collapsible" id="section-elsewhere">
+          <summary>
+            <span class="chev" aria-hidden="true">▸</span>
+            <span>Elsewhere</span>
+            <span class="count" id="count-elsewhere">0</span>
+          </summary>
+          <div class="panel-body">
+            <div id="elsewhere-list" class="list"></div>
             <button type="button" class="add-row" id="add-elsewhere">+ Add row</button>
           </div>
-          <div id="elsewhere-list" class="list"></div>
-        </section>
+        </details>
 
         <div class="actions">
           <button type="submit" class="primary">Save about page</button>
+          <p class="notice" id="about-status" hidden></p>
         </div>
-        <p class="notice" id="about-status" hidden></p>
       </form>
     </div>
 
     <!-- ───────────────────────── Tried entries ───────────────────────── -->
     <div id="panel-tried" class="tab-panel" hidden>
-      <section class="panel">
-        <p class="form-title" id="form-title">New entry</p>
+      <div class="list-toolbar">
+        <button type="button" class="primary" id="new-entry-button">+ New entry</button>
+        <span class="notice" id="form-status" hidden></span>
+      </div>
+
+      <div id="entry-form-wrapper" class="panel" hidden>
+        <div class="panel-head">
+          <p class="form-title" id="form-title">New entry</p>
+          <button type="button" id="cancel-edit">Close</button>
+        </div>
 
         <form id="entry-form">
-          <div class="grid2">
-            <label>
+          <div class="row-fields">
+            <label class="field-narrow">
               <span>Date</span>
               <input type="date" id="f-date" required />
             </label>
-            <label class="checkbox">
+            <label class="checkbox field-narrow">
               <input type="checkbox" id="f-public" />
               <span>Public — visible on the live site</span>
             </label>
@@ -158,31 +182,30 @@ const { site } = await loadRegistry();
 
           <label>
             <span>Description <small>optional — its own page only; a blank line starts a new paragraph</small></span>
-            <textarea id="f-description" rows="5"></textarea>
+            <textarea id="f-description" rows="4"></textarea>
           </label>
 
-          <div class="grid2">
-            <label>
+          <div class="row-fields">
+            <label class="field-narrow">
               <span>Outcome</span>
               <input type="text" id="f-outcome" placeholder="worked, failed, mixed, ongoing…" required />
             </label>
-            <label>
+            <label class="field-narrow">
               <span>Liked</span>
               <input type="text" id="f-liked" placeholder="liked it, not for me…" required />
             </label>
+            <label class="field-narrow">
+              <span>Tags <small>comma separated</small></span>
+              <input type="text" id="f-tags" placeholder="systems, security" />
+            </label>
           </div>
 
-          <label>
-            <span>Tags <small>comma separated</small></span>
-            <input type="text" id="f-tags" placeholder="systems, security" />
-          </label>
-
-          <div class="grid2">
-            <label>
-              <span>Image path <small>optional — a file already in static/images/</small></span>
+          <div class="row-fields">
+            <label class="field-narrow">
+              <span>Image path <small>in static/images/</small></span>
               <input type="text" id="f-image-src" placeholder="images/whatever.jpg" />
             </label>
-            <label>
+            <label class="field-narrow">
               <span>Image alt text</span>
               <input type="text" id="f-image-alt" />
             </label>
@@ -192,15 +215,21 @@ const { site } = await loadRegistry();
 
           <div class="actions">
             <button type="submit" class="primary" id="save-button">Save</button>
-            <button type="button" id="cancel-edit" hidden>Cancel edit</button>
           </div>
-
-          <p class="notice" id="form-status" hidden></p>
         </form>
-      </section>
+      </div>
 
-      <h2 class="list-heading">All entries</h2>
-      <ol class="rows" id="entry-list"></ol>
+      <table class="entries-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Entry</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="entry-list"></tbody>
+      </table>
       <p class="empty" id="list-empty" hidden>No entries yet.</p>
     </div>
   </section>
@@ -221,15 +250,22 @@ const { site } = await loadRegistry();
     label: string;
     type?: 'text' | 'textarea';
     placeholder?: string;
+    /** Full-width, own line. Omit for a compact field that shares a row with its neighbours. */
+    wide?: boolean;
   }
 
-  function createListEditor(container: HTMLElement, fields: FieldSpec[]) {
+  function createListEditor(container: HTMLElement, fields: FieldSpec[], countEl?: HTMLElement) {
+    function updateCount() {
+      if (countEl) countEl.textContent = String(container.children.length);
+    }
+
     function addRow(values: Record<string, string> = {}) {
       const row = document.createElement('div');
       row.className = 'list-row';
 
       for (const f of fields) {
         const wrap = document.createElement('label');
+        wrap.className = f.wide ? 'field-wide' : 'field-narrow';
         const span = document.createElement('span');
         span.textContent = f.label;
         const input = f.type === 'textarea' ? document.createElement('textarea') : document.createElement('input');
@@ -246,15 +282,20 @@ const { site } = await loadRegistry();
       removeBtn.type = 'button';
       removeBtn.className = 'danger remove-row';
       removeBtn.textContent = 'Remove';
-      removeBtn.addEventListener('click', () => row.remove());
+      removeBtn.addEventListener('click', () => {
+        row.remove();
+        updateCount();
+      });
       row.append(removeBtn);
 
       container.append(row);
+      updateCount();
     }
 
     function setItems(items: Record<string, string>[]) {
       container.innerHTML = '';
       for (const item of items) addRow(item);
+      updateCount();
     }
 
     function getItems(): Record<string, string>[] {
@@ -271,32 +312,48 @@ const { site } = await loadRegistry();
     return { addRow, setItems, getItems };
   }
 
-  const doingEditor = createListEditor($('doing-list'), [
-    { key: 'label', label: 'Label' },
-    { key: 'detail', label: 'Detail', type: 'textarea' },
-  ]);
+  const doingEditor = createListEditor(
+    $('doing-list'),
+    [
+      { key: 'label', label: 'Label' },
+      { key: 'detail', label: 'Detail', type: 'textarea', wide: true },
+    ],
+    $('count-doing'),
+  );
   $('add-doing').addEventListener('click', () => doingEditor.addRow());
 
-  const workEditor = createListEditor($('work-list'), [
-    { key: 'year', label: 'Year' },
-    { key: 'title', label: 'Title' },
-    { key: 'blurb', label: 'Blurb', type: 'textarea' },
-    { key: 'href', label: 'Link (optional)' },
-  ]);
+  const workEditor = createListEditor(
+    $('work-list'),
+    [
+      { key: 'year', label: 'Year' },
+      { key: 'title', label: 'Title' },
+      { key: 'blurb', label: 'Blurb', type: 'textarea', wide: true },
+      { key: 'href', label: 'Link (optional)', wide: true },
+    ],
+    $('count-work'),
+  );
   $('add-work').addEventListener('click', () => workEditor.addRow());
 
-  const galleryEditor = createListEditor($('gallery-list'), [
-    { key: 'src', label: 'Image path' },
-    { key: 'alt', label: 'Alt text' },
-    { key: 'caption', label: 'Caption (optional)' },
-  ]);
+  const galleryEditor = createListEditor(
+    $('gallery-list'),
+    [
+      { key: 'src', label: 'Image path' },
+      { key: 'alt', label: 'Alt text' },
+      { key: 'caption', label: 'Caption (optional)', wide: true },
+    ],
+    $('count-gallery'),
+  );
   $('add-gallery').addEventListener('click', () => galleryEditor.addRow());
 
-  const elsewhereEditor = createListEditor($('elsewhere-list'), [
-    { key: 'label', label: 'Label' },
-    { key: 'text', label: 'Text' },
-    { key: 'href', label: 'Link' },
-  ]);
+  const elsewhereEditor = createListEditor(
+    $('elsewhere-list'),
+    [
+      { key: 'label', label: 'Label' },
+      { key: 'text', label: 'Text' },
+      { key: 'href', label: 'Link', wide: true },
+    ],
+    $('count-elsewhere'),
+  );
   $('add-elsewhere').addEventListener('click', () => elsewhereEditor.addRow());
 
   // ───────────────────────── tabs ─────────────────────────
@@ -393,11 +450,13 @@ const { site } = await loadRegistry();
   const listEl = $('entry-list');
   const emptyEl = $('list-empty');
 
+  const formWrapper = $('entry-form-wrapper');
   const form = $('entry-form') as HTMLFormElement;
   const formTitle = $('form-title');
   const cancelBtn = $('cancel-edit');
   const slugNote = $('f-slug-note');
   const statusEl = $('form-status');
+  const newEntryBtn = $('new-entry-button');
 
   const fields = {
     date: $('f-date') as HTMLInputElement,
@@ -421,13 +480,28 @@ const { site } = await loadRegistry();
     statusEl.classList.toggle('error', isError);
   }
 
-  function resetForm() {
+  function openForm() {
+    formWrapper.hidden = false;
+  }
+
+  function closeForm() {
+    formWrapper.hidden = true;
     editingId = null;
     form.reset();
     formTitle.textContent = 'New entry';
-    cancelBtn.hidden = true;
     slugNote.hidden = true;
   }
+
+  newEntryBtn.addEventListener('click', () => {
+    editingId = null;
+    form.reset();
+    formTitle.textContent = 'New entry';
+    slugNote.hidden = true;
+    openForm();
+    fields.title.focus();
+  });
+
+  cancelBtn.addEventListener('click', closeForm);
 
   function startEdit(entry: AdminEntry) {
     editingId = entry.id;
@@ -442,10 +516,10 @@ const { site } = await loadRegistry();
     fields.imageAlt.value = entry.image_alt ?? '';
     fields.isPublic.checked = entry.is_public;
     formTitle.textContent = `Editing "${entry.title}"`;
-    cancelBtn.hidden = false;
     slugNote.hidden = false;
     slugNote.textContent = `URL: /tried/${entry.slug}/ — fixed once an entry exists, so links already shared never break.`;
-    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    openForm();
+    formWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   async function loadEntries() {
@@ -468,34 +542,29 @@ const { site } = await loadRegistry();
     emptyEl.hidden = entries.length !== 0;
 
     for (const entry of entries) {
-      const li = document.createElement('li');
-      li.className = 'row';
+      const tr = document.createElement('tr');
 
-      const main = document.createElement('div');
-      main.className = 'entry-main';
+      const dateTd = document.createElement('td');
+      dateTd.className = 'col-date';
+      dateTd.textContent = entry.date;
 
-      const date = document.createElement('span');
-      date.className = 'date';
-      date.textContent = entry.date;
-
-      const body = document.createElement('span');
-      body.className = 'body';
+      const entryTd = document.createElement('td');
       const title = document.createElement('span');
       title.className = 'title';
       title.textContent = entry.title;
       const note = document.createElement('span');
       note.className = 'blurb';
       note.textContent = entry.note;
-      body.append(title, note);
+      entryTd.append(title, note);
 
+      const statusTd = document.createElement('td');
       const status = document.createElement('span');
       status.className = entry.is_public ? 'tag tag-public' : 'tag tag-private';
       status.textContent = entry.is_public ? 'public' : 'private';
+      statusTd.append(status);
 
-      main.append(date, body, status);
-
-      const actions = document.createElement('div');
-      actions.className = 'entry-actions';
+      const actionsTd = document.createElement('td');
+      actionsTd.className = 'col-actions';
 
       const toggleBtn = document.createElement('button');
       toggleBtn.type = 'button';
@@ -513,9 +582,9 @@ const { site } = await loadRegistry();
       deleteBtn.textContent = 'Delete';
       deleteBtn.addEventListener('click', () => deleteEntry(entry));
 
-      actions.append(toggleBtn, editBtn, deleteBtn);
-      li.append(main, actions);
-      listEl.append(li);
+      actionsTd.append(toggleBtn, editBtn, deleteBtn);
+      tr.append(dateTd, entryTd, statusTd, actionsTd);
+      listEl.append(tr);
     }
   }
 
@@ -541,7 +610,7 @@ const { site } = await loadRegistry();
       setStatus(`Could not delete: ${error.message}`, true);
       return;
     }
-    if (editingId === entry.id) resetForm();
+    if (editingId === entry.id) closeForm();
     setStatus('Deleted. The site will rebuild in about a minute.');
     loadEntries();
   }
@@ -582,11 +651,9 @@ const { site } = await loadRegistry();
     }
 
     setStatus('Saved. The site will rebuild in about a minute.');
-    resetForm();
+    closeForm();
     loadEntries();
   });
-
-  cancelBtn.addEventListener('click', resetForm);
 
   // ───────────────────────── auth ─────────────────────────
 
@@ -637,36 +704,28 @@ const { site } = await loadRegistry();
 </script>
 
 <style is:global>
-  /* is:global, deliberately: every row in the four list editors and every
-     row in the Tried entry list is built with document.createElement() at
-     runtime. Astro's scoped CSS works by stamping a data-astro-cid
-     attribute onto elements that exist in the template at build time --
-     anything created later in the client script never gets it, so a
-     scoped style here would silently never match most of this page. This
-     file is the only thing rendering on /admin, so there's nothing else
-     for these class names to collide with. */
-  /* This page is a private tool, not the public showcase -- DESIGN.md's
-     "no cards, hairlines only" rule is deliberately relaxed here. Panels
-     make a form with this many fields scannable in a way flat text can't.
-     Same reasoning for typography: the site's serif is a reading face, and
-     everything here is a form field or a button, not prose to read. A
-     system sans keeps every label and input reading as UI, not an essay
-     with boxes glued onto it. Every rule below that needs it repeats the
-     same literal stack -- Astro scopes styles per-component, so a custom
-     property would need a real element to hang off, which is more
-     indirection than five repeated font-family lines are worth. */
+  /* is:global, deliberately: every row in the four About-page list editors
+     and every row in the Tried entries table is built with
+     document.createElement() at runtime. Astro's scoped CSS works by
+     stamping a data-astro-cid attribute onto elements that exist in the
+     template at build time -- anything created later in the client script
+     never gets it, so a scoped style here would silently never match most
+     of this page. This file is the only thing rendering on /admin, so
+     there's nothing else for these class names to collide with.
 
-  /* Everything below the header is UI, not prose -- override the shell's
-     serif default here rather than on each individual rule. The nav links,
-     buttons, dates, and tags below all set --mono explicitly already, so
-     they still win over this on the cascade. */
+     This page is also a private tool, not the public showcase --
+     DESIGN.md's "no cards, hairlines only, one font" rules are deliberately
+     relaxed here: panels instead of flat hairlines, a system sans instead
+     of the site's serif reading face (forms aren't prose), and a danger-red
+     hover on Delete. */
+
   #login-section,
   #admin-section {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   }
 
   header {
-    margin-bottom: clamp(1.75rem, 4vw, 2.5rem);
+    margin-bottom: clamp(1.5rem, 4vw, 2rem);
   }
 
   .masthead {
@@ -674,7 +733,7 @@ const { site } = await loadRegistry();
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    margin-bottom: 2.5rem;
+    margin-bottom: 2rem;
   }
 
   .eyebrow {
@@ -706,9 +765,9 @@ const { site } = await loadRegistry();
   }
 
   h1 {
-    margin: 0 0 .5rem;
+    margin: 0 0 .4rem;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    font-size: 1.35rem;
+    font-size: 1.3rem;
     font-weight: 600;
     letter-spacing: -.01em;
     color: var(--text);
@@ -717,8 +776,7 @@ const { site } = await loadRegistry();
   .standfirst {
     margin: 0;
     max-width: 34rem;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    font-size: .88rem;
+    font-size: .85rem;
     line-height: 1.5;
     color: var(--muted);
     text-wrap: pretty;
@@ -728,26 +786,29 @@ const { site } = await loadRegistry();
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 10px;
-    padding: 1.75rem;
-    margin-bottom: 1.75rem;
-    max-width: 40rem;
+    padding: 1.4rem 1.5rem;
+    margin-bottom: 1.1rem;
+    max-width: 46rem;
   }
 
   #login-section.panel {
     max-width: 24rem;
   }
 
-  .panel-head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 1rem;
-    margin-bottom: 1.25rem;
+  /* ── collapsible About-page sections ── */
+
+  details.collapsible {
+    padding: 0;
+    overflow: hidden;
   }
 
-  .panel h2,
-  h2.list-heading {
-    margin: 0 0 1.25rem;
+  details.collapsible summary {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    padding: 1rem 1.5rem;
+    cursor: pointer;
+    list-style: none;
     font-family: var(--mono);
     font-size: .7rem;
     font-weight: 400;
@@ -756,29 +817,57 @@ const { site } = await loadRegistry();
     color: var(--faint);
   }
 
-  .panel-head h2 {
-    margin: 0;
+  details.collapsible summary::-webkit-details-marker {
+    display: none;
   }
 
-  h2.list-heading {
-    margin: 2.5rem 0 1rem;
-    padding-bottom: .7rem;
-    border-bottom: 1px solid var(--border-strong);
-    max-width: 40rem;
+  details.collapsible summary:hover {
+    color: var(--text);
+  }
+
+  details.collapsible .chev {
+    display: inline-block;
+    font-family: initial;
+    font-size: .8rem;
+    transition: transform .15s ease;
+  }
+
+  details.collapsible[open] .chev {
+    transform: rotate(90deg);
+  }
+
+  details.collapsible .count {
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
+  }
+
+  details.collapsible .panel-body {
+    padding: 0 1.5rem 1.5rem;
+    border-top: 1px solid var(--border);
+    padding-top: 1.25rem;
+  }
+
+  .panel h2 {
+    margin: 0 0 1rem;
+    font-family: var(--mono);
+    font-size: .7rem;
+    font-weight: 400;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--faint);
   }
 
   form {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: .85rem;
   }
 
   label {
     display: flex;
     flex-direction: column;
-    gap: .35rem;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    font-size: .82rem;
+    gap: .3rem;
+    font-size: .8rem;
     font-weight: 500;
     color: var(--muted);
   }
@@ -791,8 +880,9 @@ const { site } = await loadRegistry();
   label.checkbox {
     flex-direction: row;
     align-items: center;
-    gap: .55rem;
-    font-size: .88rem;
+    gap: .5rem;
+    font-size: .85rem;
+    justify-content: flex-start;
   }
 
   label.checkbox input {
@@ -802,12 +892,14 @@ const { site } = await loadRegistry();
   input,
   textarea {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    font-size: .9rem;
+    font-size: .88rem;
     color: var(--text);
     background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 4px;
-    padding: .55rem .65rem;
+    padding: .45rem .6rem;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   input:focus,
@@ -819,54 +911,65 @@ const { site } = await loadRegistry();
 
   textarea {
     resize: vertical;
-    line-height: 1.5;
+    line-height: 1.45;
   }
 
-  .grid2 {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-    align-items: end;
+  /* Short fields share a row; a field marked wide always takes the full line. */
+  .row-fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .85rem;
   }
 
-  @media (max-width: 30rem) {
-    .grid2 {
-      grid-template-columns: 1fr;
-    }
+  .row-fields .field-narrow {
+    flex: 1 1 11rem;
+    min-width: 9rem;
   }
 
   .list {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: .75rem;
+    margin-bottom: .9rem;
   }
 
   .list-row {
     display: flex;
-    flex-direction: column;
-    gap: .6rem;
-    padding: 1rem;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: .6rem .75rem;
+    padding: .85rem;
     background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 6px;
   }
 
+  .list-row .field-narrow {
+    flex: 1 1 10rem;
+    min-width: 8rem;
+  }
+
+  .list-row .field-wide {
+    flex: 1 1 100%;
+  }
+
   .list-row label {
-    gap: .25rem;
+    gap: .2rem;
   }
 
   button {
     align-self: flex-start;
     font-family: var(--mono);
-    font-size: .78rem;
+    font-size: .76rem;
     letter-spacing: .02em;
     color: var(--muted);
     background: none;
     border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: .5rem 1rem;
+    border-radius: 6px;
+    padding: .4rem .85rem;
     cursor: pointer;
     transition: color .15s ease, border-color .15s ease;
+    white-space: nowrap;
   }
 
   button:hover {
@@ -877,35 +980,34 @@ const { site } = await loadRegistry();
   button.primary {
     color: var(--text);
     border-color: var(--border-strong);
-    font-weight: 500;
+    font-weight: 600;
   }
 
   button.add-row {
-    padding: .4rem .85rem;
     font-size: .72rem;
+    padding: .35rem .75rem;
   }
 
   button.remove-row {
     align-self: flex-end;
-    padding: .3rem .7rem;
     font-size: .68rem;
+    padding: .3rem .65rem;
   }
 
   button.danger:hover {
-    /* The one deliberate exception to a single accent colour: a danger
-       affordance on a private, single-user tool, not the public site. */
     color: #b3453a;
     border-color: #b3453a;
   }
 
   .actions {
     display: flex;
-    gap: .75rem;
+    align-items: center;
+    gap: 1rem;
   }
 
   .notice {
     margin: 0;
-    font-size: .85rem;
+    font-size: .82rem;
     color: var(--muted);
   }
 
@@ -918,28 +1020,28 @@ const { site } = await loadRegistry();
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    margin-bottom: 1.75rem;
-    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: .85rem;
     border-bottom: 1px solid var(--border);
     font-family: var(--mono);
-    font-size: .78rem;
+    font-size: .76rem;
     color: var(--muted);
   }
 
   .tabs {
     display: flex;
     gap: .6rem;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
   }
 
   .tab {
     font-family: var(--mono);
-    font-size: .78rem;
+    font-size: .76rem;
     color: var(--muted);
     background: none;
     border: 1px solid var(--border);
     border-radius: 999px;
-    padding: .5rem 1.1rem;
+    padding: .45rem 1.05rem;
   }
 
   .tab[aria-selected='true'] {
@@ -948,68 +1050,83 @@ const { site } = await loadRegistry();
     background: var(--accent-soft);
   }
 
+  .list-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.1rem;
+  }
+
   .form-title {
-    margin: 0 0 1rem;
-    font-size: 1.05rem;
-    font-weight: 500;
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
     color: var(--text);
   }
 
-  .rows {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    max-width: 40rem;
-  }
-
-  .row + .row {
-    border-top: 1px solid var(--border);
-  }
-
-  .row {
+  .panel-head {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    padding: 1rem 0;
+    margin-bottom: 1.1rem;
   }
 
-  .entry-main {
-    display: grid;
-    grid-template-columns: 6rem 1fr auto;
-    align-items: baseline;
-    gap: 1.5rem;
-    flex: 1;
-    min-width: 0;
+  .panel-head button {
+    font-size: .72rem;
+    padding: .35rem .75rem;
   }
 
-  .date {
+  /* ── Tried entries table ── */
+
+  .entries-table {
+    width: 100%;
+    max-width: 56rem;
+    border-collapse: collapse;
+    font-size: .85rem;
+  }
+
+  .entries-table th {
+    text-align: left;
     font-family: var(--mono);
-    font-size: .76rem;
+    font-size: .66rem;
+    font-weight: 400;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--faint);
+    padding: 0 .75rem .6rem 0;
+    border-bottom: 1px solid var(--border-strong);
+  }
+
+  .entries-table td {
+    padding: .75rem .75rem .75rem 0;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  .entries-table .col-date {
+    font-family: var(--mono);
+    font-size: .78rem;
     color: var(--muted);
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    width: 6rem;
   }
 
-  .body {
-    display: flex;
-    flex-direction: column;
-    gap: .2rem;
-    min-width: 0;
-  }
-
-  .title {
-    font-size: 1rem;
-    font-weight: 500;
+  .entries-table .title {
+    display: block;
+    font-weight: 600;
     color: var(--text);
   }
 
-  .blurb {
-    font-size: .85rem;
-    color: var(--muted);
+  .entries-table .blurb {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    color: var(--muted);
+    font-size: .82rem;
+    max-width: 28rem;
   }
 
   .tag {
@@ -1028,27 +1145,50 @@ const { site } = await loadRegistry();
     color: var(--faint);
   }
 
-  .entry-actions {
-    display: flex;
-    gap: .5rem;
-    flex-wrap: wrap;
+  .entries-table .col-actions {
+    white-space: nowrap;
   }
 
-  .entry-actions button {
-    padding: .35rem .7rem;
-    font-size: .7rem;
+  .col-actions button {
+    padding: .3rem .6rem;
+    font-size: .68rem;
+  }
+
+  .col-actions button + button {
+    margin-left: .35rem;
   }
 
   .empty {
-    padding: 2rem 0;
+    padding: 1.5rem 0;
     color: var(--muted);
-    font-size: .9rem;
+    font-size: .88rem;
   }
 
-  @media (max-width: 40rem) {
-    .entry-main {
-      grid-template-columns: 1fr;
-      gap: .3rem;
+  @media (max-width: 42rem) {
+    .entries-table,
+    .entries-table tbody,
+    .entries-table tr,
+    .entries-table td {
+      display: block;
+      width: auto;
+    }
+
+    .entries-table thead {
+      display: none;
+    }
+
+    .entries-table tr {
+      padding: .85rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .entries-table td {
+      border-bottom: none;
+      padding: .15rem 0;
+    }
+
+    .entries-table .blurb {
+      max-width: none;
     }
   }
 </style>
