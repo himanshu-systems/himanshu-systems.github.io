@@ -36,7 +36,7 @@ const me = {
 
   /* Optional. Set to null for no portrait. alt is read aloud by screen readers,
      so describe the picture rather than repeating your name. */
-  portrait: { src: 'images/portrait.svg', alt: 'Placeholder portrait' },
+  portrait: { src: 'images/portrait.jpg', alt: 'Portrait photo' },
 
   /* Left column is the area, right column is the detail. */
   doing: [
@@ -296,7 +296,8 @@ const me = {
 
   .portrait {
     width: 100%;
-    height: auto;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
     display: block;
     border: 1px solid var(--border);
     border-radius: 4px;
