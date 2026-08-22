@@ -18,15 +18,15 @@ const { site } = await loadRegistry();
         <ThemeToggle />
       </nav>
     </div>
-    <h1>Manage Tried entries</h1>
+    <h1>Manage the site</h1>
     <p class="standfirst">
-      Log in to add, edit, delete, or flip an entry public or private. This
-      page isn't linked from anywhere on the site, but that isn't what keeps
-      it yours — logging in is. Saving triggers a rebuild automatically.
+      Log in to edit anything on the about page or the Tried log. This page
+      isn't linked from anywhere else, but that isn't what keeps it yours —
+      logging in is. Saving triggers a rebuild automatically.
     </p>
   </header>
 
-  <section id="login-section">
+  <section id="login-section" class="panel">
     <form id="login-form">
       <label>
         <span>Email</span>
@@ -36,7 +36,7 @@ const { site } = await loadRegistry();
         <span>Password</span>
         <input type="password" id="login-password" autocomplete="current-password" required />
       </label>
-      <button type="submit">Log in</button>
+      <button type="submit" class="primary">Log in</button>
       <p class="notice error" id="login-error" hidden></p>
     </form>
   </section>
@@ -47,81 +47,333 @@ const { site } = await loadRegistry();
       <button type="button" id="logout">Log out</button>
     </div>
 
-    <form id="entry-form">
-      <p class="form-title" id="form-title">New entry</p>
+    <div class="tabs" role="tablist">
+      <button type="button" class="tab" id="tab-about" data-tab="about" aria-selected="true">About page</button>
+      <button type="button" class="tab" id="tab-tried" data-tab="tried" aria-selected="false">Tried entries</button>
+    </div>
 
-      <div class="grid2">
-        <label>
-          <span>Date</span>
-          <input type="date" id="f-date" required />
-        </label>
-        <label class="checkbox">
-          <input type="checkbox" id="f-public" />
-          <span>Public — visible on the live site</span>
-        </label>
-      </div>
+    <!-- ───────────────────────── About page ───────────────────────── -->
+    <div id="panel-about" class="tab-panel">
+      <form id="about-form">
+        <section class="panel">
+          <h2>Profile</h2>
 
-      <label>
-        <span>Title</span>
-        <input type="text" id="f-title" required />
-      </label>
+          <label>
+            <span>Name</span>
+            <input type="text" id="a-name" required />
+          </label>
 
-      <label>
-        <span>Note <small>shows in every list and teaser</small></span>
-        <textarea id="f-note" rows="2" required></textarea>
-      </label>
+          <label>
+            <span>Role <small>the big line under your name</small></span>
+            <input type="text" id="a-role" required />
+          </label>
 
-      <label>
-        <span>Description <small>optional — its own page only; a blank line starts a new paragraph</small></span>
-        <textarea id="f-description" rows="5"></textarea>
-      </label>
+          <label>
+            <span>Intro</span>
+            <textarea id="a-intro" rows="4" required></textarea>
+          </label>
 
-      <div class="grid2">
-        <label>
-          <span>Outcome</span>
-          <input type="text" id="f-outcome" placeholder="worked, failed, mixed, ongoing…" required />
-        </label>
-        <label>
-          <span>Liked</span>
-          <input type="text" id="f-liked" placeholder="liked it, not for me…" required />
-        </label>
-      </div>
+          <label>
+            <span>Now <small>optional — clear it to hide the line entirely</small></span>
+            <input type="text" id="a-now" />
+          </label>
 
-      <label>
-        <span>Tags <small>comma separated</small></span>
-        <input type="text" id="f-tags" placeholder="systems, security" />
-      </label>
+          <div class="grid2">
+            <label>
+              <span>Portrait path <small>a file already in static/images/</small></span>
+              <input type="text" id="a-portrait-src" placeholder="images/portrait.jpg" />
+            </label>
+            <label>
+              <span>Portrait alt text</span>
+              <input type="text" id="a-portrait-alt" />
+            </label>
+          </div>
+        </section>
 
-      <div class="grid2">
-        <label>
-          <span>Image path <small>optional — a file already in static/images/</small></span>
-          <input type="text" id="f-image-src" placeholder="images/whatever.jpg" />
-        </label>
-        <label>
-          <span>Image alt text</span>
-          <input type="text" id="f-image-alt" />
-        </label>
-      </div>
+        <section class="panel">
+          <div class="panel-head">
+            <h2>What I do</h2>
+            <button type="button" class="add-row" id="add-doing">+ Add row</button>
+          </div>
+          <div id="doing-list" class="list"></div>
+        </section>
 
-      <p class="notice" id="f-slug-note" hidden></p>
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Selected work</h2>
+            <button type="button" class="add-row" id="add-work">+ Add row</button>
+          </div>
+          <div id="work-list" class="list"></div>
+        </section>
 
-      <div class="actions">
-        <button type="submit" id="save-button">Save</button>
-        <button type="button" id="cancel-edit" hidden>Cancel edit</button>
-      </div>
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Images</h2>
+            <button type="button" class="add-row" id="add-gallery">+ Add row</button>
+          </div>
+          <div id="gallery-list" class="list"></div>
+        </section>
 
-      <p class="notice" id="form-status" hidden></p>
-    </form>
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Elsewhere</h2>
+            <button type="button" class="add-row" id="add-elsewhere">+ Add row</button>
+          </div>
+          <div id="elsewhere-list" class="list"></div>
+        </section>
 
-    <h2>All entries</h2>
-    <ol class="rows" id="entry-list"></ol>
-    <p class="empty" id="list-empty" hidden>No entries yet.</p>
+        <div class="actions">
+          <button type="submit" class="primary">Save about page</button>
+        </div>
+        <p class="notice" id="about-status" hidden></p>
+      </form>
+    </div>
+
+    <!-- ───────────────────────── Tried entries ───────────────────────── -->
+    <div id="panel-tried" class="tab-panel" hidden>
+      <section class="panel">
+        <p class="form-title" id="form-title">New entry</p>
+
+        <form id="entry-form">
+          <div class="grid2">
+            <label>
+              <span>Date</span>
+              <input type="date" id="f-date" required />
+            </label>
+            <label class="checkbox">
+              <input type="checkbox" id="f-public" />
+              <span>Public — visible on the live site</span>
+            </label>
+          </div>
+
+          <label>
+            <span>Title</span>
+            <input type="text" id="f-title" required />
+          </label>
+
+          <label>
+            <span>Note <small>shows in every list and teaser</small></span>
+            <textarea id="f-note" rows="2" required></textarea>
+          </label>
+
+          <label>
+            <span>Description <small>optional — its own page only; a blank line starts a new paragraph</small></span>
+            <textarea id="f-description" rows="5"></textarea>
+          </label>
+
+          <div class="grid2">
+            <label>
+              <span>Outcome</span>
+              <input type="text" id="f-outcome" placeholder="worked, failed, mixed, ongoing…" required />
+            </label>
+            <label>
+              <span>Liked</span>
+              <input type="text" id="f-liked" placeholder="liked it, not for me…" required />
+            </label>
+          </div>
+
+          <label>
+            <span>Tags <small>comma separated</small></span>
+            <input type="text" id="f-tags" placeholder="systems, security" />
+          </label>
+
+          <div class="grid2">
+            <label>
+              <span>Image path <small>optional — a file already in static/images/</small></span>
+              <input type="text" id="f-image-src" placeholder="images/whatever.jpg" />
+            </label>
+            <label>
+              <span>Image alt text</span>
+              <input type="text" id="f-image-alt" />
+            </label>
+          </div>
+
+          <p class="notice" id="f-slug-note" hidden></p>
+
+          <div class="actions">
+            <button type="submit" class="primary" id="save-button">Save</button>
+            <button type="button" id="cancel-edit" hidden>Cancel edit</button>
+          </div>
+
+          <p class="notice" id="form-status" hidden></p>
+        </form>
+      </section>
+
+      <h2 class="list-heading">All entries</h2>
+      <ol class="rows" id="entry-list"></ol>
+      <p class="empty" id="list-empty" hidden>No entries yet.</p>
+    </div>
   </section>
 </Doc>
 
 <script>
   import { supabase } from '../lib/supabaseClient';
   import { uniqueSlug } from '../lib/slug';
+
+  function $(id: string) {
+    return document.getElementById(id)!;
+  }
+
+  // ───────────────────────── generic repeatable list editor ─────────────────────────
+
+  interface FieldSpec {
+    key: string;
+    label: string;
+    type?: 'text' | 'textarea';
+    placeholder?: string;
+  }
+
+  function createListEditor(container: HTMLElement, fields: FieldSpec[]) {
+    function addRow(values: Record<string, string> = {}) {
+      const row = document.createElement('div');
+      row.className = 'list-row';
+
+      for (const f of fields) {
+        const wrap = document.createElement('label');
+        const span = document.createElement('span');
+        span.textContent = f.label;
+        const input = f.type === 'textarea' ? document.createElement('textarea') : document.createElement('input');
+        if (input instanceof HTMLInputElement) input.type = 'text';
+        if (input instanceof HTMLTextAreaElement) input.rows = 2;
+        if (f.placeholder) (input as HTMLInputElement).placeholder = f.placeholder;
+        input.value = values[f.key] ?? '';
+        input.dataset.key = f.key;
+        wrap.append(span, input);
+        row.append(wrap);
+      }
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'danger remove-row';
+      removeBtn.textContent = 'Remove';
+      removeBtn.addEventListener('click', () => row.remove());
+      row.append(removeBtn);
+
+      container.append(row);
+    }
+
+    function setItems(items: Record<string, string>[]) {
+      container.innerHTML = '';
+      for (const item of items) addRow(item);
+    }
+
+    function getItems(): Record<string, string>[] {
+      return Array.from(container.querySelectorAll<HTMLElement>('.list-row')).map((row) => {
+        const obj: Record<string, string> = {};
+        for (const f of fields) {
+          const el = row.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[data-key="${f.key}"]`);
+          obj[f.key] = el?.value.trim() ?? '';
+        }
+        return obj;
+      });
+    }
+
+    return { addRow, setItems, getItems };
+  }
+
+  const doingEditor = createListEditor($('doing-list'), [
+    { key: 'label', label: 'Label' },
+    { key: 'detail', label: 'Detail', type: 'textarea' },
+  ]);
+  $('add-doing').addEventListener('click', () => doingEditor.addRow());
+
+  const workEditor = createListEditor($('work-list'), [
+    { key: 'year', label: 'Year' },
+    { key: 'title', label: 'Title' },
+    { key: 'blurb', label: 'Blurb', type: 'textarea' },
+    { key: 'href', label: 'Link (optional)' },
+  ]);
+  $('add-work').addEventListener('click', () => workEditor.addRow());
+
+  const galleryEditor = createListEditor($('gallery-list'), [
+    { key: 'src', label: 'Image path' },
+    { key: 'alt', label: 'Alt text' },
+    { key: 'caption', label: 'Caption (optional)' },
+  ]);
+  $('add-gallery').addEventListener('click', () => galleryEditor.addRow());
+
+  const elsewhereEditor = createListEditor($('elsewhere-list'), [
+    { key: 'label', label: 'Label' },
+    { key: 'text', label: 'Text' },
+    { key: 'href', label: 'Link' },
+  ]);
+  $('add-elsewhere').addEventListener('click', () => elsewhereEditor.addRow());
+
+  // ───────────────────────── tabs ─────────────────────────
+
+  const tabButtons = [$('tab-about'), $('tab-tried')];
+  const tabPanels: Record<string, HTMLElement> = { about: $('panel-about'), tried: $('panel-tried') };
+
+  for (const btn of tabButtons) {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.tab!;
+      for (const b of tabButtons) b.setAttribute('aria-selected', String(b === btn));
+      for (const [name, panel] of Object.entries(tabPanels)) panel.hidden = name !== target;
+    });
+  }
+
+  // ───────────────────────── about page form ─────────────────────────
+
+  const aboutForm = $('about-form') as HTMLFormElement;
+  const aboutStatus = $('about-status');
+
+  const aboutFields = {
+    name: $('a-name') as HTMLInputElement,
+    role: $('a-role') as HTMLInputElement,
+    intro: $('a-intro') as HTMLTextAreaElement,
+    now: $('a-now') as HTMLInputElement,
+    portraitSrc: $('a-portrait-src') as HTMLInputElement,
+    portraitAlt: $('a-portrait-alt') as HTMLInputElement,
+  };
+
+  async function loadAboutContent() {
+    const { data, error } = await supabase.from('site_content').select('*').eq('id', 1).single();
+    if (error) {
+      aboutStatus.textContent = `Could not load: ${error.message}`;
+      aboutStatus.hidden = false;
+      aboutStatus.classList.add('error');
+      return;
+    }
+
+    aboutFields.name.value = data.name ?? '';
+    aboutFields.role.value = data.role ?? '';
+    aboutFields.intro.value = data.intro ?? '';
+    aboutFields.now.value = data.now ?? '';
+    aboutFields.portraitSrc.value = data.portrait_src ?? '';
+    aboutFields.portraitAlt.value = data.portrait_alt ?? '';
+
+    doingEditor.setItems(data.doing ?? []);
+    workEditor.setItems(data.work ?? []);
+    galleryEditor.setItems(data.gallery ?? []);
+    elsewhereEditor.setItems(data.elsewhere ?? []);
+  }
+
+  aboutForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const payload = {
+      id: 1,
+      name: aboutFields.name.value.trim(),
+      role: aboutFields.role.value.trim(),
+      intro: aboutFields.intro.value.trim(),
+      now: aboutFields.now.value.trim(),
+      portrait_src: aboutFields.portraitSrc.value.trim() || null,
+      portrait_alt: aboutFields.portraitAlt.value.trim() || null,
+      doing: doingEditor.getItems(),
+      work: workEditor.getItems().map((w) => ({ ...w, href: w.href || null })),
+      gallery: galleryEditor.getItems(),
+      elsewhere: elsewhereEditor.getItems(),
+    };
+
+    const { error } = await supabase.from('site_content').upsert(payload);
+    aboutStatus.hidden = false;
+    aboutStatus.classList.toggle('error', Boolean(error));
+    aboutStatus.textContent = error
+      ? `Could not save: ${error.message}`
+      : 'Saved. The site will rebuild in about a minute.';
+  });
+
+  // ───────────────────────── tried entries ─────────────────────────
 
   interface AdminEntry {
     id: string;
@@ -137,16 +389,6 @@ const { site } = await loadRegistry();
     tags: string[];
     is_public: boolean;
   }
-
-  function $(id: string) {
-    return document.getElementById(id)!;
-  }
-
-  const loginSection = $('login-section');
-  const adminSection = $('admin-section');
-  const loginForm = $('login-form') as HTMLFormElement;
-  const loginError = $('login-error');
-  const whoEl = $('who');
 
   const listEl = $('entry-list');
   const emptyEl = $('list-empty');
@@ -346,6 +588,14 @@ const { site } = await loadRegistry();
 
   cancelBtn.addEventListener('click', resetForm);
 
+  // ───────────────────────── auth ─────────────────────────
+
+  const loginSection = $('login-section');
+  const adminSection = $('admin-section');
+  const loginForm = $('login-form') as HTMLFormElement;
+  const loginError = $('login-error');
+  const whoEl = $('who');
+
   loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     loginError.hidden = true;
@@ -371,6 +621,7 @@ const { site } = await loadRegistry();
     loginSection.hidden = true;
     adminSection.hidden = false;
     whoEl.textContent = email;
+    loadAboutContent();
     loadEntries();
   }
 
@@ -386,6 +637,10 @@ const { site } = await loadRegistry();
 </script>
 
 <style>
+  /* This page is a private tool, not the public showcase -- DESIGN.md's
+     "no cards, hairlines only" rule is deliberately relaxed here. Panels
+     make a form with this many fields scannable in a way flat text can't. */
+
   header {
     margin-bottom: clamp(2.5rem, 6vw, 3.5rem);
   }
@@ -432,33 +687,59 @@ const { site } = await loadRegistry();
 
   .standfirst {
     margin: 0;
-    max-width: var(--measure);
+    max-width: 40rem;
     font-size: 1.02rem;
     color: var(--muted);
     text-wrap: pretty;
   }
 
-  h2 {
-    margin: 3rem 0 1rem;
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.75rem;
+    margin-bottom: 1.75rem;
+    max-width: 40rem;
+  }
+
+  #login-section.panel {
+    max-width: 24rem;
+  }
+
+  .panel-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .panel h2,
+  h2.list-heading {
+    margin: 0 0 1.25rem;
     font-family: var(--mono);
     font-size: .7rem;
     font-weight: 400;
     letter-spacing: .16em;
     text-transform: uppercase;
     color: var(--faint);
+  }
+
+  .panel-head h2 {
+    margin: 0;
+  }
+
+  h2.list-heading {
+    margin: 2.5rem 0 1rem;
     padding-bottom: .7rem;
     border-bottom: 1px solid var(--border-strong);
+    max-width: 40rem;
   }
 
   form {
     display: flex;
     flex-direction: column;
     gap: 1rem;
-    max-width: 34rem;
-  }
-
-  #login-section form {
-    max-width: 22rem;
   }
 
   label {
@@ -491,7 +772,7 @@ const { site } = await loadRegistry();
     font-family: var(--serif);
     font-size: .95rem;
     color: var(--text);
-    background: var(--surface);
+    background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 4px;
     padding: .55rem .65rem;
@@ -522,6 +803,26 @@ const { site } = await loadRegistry();
     }
   }
 
+  .list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .list-row {
+    display: flex;
+    flex-direction: column;
+    gap: .6rem;
+    padding: 1rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+
+  .list-row label {
+    gap: .25rem;
+  }
+
   button {
     align-self: flex-start;
     font-family: var(--mono);
@@ -541,9 +842,21 @@ const { site } = await loadRegistry();
     border-color: var(--accent);
   }
 
-  button[type='submit'] {
+  button.primary {
     color: var(--text);
     border-color: var(--border-strong);
+    font-weight: 500;
+  }
+
+  button.add-row {
+    padding: .4rem .85rem;
+    font-size: .72rem;
+  }
+
+  button.remove-row {
+    align-self: flex-end;
+    padding: .3rem .7rem;
+    font-size: .68rem;
   }
 
   button.danger:hover {
@@ -573,7 +886,7 @@ const { site } = await loadRegistry();
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    margin-bottom: 2.5rem;
+    margin-bottom: 1.75rem;
     padding-bottom: 1rem;
     border-bottom: 1px solid var(--border);
     font-family: var(--mono);
@@ -581,8 +894,30 @@ const { site } = await loadRegistry();
     color: var(--muted);
   }
 
+  .tabs {
+    display: flex;
+    gap: .6rem;
+    margin-bottom: 2rem;
+  }
+
+  .tab {
+    font-family: var(--mono);
+    font-size: .78rem;
+    color: var(--muted);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: .5rem 1.1rem;
+  }
+
+  .tab[aria-selected='true'] {
+    color: var(--text);
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+
   .form-title {
-    margin: 0;
+    margin: 0 0 1rem;
     font-size: 1.05rem;
     font-weight: 500;
     color: var(--text);
@@ -592,6 +927,7 @@ const { site } = await loadRegistry();
     list-style: none;
     margin: 0;
     padding: 0;
+    max-width: 40rem;
   }
 
   .row + .row {

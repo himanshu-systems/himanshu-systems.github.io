@@ -229,34 +229,47 @@ mouse click does not draw a ring but a Tab key does.
 
 ## Files
 
-Three routes are hand-written Astro pages rather than registry entries: `/` is
-the about page, `/pages` is the generated collection index, and `/tried/<slug>`
-is each Tried entry's own page. A static Astro route silently beats the
-`[...route]` catch-all, so `/`, `/pages`, and anything under `/tried/` are
-rejected in `tools/registry.mjs` — registering one of them in `pages.json` now
-fails loudly instead of building a page nothing can reach.
+Four routes are hand-written Astro pages rather than registry entries: `/` is
+the about page, `/pages` is the generated collection index, `/tried/<slug>`
+is each Tried entry's own page, and `/admin` is the private editor. A static
+Astro route silently beats the `[...route]` catch-all, so `/`, `/pages`,
+`/admin`, and anything under `/tried/` are rejected in `tools/registry.mjs` —
+registering one of them in `pages.json` now fails loudly instead of building
+a page nothing can reach.
 
-**Content lives in `src/data/`, not in the page files.** `src/pages/index.astro`
-imports `me` from `src/data/me.ts`; `src/pages/tried.astro` and
-`src/pages/tried/[slug].astro` both import `triedRows` from `src/lib/tried.ts`,
-which reads `src/data/tried.ts`. Editing a bio line or logging a new attempt
-never means touching a `.astro` file.
+**Content lives in Supabase, not in the page files or `src/data/`.** Both the
+about page's content and every Tried entry are rows in Postgres tables
+(`supabase/site_content.sql`, `supabase/schema.sql`) — Row Level Security
+only lets the anonymous build read `is_public = true` Tried rows, and only
+one email write anything at all. `src/lib/site.ts` and `src/lib/tried.ts` are
+the build-time fetch: `src/pages/index.astro` awaits `getSiteContent()` and
+`getTriedRows()`; `src/pages/tried.astro` and `src/pages/tried/[slug].astro`
+await `getTriedRows()`. Editing a bio line, adding an image, or logging a new
+attempt happens at `/admin`, logged in — never by editing a file.
+
+`/admin` deliberately breaks a few of this document's own rules — panels,
+not hairlines; a danger-red hover on Delete. It's a private tool, not the
+public showcase these rules were written for.
 
 | File                                | Holds                                        |
 | ------------------------------------ | -------------------------------------------- |
 | `src/styles/tokens.css`             | all three theme states, base element styles  |
-| `src/layouts/Doc.astro`             | `.shell`, font loading, global prose styles   |
+| `src/layouts/Doc.astro`             | `.shell`, font loading, global prose styles, the `noindex` meta option |
 | `src/layouts/Frame.astro`           | the embed wrapper for `mode: "embed"`         |
 | `src/components/ThemeInit.astro`    | pre-paint theme stamp (`is:inline`, in head) |
 | `src/components/ThemeToggle.astro`  | the system/light/dark cycle button           |
-| `src/data/me.ts`                    | about-page content — name, intro, work, gallery, elsewhere |
-| `src/data/tried.ts`                 | Tried entries — date, note, optional description/image, outcome, liked, tags |
-| `src/lib/tried.ts`                  | sorts tried.ts newest-first, builds each slug/href/search string once |
+| `src/lib/supabaseClient.ts`         | the one Supabase client, shared by build-time fetches and `/admin` |
+| `src/lib/site.ts`                   | fetches the about page's single content row  |
+| `src/lib/tried.ts`                  | fetches public Tried rows, sorted newest-first, with slug/href/search built in |
+| `src/lib/slug.ts`                   | the slugify rule, used by `/admin` when it creates a new entry |
 | `src/lib/filter.ts`                 | `matchesQuery` — the live-filter matcher shared by /pages and /tried |
-| `src/pages/index.astro`             | the about page; renders `me` plus a 3-entry Tried teaser |
+| `src/pages/index.astro`             | the about page; renders Supabase content plus a 3-entry Tried teaser |
 | `src/pages/pages.astro`             | the generated collection index               |
 | `src/pages/tried.astro`             | the full, filterable Tried list              |
 | `src/pages/tried/[slug].astro`      | one entry's own page — image and full description, if set |
+| `src/pages/admin.astro`             | login-gated editor for both tables, `noindex`, unlinked from the rest of the site |
+| `supabase/schema.sql`, `supabase/site_content.sql` | table definitions, RLS policies, seed data — run once each in the SQL editor |
+| `supabase/README.md`                | the one-time dashboard setup this repo can't do for you |
 | `tools/chrome.mjs`                  | the "← Collection" pill                      |
 
 `chrome.mjs` uses **literal colours, not tokens** — by design. It is injected

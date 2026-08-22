@@ -6,9 +6,14 @@ that only you can do — they're what actually makes the admin page yours alone.
 ## 1. Run the schema
 
 Supabase dashboard → **SQL Editor** → New query → paste all of `schema.sql` →
-**Run**. Creates the table, turns on Row Level Security, and seeds the six
-entries already on the site (marked public, same slugs, nothing changes on
-the live site).
+**Run**. Creates the `tried_entries` table, turns on Row Level Security, and
+seeds the six entries already on the site (marked public, same slugs,
+nothing changes on the live site).
+
+Then do the same with **`site_content.sql`** — a second, separate table for
+everything on the about page (name, intro, "What I do", Selected work,
+Images, Elsewhere). It's seeded with exactly what's on the site today, so
+this doesn't change anything either until you edit it in `/admin`.
 
 ## 2. Create your login — and only yours
 
