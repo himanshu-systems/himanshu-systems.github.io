@@ -248,8 +248,26 @@ await `getTriedRows()`. Editing a bio line, adding an image, or logging a new
 attempt happens at `/admin`, logged in — never by editing a file.
 
 `/admin` deliberately breaks a few of this document's own rules — panels,
-not hairlines; a danger-red hover on Delete. It's a private tool, not the
-public showcase these rules were written for.
+not hairlines; a system sans instead of the serif reading face; a danger-red
+hover on Delete. It's a private tool, not the public showcase these rules
+were written for.
+
+Two fields are rich text (Quill, in `/admin`) rather than plain strings: the
+about page's Intro and a Tried entry's Description. Both store real HTML and
+render via `set:html` on the public pages — safe here specifically because
+RLS means only the one owner can ever write either table, the same trust
+boundary as everything else in `/admin`. Every other field (title, note,
+labels, tags…) stays plain text, since a one-line label has no real use for
+bold or a bullet list. A `set:html` container's contents are raw strings
+Astro never compiles, so they never get the scoping attribute a plain
+selector would need — styling what's inside always goes through
+`.container :global(p)`, never a bare `.container p`.
+
+Images can be a path already committed under `static/images/`, or a URL from
+"Upload a photo" in `/admin`, which pushes straight to the `site-images`
+Supabase Storage bucket (`supabase/storage.sql`) and fills the field in.
+`resolveImage()` in `src/lib/paths.ts` tells the two apart -- a relative path
+still gets `asset()` and the base path; an absolute URL is used as-is.
 
 | File                                | Holds                                        |
 | ------------------------------------ | -------------------------------------------- |
@@ -263,12 +281,13 @@ public showcase these rules were written for.
 | `src/lib/tried.ts`                  | fetches public Tried rows, sorted newest-first, with slug/href/search built in |
 | `src/lib/slug.ts`                   | the slugify rule, used by `/admin` when it creates a new entry |
 | `src/lib/filter.ts`                 | `matchesQuery` — the live-filter matcher shared by /pages and /tried |
+| `src/lib/paths.ts`                  | `asset()`, `routeHref()`, and `resolveImage()` for uploaded-vs-committed images |
 | `src/pages/index.astro`             | the about page; renders Supabase content plus a 3-entry Tried teaser |
 | `src/pages/pages.astro`             | the generated collection index               |
 | `src/pages/tried.astro`             | the full, filterable Tried list              |
 | `src/pages/tried/[slug].astro`      | one entry's own page — image and full description, if set |
 | `src/pages/admin.astro`             | login-gated editor for both tables, `noindex`, unlinked from the rest of the site |
-| `supabase/schema.sql`, `supabase/site_content.sql` | table definitions, RLS policies, seed data — run once each in the SQL editor |
+| `supabase/schema.sql`, `supabase/site_content.sql`, `supabase/storage.sql` | tables, RLS policies, the images bucket, seed data — run once each in the SQL editor |
 | `supabase/README.md`                | the one-time dashboard setup this repo can't do for you |
 | `tools/chrome.mjs`                  | the "← Collection" pill                      |
 

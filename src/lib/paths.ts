@@ -18,6 +18,15 @@ export function asset(file: string): string {
   return `${BASE}/${file.replace(/^\//, '')}`;
 }
 
+/**
+ * Images from /admin can be either a path to a file committed under
+ * static/images/, or a full URL from an upload to Supabase Storage.
+ * The latter is already absolute -- joining it to BASE would break it.
+ */
+export function resolveImage(src: string): string {
+  return /^https?:\/\//.test(src) ? src : asset(src);
+}
+
 /** The browser-facing URL for a registered route. */
 export function routeHref(route: string): string {
   return route === '/' ? home : `${BASE}${route}/`;

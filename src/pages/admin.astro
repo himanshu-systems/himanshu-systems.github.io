@@ -70,7 +70,7 @@ const { site } = await loadRegistry();
 
           <label>
             <span>Intro</span>
-            <textarea id="a-intro" rows="3"></textarea>
+            <div id="a-intro-editor" class="rich-editor"></div>
           </label>
 
           <label>
@@ -80,12 +80,17 @@ const { site } = await loadRegistry();
 
           <div class="row-fields">
             <label class="field-narrow">
-              <span>Portrait path <small>in static/images/</small></span>
+              <span>Portrait path <small>in static/images/, or upload below</small></span>
               <input type="text" id="a-portrait-src" placeholder="images/portrait.jpg" />
             </label>
             <label class="field-narrow">
               <span>Portrait alt text</span>
               <input type="text" id="a-portrait-alt" />
+            </label>
+            <label class="field-narrow upload-field">
+              <span>Upload a photo</span>
+              <input type="file" id="a-portrait-upload" accept="image/*" />
+              <span class="upload-status" id="a-portrait-upload-status" hidden></span>
             </label>
           </div>
         </section>
@@ -181,8 +186,8 @@ const { site } = await loadRegistry();
           </label>
 
           <label>
-            <span>Description <small>optional — its own page only; a blank line starts a new paragraph</small></span>
-            <textarea id="f-description" rows="4"></textarea>
+            <span>Description <small>optional — shows on the entry's own page only</small></span>
+            <div id="f-description-editor" class="rich-editor"></div>
           </label>
 
           <div class="row-fields">
@@ -202,12 +207,17 @@ const { site } = await loadRegistry();
 
           <div class="row-fields">
             <label class="field-narrow">
-              <span>Image path <small>in static/images/</small></span>
+              <span>Image path <small>in static/images/, or upload below</small></span>
               <input type="text" id="f-image-src" placeholder="images/whatever.jpg" />
             </label>
             <label class="field-narrow">
               <span>Image alt text</span>
               <input type="text" id="f-image-alt" />
+            </label>
+            <label class="field-narrow upload-field">
+              <span>Upload a photo</span>
+              <input type="file" id="f-image-upload" accept="image/*" />
+              <span class="upload-status" id="f-image-upload-status" hidden></span>
             </label>
           </div>
 
@@ -236,11 +246,66 @@ const { site } = await loadRegistry();
 </Doc>
 
 <script>
+  import Quill from 'quill';
+  import 'quill/dist/quill.snow.css';
   import { supabase } from '../lib/supabaseClient';
   import { uniqueSlug } from '../lib/slug';
 
   function $(id: string) {
     return document.getElementById(id)!;
+  }
+
+  // ───────────────────────── rich text (Quill) ─────────────────────────
+  // Only for fields that are genuinely prose (the about page's Intro, a
+  // Tried entry's Description) -- everything else stays plain text.
+
+  function createRichEditor(containerId: string) {
+    const quill = new Quill(`#${containerId}`, {
+      theme: 'snow',
+      modules: {
+        toolbar: [[{ header: [2, 3, false] }], ['bold', 'italic', 'underline'], [{ list: 'ordered' }, { list: 'bullet' }], ['link'], ['clean']],
+      },
+    });
+    return {
+      getHTML: () => {
+        const html = quill.root.innerHTML;
+        return html === '<p><br></p>' ? '' : html;
+      },
+      setHTML: (html: string) => {
+        quill.root.innerHTML = html && html.trim() ? html : '<p><br></p>';
+      },
+    };
+  }
+
+  // ───────────────────────── photo upload ─────────────────────────
+  // Uploads straight to the site-images bucket (supabase/storage.sql) and
+  // fills the adjacent path/URL field with the result -- that field still
+  // accepts a plain static/images/ path too, typed by hand.
+
+  function wireImageUpload(fileInput: HTMLInputElement, textInput: HTMLInputElement, folder: string, statusEl: HTMLElement) {
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files?.[0];
+      if (!file) return;
+
+      statusEl.hidden = false;
+      statusEl.classList.remove('error');
+      statusEl.textContent = 'Uploading…';
+
+      const safeName = file.name.replace(/[^a-zA-Z0-9.-]+/g, '-');
+      const path = `${folder}/${Date.now()}-${safeName}`;
+      const { error } = await supabase.storage.from('site-images').upload(path, file, { upsert: true });
+
+      if (error) {
+        statusEl.textContent = `Upload failed: ${error.message}`;
+        statusEl.classList.add('error');
+        return;
+      }
+
+      const { data } = supabase.storage.from('site-images').getPublicUrl(path);
+      textInput.value = data.publicUrl;
+      statusEl.textContent = 'Uploaded.';
+      fileInput.value = '';
+    });
   }
 
   // ───────────────────────── generic repeatable list editor ─────────────────────────
@@ -252,6 +317,8 @@ const { site } = await loadRegistry();
     placeholder?: string;
     /** Full-width, own line. Omit for a compact field that shares a row with its neighbours. */
     wide?: boolean;
+    /** Adds a file picker next to this field that uploads and fills it in. */
+    upload?: { folder: string };
   }
 
   function createListEditor(container: HTMLElement, fields: FieldSpec[], countEl?: HTMLElement) {
@@ -276,6 +343,22 @@ const { site } = await loadRegistry();
         input.dataset.key = f.key;
         wrap.append(span, input);
         row.append(wrap);
+
+        if (f.upload) {
+          const uploadWrap = document.createElement('label');
+          uploadWrap.className = 'field-narrow upload-field';
+          const uploadSpan = document.createElement('span');
+          uploadSpan.textContent = 'Upload a photo';
+          const fileInput = document.createElement('input');
+          fileInput.type = 'file';
+          fileInput.accept = 'image/*';
+          const status = document.createElement('span');
+          status.className = 'upload-status';
+          status.hidden = true;
+          uploadWrap.append(uploadSpan, fileInput, status);
+          row.append(uploadWrap);
+          wireImageUpload(fileInput, input as HTMLInputElement, f.upload.folder, status);
+        }
       }
 
       const removeBtn = document.createElement('button');
@@ -337,13 +420,29 @@ const { site } = await loadRegistry();
   const galleryEditor = createListEditor(
     $('gallery-list'),
     [
-      { key: 'src', label: 'Image path' },
+      { key: 'src', label: 'Image path', upload: { folder: 'gallery' } },
       { key: 'alt', label: 'Alt text' },
       { key: 'caption', label: 'Caption (optional)', wide: true },
     ],
     $('count-gallery'),
   );
   $('add-gallery').addEventListener('click', () => galleryEditor.addRow());
+
+  const introEditor = createRichEditor('a-intro-editor');
+  const descriptionEditor = createRichEditor('f-description-editor');
+
+  wireImageUpload(
+    $('a-portrait-upload') as HTMLInputElement,
+    $('a-portrait-src') as HTMLInputElement,
+    'portrait',
+    $('a-portrait-upload-status'),
+  );
+  wireImageUpload(
+    $('f-image-upload') as HTMLInputElement,
+    $('f-image-src') as HTMLInputElement,
+    'tried',
+    $('f-image-upload-status'),
+  );
 
   const elsewhereEditor = createListEditor(
     $('elsewhere-list'),
@@ -377,7 +476,6 @@ const { site } = await loadRegistry();
   const aboutFields = {
     name: $('a-name') as HTMLInputElement,
     role: $('a-role') as HTMLInputElement,
-    intro: $('a-intro') as HTMLTextAreaElement,
     now: $('a-now') as HTMLInputElement,
     portraitSrc: $('a-portrait-src') as HTMLInputElement,
     portraitAlt: $('a-portrait-alt') as HTMLInputElement,
@@ -394,7 +492,7 @@ const { site } = await loadRegistry();
 
     aboutFields.name.value = data.name ?? '';
     aboutFields.role.value = data.role ?? '';
-    aboutFields.intro.value = data.intro ?? '';
+    introEditor.setHTML(data.intro ?? '');
     aboutFields.now.value = data.now ?? '';
     aboutFields.portraitSrc.value = data.portrait_src ?? '';
     aboutFields.portraitAlt.value = data.portrait_alt ?? '';
@@ -412,7 +510,7 @@ const { site } = await loadRegistry();
       id: 1,
       name: aboutFields.name.value.trim(),
       role: aboutFields.role.value.trim(),
-      intro: aboutFields.intro.value.trim(),
+      intro: introEditor.getHTML(),
       now: aboutFields.now.value.trim(),
       portrait_src: aboutFields.portraitSrc.value.trim() || null,
       portrait_alt: aboutFields.portraitAlt.value.trim() || null,
@@ -462,7 +560,6 @@ const { site } = await loadRegistry();
     date: $('f-date') as HTMLInputElement,
     title: $('f-title') as HTMLInputElement,
     note: $('f-note') as HTMLTextAreaElement,
-    description: $('f-description') as HTMLTextAreaElement,
     outcome: $('f-outcome') as HTMLInputElement,
     liked: $('f-liked') as HTMLInputElement,
     tags: $('f-tags') as HTMLInputElement,
@@ -488,6 +585,7 @@ const { site } = await loadRegistry();
     formWrapper.hidden = true;
     editingId = null;
     form.reset();
+    descriptionEditor.setHTML('');
     formTitle.textContent = 'New entry';
     slugNote.hidden = true;
   }
@@ -495,6 +593,7 @@ const { site } = await loadRegistry();
   newEntryBtn.addEventListener('click', () => {
     editingId = null;
     form.reset();
+    descriptionEditor.setHTML('');
     formTitle.textContent = 'New entry';
     slugNote.hidden = true;
     openForm();
@@ -508,7 +607,7 @@ const { site } = await loadRegistry();
     fields.date.value = entry.date;
     fields.title.value = entry.title;
     fields.note.value = entry.note;
-    fields.description.value = entry.description ?? '';
+    descriptionEditor.setHTML(entry.description ?? '');
     fields.outcome.value = entry.outcome;
     fields.liked.value = entry.liked;
     fields.tags.value = entry.tags.join(', ');
@@ -622,7 +721,7 @@ const { site } = await loadRegistry();
       date: fields.date.value,
       title: fields.title.value.trim(),
       note: fields.note.value.trim(),
-      description: fields.description.value.trim() || null,
+      description: descriptionEditor.getHTML() || null,
       outcome: fields.outcome.value.trim(),
       liked: fields.liked.value.trim(),
       tags: fields.tags.value
@@ -912,6 +1011,103 @@ const { site } = await loadRegistry();
   textarea {
     resize: vertical;
     line-height: 1.45;
+  }
+
+  /* ── rich text (Quill) ── */
+
+  .rich-editor {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .rich-editor .ql-toolbar {
+    border: none;
+    border-bottom: 1px solid var(--border);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  .rich-editor .ql-container {
+    border: none;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: .9rem;
+  }
+
+  .rich-editor .ql-editor {
+    min-height: 6rem;
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  #f-description-editor .ql-editor {
+    min-height: 10rem;
+  }
+
+  .rich-editor .ql-editor.ql-blank::before {
+    color: var(--faint);
+    font-style: normal;
+  }
+
+  .rich-editor .ql-stroke {
+    stroke: var(--muted);
+  }
+
+  .rich-editor .ql-fill {
+    fill: var(--muted);
+  }
+
+  .rich-editor button:hover .ql-stroke {
+    stroke: var(--accent);
+  }
+
+  .rich-editor button:hover .ql-fill {
+    fill: var(--accent);
+  }
+
+  .rich-editor button.ql-active .ql-stroke {
+    stroke: var(--accent);
+  }
+
+  /* Compound selector, deliberately: the generic `button` rule above and
+     Quill's own stylesheet are both loaded as global CSS with no reliable
+     order between them, so a bare `button` override here could lose the
+     cascade. `.ql-toolbar button` has higher specificity and always wins,
+     restoring Quill's own small icon-button sizing. */
+  .ql-toolbar button {
+    align-self: auto;
+    font-family: inherit;
+    width: 28px;
+    height: 24px;
+    padding: 3px 5px;
+    border: none;
+    border-radius: 3px;
+  }
+
+  .ql-toolbar button:hover {
+    color: inherit;
+    border-color: transparent;
+    background: var(--accent-soft);
+  }
+
+  /* ── photo upload ── */
+
+  .upload-field input[type='file'] {
+    padding: .3rem 0;
+    border: none;
+    background: none;
+    width: auto;
+    font-size: .78rem;
+    color: var(--muted);
+  }
+
+  .upload-status {
+    font-size: .72rem;
+    color: var(--muted);
+  }
+
+  .upload-status.error {
+    color: #b3453a;
   }
 
   /* Short fields share a row; a field marked wide always takes the full line. */

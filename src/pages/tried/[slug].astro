@@ -1,7 +1,7 @@
 ---
 import Doc from '../../layouts/Doc.astro';
 import { loadRegistry } from '../../../tools/registry.mjs';
-import { asset, routeHref } from '../../lib/paths';
+import { resolveImage, routeHref } from '../../lib/paths';
 import { getTriedRows, type TriedRow } from '../../lib/tried';
 
 export async function getStaticPaths() {
@@ -12,12 +12,9 @@ export async function getStaticPaths() {
 const { entry } = Astro.props as { entry: TriedRow };
 const { site } = await loadRegistry();
 
-// A blank line between two lines of `description` becomes a paragraph break.
-// No description yet? The one-line `note` is what shows instead.
-const paragraphs = (entry.description?.trim() || entry.note)
-  .split(/\n\s*\n/)
-  .map((p) => p.trim())
-  .filter(Boolean);
+// description is rich HTML from Quill in /admin. No description yet? The
+// one-line note is what shows instead, as plain text.
+const hasDescription = Boolean(entry.description?.trim());
 ---
 
 <Doc title={entry.title} siteTitle={site.title} description={entry.note} chrome={false}>
@@ -35,13 +32,19 @@ const paragraphs = (entry.description?.trim() || entry.note)
 
   {
     entry.image && (
-      <img class="cover" src={asset(entry.image.src)} alt={entry.image.alt} loading="lazy" decoding="async" />
+      <img class="cover" src={resolveImage(entry.image.src)} alt={entry.image.alt} loading="lazy" decoding="async" />
     )
   }
 
-  <div class="prose">
-    {paragraphs.map((p) => <p>{p}</p>)}
-  </div>
+  {
+    hasDescription ? (
+      <div class="prose" set:html={entry.description} />
+    ) : (
+      <div class="prose">
+        <p>{entry.note}</p>
+      </div>
+    )
+  }
 </Doc>
 
 <style>
@@ -111,12 +114,47 @@ const paragraphs = (entry.description?.trim() || entry.note)
     border-radius: 4px;
   }
 
-  .prose p {
+  /* :global() because the description branch is set:html from Quill --
+     raw content Astro never compiles, so it never gets the scoping
+     attribute a plain selector here would need to match. */
+  .prose :global(p) {
+    margin: 0 0 1.1em;
     color: var(--muted);
     text-wrap: pretty;
   }
 
-  .prose p:first-child {
+  .prose :global(p:first-child) {
     font-size: 1.05rem;
+  }
+
+  .prose :global(p:last-child) {
+    margin-bottom: 0;
+  }
+
+  .prose :global(a) {
+    color: inherit;
+    text-decoration-color: var(--border-strong);
+  }
+
+  .prose :global(a:hover) {
+    text-decoration-color: var(--accent);
+  }
+
+  .prose :global(strong) {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .prose :global(ul),
+  .prose :global(ol) {
+    margin: 0 0 1.1em;
+    padding-left: 1.2rem;
+    color: var(--muted);
+  }
+
+  .prose :global(h2),
+  .prose :global(h3) {
+    color: var(--text);
+    margin: 1.5em 0 .6em;
   }
 </style>

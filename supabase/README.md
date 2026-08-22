@@ -15,6 +15,10 @@ everything on the about page (name, intro, "What I do", Selected work,
 Images, Elsewhere). It's seeded with exactly what's on the site today, so
 this doesn't change anything either until you edit it in `/admin`.
 
+Then **`storage.sql`** — creates the `site-images` bucket that the
+"Upload a photo" buttons in `/admin` write to, and the policies that let
+anyone view an uploaded image but only you add or replace one.
+
 ## 2. Create your login — and only yours
 
 **Authentication → Users → Add user.** Use `himanshuchavdacodes@gmail.com`
@@ -50,11 +54,13 @@ Fine-grained tokens → Generate new token.**
 
 ## 4. A Database Webhook that triggers a rebuild
 
-**Supabase dashboard → Database → Webhooks → Create a new hook.**
+**Supabase dashboard → Database → Webhooks → Create a new hook.** Webhooks
+are per-table, so make **two** — one for each content table. Same URL,
+headers, and body both times; only the Table field changes.
 
 | Field | Value |
 |---|---|
-| Table | `tried_entries` |
+| Table | `tried_entries` (make a second hook with `site_content`) |
 | Events | Insert, Update, Delete |
 | Type | HTTP Request |
 | Method | POST |
@@ -62,8 +68,8 @@ Fine-grained tokens → Generate new token.**
 | Headers | `Authorization: Bearer <the token from step 3>` <br> `Accept: application/vnd.github+json` <br> `Content-Type: application/json` |
 | Body | `{"event_type": "content-updated"}` |
 
-Every save/delete in the admin page now fires this webhook, which asks GitHub
-to run the deploy workflow — live in about 30–60 seconds, no manual step.
+Every save/delete on either table now fires its webhook, which asks GitHub to
+run the deploy workflow — live in about 30–60 seconds, no manual step.
 
 ## 5. Add the two committed env values to your local `.env` if it's ever missing
 

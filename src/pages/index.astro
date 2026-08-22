@@ -2,7 +2,7 @@
 import Doc from "../layouts/Doc.astro";
 import ThemeToggle from "../components/ThemeToggle.astro";
 import { loadRegistry } from "../../tools/registry.mjs";
-import { asset, collection, routeHref } from "../lib/paths";
+import { asset, resolveImage, collection, routeHref } from "../lib/paths";
 import { getSiteContent } from "../lib/site";
 import { getTriedRows } from "../lib/tried";
 
@@ -32,7 +32,7 @@ const recentlyTried = (await getTriedRows()).slice(0, 3);
     <div class="lede">
       <div class="lede-text">
         <h1>{me.role}</h1>
-        <p class="intro">{me.intro}</p>
+        <div class="intro" set:html={me.intro} />
         {
           me.now && (
             <p class="now">
@@ -46,7 +46,7 @@ const recentlyTried = (await getTriedRows()).slice(0, 3);
         me.portrait && (
           <img
             class="portrait"
-            src={asset(me.portrait.src)}
+            src={resolveImage(me.portrait.src)}
             alt={me.portrait.alt}
             width="640"
             height="800"
@@ -140,7 +140,7 @@ const recentlyTried = (await getTriedRows()).slice(0, 3);
           {me.gallery.map((item) => (
             <li>
               <img
-                src={asset(item.src)}
+                src={resolveImage(item.src)}
                 alt={item.alt}
                 loading="lazy"
                 decoding="async"
@@ -235,12 +235,44 @@ const recentlyTried = (await getTriedRows()).slice(0, 3);
     max-width: var(--measure);
   }
 
+  /* Rendered via set:html from Quill in /admin, so the paragraph/list/link
+     tags inside are raw content, not part of this template -- Astro only
+     scopes elements it compiles itself, so the descendant selectors below
+     have to opt out of scoping with :global() to reach them at all. */
   .intro {
     margin: 0;
     max-width: var(--measure);
     font-size: 1.05rem;
     color: var(--muted);
     text-wrap: pretty;
+  }
+
+  .intro :global(p) {
+    margin: 0 0 .9em;
+  }
+
+  .intro :global(p:last-child) {
+    margin-bottom: 0;
+  }
+
+  .intro :global(a) {
+    color: inherit;
+    text-decoration-color: var(--border-strong);
+  }
+
+  .intro :global(a:hover) {
+    text-decoration-color: var(--accent);
+  }
+
+  .intro :global(strong) {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .intro :global(ul),
+  .intro :global(ol) {
+    margin: 0 0 .9em;
+    padding-left: 1.2rem;
   }
 
   .now {
