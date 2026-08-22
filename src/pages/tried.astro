@@ -3,14 +3,10 @@ import Doc from '../layouts/Doc.astro';
 import ThemeToggle from '../components/ThemeToggle.astro';
 import { loadRegistry } from '../../tools/registry.mjs';
 import { home, collection } from '../lib/paths';
-import { tried } from '../data/tried';
+import { triedRows } from '../lib/tried';
 
 const { site } = await loadRegistry();
-
-const entries = tried.map((item) => ({
-  ...item,
-  search: [item.title, item.note, item.outcome, item.liked, ...item.tags].join(' ').toLowerCase(),
-}));
+const entries = triedRows;
 ---
 
 <Doc
@@ -30,7 +26,7 @@ const entries = tried.map((item) => ({
       </nav>
     </div>
     <h1>Things I've tried</h1>
-    <p class="standfirst">Worked, failed, mixed, still going — a running log, newest first.</p>
+    <p class="standfirst">Worked, failed, mixed, still going — a running log, newest first. Click one to read the full entry.</p>
   </header>
 
   <div class="controls">
@@ -41,17 +37,19 @@ const entries = tried.map((item) => ({
   <ol class="rows" id="index">
     {
       entries.map((item) => (
-        <li class="row entry" data-search={item.search}>
-          <span class="date">{item.date}</span>
-          <span class="body">
-            <span class="title">{item.title}</span>
-            {item.note && <span class="blurb">{item.note}</span>}
-            {item.tags.length > 0 && <span class="domains">{item.tags.join(' · ')}</span>}
-          </span>
-          <span class="tags">
-            {item.outcome && <span class="tag">{item.outcome}</span>}
-            {item.liked && <span class="tag tag-liked">{item.liked}</span>}
-          </span>
+        <li class="row" data-search={item.search}>
+          <a class="entry" href={item.href}>
+            <span class="date">{item.date}</span>
+            <span class="body">
+              <span class="title">{item.title}</span>
+              {item.note && <span class="blurb">{item.note}</span>}
+              {item.tags.length > 0 && <span class="domains">{item.tags.join(' · ')}</span>}
+            </span>
+            <span class="tags">
+              {item.outcome && <span class="tag">{item.outcome}</span>}
+              {item.liked && <span class="tag tag-liked">{item.liked}</span>}
+            </span>
+          </a>
         </li>
       ))
     }
@@ -61,16 +59,17 @@ const entries = tried.map((item) => ({
 </Doc>
 
 <script>
+  import { matchesQuery } from '../lib/filter';
+
   const input = document.getElementById('filter') as HTMLInputElement | null;
   const rows = Array.from(document.querySelectorAll<HTMLElement>('#index .row'));
   const empty = document.getElementById('empty');
   const count = document.getElementById('count');
 
   input?.addEventListener('input', () => {
-    const q = input.value.trim().toLowerCase();
     let shown = 0;
     for (const row of rows) {
-      const match = !q || (row.dataset.search ?? '').includes(q);
+      const match = matchesQuery(row.dataset.search ?? '', input.value);
       row.hidden = !match;
       if (match) shown++;
     }
@@ -182,13 +181,21 @@ const entries = tried.map((item) => ({
     border-top: 1px solid var(--border);
   }
 
-  /* Same shape as the about page's Tried teaser: date | body | outcome+liked. */
+  /* Same shape as the about page's Tried teaser: date | body | outcome+liked.
+     Links to the entry's own page at /tried/<slug>. */
   .entry {
     display: grid;
     grid-template-columns: 6rem 1fr auto;
     align-items: baseline;
     gap: 1.5rem;
     padding: 1.25rem 0;
+    text-decoration: none;
+    transition: background-color .15s ease;
+  }
+
+  .entry:hover {
+    background: var(--accent-soft);
+    box-shadow: -1rem 0 0 var(--accent-soft), 1rem 0 0 var(--accent-soft);
   }
 
   .date {
@@ -196,6 +203,11 @@ const entries = tried.map((item) => ({
     font-size: .76rem;
     color: var(--muted);
     font-variant-numeric: tabular-nums;
+    transition: color .15s ease;
+  }
+
+  .entry:hover .date {
+    color: var(--accent);
   }
 
   .body {
@@ -240,6 +252,11 @@ const entries = tried.map((item) => ({
     letter-spacing: .06em;
     text-transform: uppercase;
     color: var(--faint);
+    transition: color .15s ease;
+  }
+
+  .entry:hover .tag {
+    color: var(--accent);
   }
 
   .tag-liked {
@@ -265,6 +282,10 @@ const entries = tried.map((item) => ({
       align-items: baseline;
       gap: .8rem;
       text-align: left;
+    }
+
+    .entry:hover {
+      box-shadow: -.75rem 0 0 var(--accent-soft), .75rem 0 0 var(--accent-soft);
     }
   }
 </style>

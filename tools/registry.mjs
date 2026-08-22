@@ -81,6 +81,12 @@ function normalizePage(page, i) {
         'Register the page at a different route.',
     );
   }
+  if (route.startsWith('/tried/')) {
+    throw new Error(
+      `${where} claims "${route}". Everything under /tried/ is generated from ` +
+        'each entry in src/data/tried.ts, not from pages.json.',
+    );
+  }
   const type = page.type ?? (page.url ? 'external' : 'local');
   if (type !== 'local' && type !== 'external') {
     throw new Error(`${where} ("${route}") has type "${type}"; expected "local" or "external".`);

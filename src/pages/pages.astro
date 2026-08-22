@@ -82,16 +82,17 @@ const entries = await Promise.all(
 </Doc>
 
 <script>
+  import { matchesQuery } from '../lib/filter';
+
   const input = document.getElementById('filter') as HTMLInputElement | null;
   const rows = Array.from(document.querySelectorAll<HTMLElement>('#index .row'));
   const empty = document.getElementById('empty');
   const count = document.getElementById('count');
 
   input?.addEventListener('input', () => {
-    const q = input.value.trim().toLowerCase();
     let shown = 0;
     for (const row of rows) {
-      const match = !q || (row.dataset.search ?? '').includes(q);
+      const match = matchesQuery(row.dataset.search ?? '', input.value);
       row.hidden = !match;
       if (match) shown++;
     }

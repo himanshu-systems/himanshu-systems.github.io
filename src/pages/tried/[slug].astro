@@ -1,0 +1,121 @@
+---
+import Doc from '../../layouts/Doc.astro';
+import { loadRegistry } from '../../../tools/registry.mjs';
+import { asset, routeHref } from '../../lib/paths';
+import { triedRows, type TriedRow } from '../../lib/tried';
+
+export function getStaticPaths() {
+  return triedRows.map((entry) => ({ params: { slug: entry.slug }, props: { entry } }));
+}
+
+const { entry } = Astro.props as { entry: TriedRow };
+const { site } = await loadRegistry();
+
+// A blank line between two lines of `description` becomes a paragraph break.
+// No description yet? The one-line `note` is what shows instead.
+const paragraphs = (entry.description?.trim() || entry.note)
+  .split(/\n\s*\n/)
+  .map((p) => p.trim())
+  .filter(Boolean);
+---
+
+<Doc title={entry.title} siteTitle={site.title} description={entry.note} chrome={false}>
+  <p class="eyebrow"><a href={routeHref('/tried')}>&larr; Tried</a></p>
+
+  <div class="meta">
+    <span class="date">{entry.date}</span>
+    {entry.outcome && <span class="tag">{entry.outcome}</span>}
+    {entry.liked && <span class="tag tag-liked">{entry.liked}</span>}
+  </div>
+
+  <h1>{entry.title}</h1>
+
+  {entry.tags.length > 0 && <p class="domains">{entry.tags.join(' · ')}</p>}
+
+  {
+    entry.image && (
+      <img class="cover" src={asset(entry.image.src)} alt={entry.image.alt} loading="lazy" decoding="async" />
+    )
+  }
+
+  <div class="prose">
+    {paragraphs.map((p) => <p>{p}</p>)}
+  </div>
+</Doc>
+
+<style>
+  .eyebrow {
+    margin: 0 0 2rem;
+    font-family: var(--mono);
+    font-size: .7rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+  }
+
+  .eyebrow a {
+    color: var(--faint);
+    text-decoration: none;
+    transition: color .15s ease;
+  }
+
+  .eyebrow a:hover {
+    color: var(--accent);
+  }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: .8rem;
+  }
+
+  .date {
+    font-family: var(--mono);
+    font-size: .78rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tag {
+    font-family: var(--mono);
+    font-size: .7rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  .tag-liked {
+    color: var(--muted);
+  }
+
+  h1 {
+    margin: 0 0 .6rem;
+  }
+
+  .domains {
+    margin: 0 0 2.5rem;
+    font-family: var(--mono);
+    font-size: .74rem;
+    letter-spacing: .04em;
+    color: var(--faint);
+  }
+
+  .cover {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin: 0 0 2.5rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+  }
+
+  .prose p {
+    color: var(--muted);
+    text-wrap: pretty;
+  }
+
+  .prose p:first-child {
+    font-size: 1.05rem;
+  }
+</style>

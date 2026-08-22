@@ -1,90 +1,15 @@
 ---
-import Doc from '../layouts/Doc.astro';
-import ThemeToggle from '../components/ThemeToggle.astro';
-import { loadRegistry } from '../../tools/registry.mjs';
-import { asset, collection, routeHref } from '../lib/paths';
-import { tried } from '../data/tried';
+import Doc from "../layouts/Doc.astro";
+import ThemeToggle from "../components/ThemeToggle.astro";
+import { loadRegistry } from "../../tools/registry.mjs";
+import { asset, collection, routeHref } from "../lib/paths";
+import { me } from "../data/me";
+import { triedRows } from "../lib/tried";
 
 const { site } = await loadRegistry();
 
 // Newest 3, as a teaser -- the full, filterable log lives at /tried.
-const recentlyTried = tried.slice(0, 3);
-
-/* ────────────────────────────────────────────────────────────────────────────
- * EDIT EVERYTHING IN THIS BLOCK. Nothing below it needs to change.
- *
- * The placeholder prose describes what to write rather than inventing a bio.
- * Replace it before you show this page to anyone. Empty any array to drop that
- * section entirely — its heading disappears with it.
- *
- * Images live in static/, which is copied to the site root at build time.
- * So static/images/portrait.jpg is written here as 'images/portrait.jpg'.
- *
- * The Tried teaser below is not edited here -- it and the full list at
- * /tried both read from src/data/tried.ts. Edit entries there.
- * ──────────────────────────────────────────────────────────────────────────── */
-const me = {
-  name: 'Himanshu Chavda',
-
-  /* One line, under your name. What you do, in plain words. */
-  role: 'I turn simple questions into unnecessarily deep problems.',
-
-  /* Two or three sentences. What you care about, what you are working toward,
-     how you got here. Keep it plain — this is the part people actually read. */
-  intro:
-    'I research things, work out how they actually work, then build around what ' +
-    'I learn. Backend systems, networking, operating systems, databases, ' +
-    'distributed systems, security, Rust, Go — whatever has my attention that ' +
-    'week. I want the big picture and the smallest mechanism, which is how I ' +
-    'end up with ten unfinished things and twenty more I want to start.',
-
-  /* Optional. One line about what is on your desk right now. '' hides it. */
-  now: 'Somewhere between building something useful and following an idea just to see where it goes.',
-
-  /* Optional. Set to null for no portrait. alt is read aloud by screen readers,
-     so describe the picture rather than repeating your name. */
-  portrait: { src: 'images/portrait.jpg', alt: 'Portrait photo' },
-
-  /* Left column is the area, right column is the detail. */
-  doing: [
-    { label: 'systems', detail: 'Backend, operating systems, distributed systems, and the networking underneath.' },
-    { label: 'data', detail: 'Databases, and what is actually happening below the query.' },
-    { label: 'security', detail: 'How things break, and what that says about how they were built.' },
-    { label: 'languages', detail: 'Rust and Go, mostly.' },
-    { label: 'method', detail: 'Start with a question. Read until it makes sense. Build something with it.' },
-  ],
-
-  /* Set href to null for anything that has no link yet. */
-  work: [
-    {
-      year: '2026',
-      title: 'HTML DOCS TO Learn',
-      blurb: 'A single GitHub Pages site that serves both hand-written pages and imported HTML, driven by one registry file.',
-      href: 'https://github.com/himanshu-systems/himanshu-systems.github.io',
-    },
-    {
-      year: '20XX',
-      title: 'Another project',
-      blurb: 'One sentence on what it does and why you built it.',
-      href: null,
-    },
-  ],
-
-  /* Screenshots, photos, anything visual. Drop files into static/images/ and
-     point at them here. Captions are optional. */
-  gallery: [
-    { src: 'images/work-1.svg', alt: 'Placeholder image one', caption: 'A caption, if it needs one.' },
-    { src: 'images/work-2.svg', alt: 'Placeholder image two', caption: '' },
-    { src: 'images/work-3.svg', alt: 'Placeholder image three', caption: '' },
-  ],
-
-  /* Remove the email line if you would rather not have it scraped. */
-  elsewhere: [
-    { label: 'github', text: '@himanshu-systems', href: 'https://github.com/himanshu-systems' },
-    { label: 'email', text: 'himanshuchavdacodes@gmail.com', href: 'mailto:himanshuchavdacodes@gmail.com' },
-  ],
-};
-/* ──────────────────────────────────────────────────────────────────────────── */
+const recentlyTried = triedRows.slice(0, 3);
 ---
 
 <Doc
@@ -107,16 +32,26 @@ const me = {
       <div class="lede-text">
         <h1>{me.role}</h1>
         <p class="intro">{me.intro}</p>
-        {me.now && (
-          <p class="now">
-            <span class="now-label">Now</span>
-            {me.now}
-          </p>
-        )}
+        {
+          me.now && (
+            <p class="now">
+              <span class="now-label">Now</span>
+              {me.now}
+            </p>
+          )
+        }
       </div>
-      {me.portrait && (
-        <img class="portrait" src={asset(me.portrait.src)} alt={me.portrait.alt} width="640" height="800" />
-      )}
+      {
+        me.portrait && (
+          <img
+            class="portrait"
+            src={asset(me.portrait.src)}
+            alt={me.portrait.alt}
+            width="640"
+            height="800"
+          />
+        )
+      }
     </div>
   </header>
 
@@ -142,10 +77,14 @@ const me = {
         <h2>Selected work</h2>
         <ol class="rows">
           {me.work.map((item) => {
-            const Tag = item.href ? 'a' : 'div';
+            const Tag = item.href ? "a" : "div";
             return (
               <li class="row">
-                <Tag class="pair" href={item.href ?? undefined} rel={item.href ? 'noopener noreferrer' : undefined}>
+                <Tag
+                  class="pair"
+                  href={item.href ?? undefined}
+                  rel={item.href ? "noopener noreferrer" : undefined}
+                >
                   <span class="year">{item.year}</span>
                   <span class="body">
                     <span class="title">{item.title}</span>
@@ -166,21 +105,27 @@ const me = {
         <h2>Tried</h2>
         <ol class="rows">
           {recentlyTried.map((item) => (
-            <li class="row entry">
-              <span class="date">{item.date}</span>
-              <span class="body">
-                <span class="title">{item.title}</span>
-                {item.note && <span class="blurb">{item.note}</span>}
-              </span>
-              <span class="tags">
-                {item.outcome && <span class="tag">{item.outcome}</span>}
-                {item.liked && <span class="tag tag-liked">{item.liked}</span>}
-              </span>
+            <li class="row">
+              <a class="entry" href={item.href}>
+                <span class="date">{item.date}</span>
+                <span class="body">
+                  <span class="title">{item.title}</span>
+                  {item.note && <span class="blurb">{item.note}</span>}
+                </span>
+                <span class="tags">
+                  {item.outcome && <span class="tag">{item.outcome}</span>}
+                  {item.liked && (
+                    <span class="tag tag-liked">{item.liked}</span>
+                  )}
+                </span>
+              </a>
             </li>
           ))}
         </ol>
         <p class="more">
-          <a href={routeHref('/tried')}>See everything I&rsquo;ve tried &rarr;</a>
+          <a href={routeHref("/tried")}>
+            See everything I&rsquo;ve tried &rarr;
+          </a>
         </p>
       </section>
     )
@@ -193,7 +138,12 @@ const me = {
         <ul class="gallery">
           {me.gallery.map((item) => (
             <li>
-              <img src={asset(item.src)} alt={item.alt} loading="lazy" decoding="async" />
+              <img
+                src={asset(item.src)}
+                alt={item.alt}
+                loading="lazy"
+                decoding="async"
+              />
               {item.caption && <p class="caption">{item.caption}</p>}
             </li>
           ))}
@@ -237,8 +187,8 @@ const me = {
   .eyebrow {
     margin: 0;
     font-family: var(--mono);
-    font-size: .7rem;
-    letter-spacing: .16em;
+    font-size: 0.7rem;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
     color: var(--faint);
   }
@@ -251,11 +201,11 @@ const me = {
 
   nav a {
     font-family: var(--mono);
-    font-size: .7rem;
-    letter-spacing: .04em;
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
     color: var(--muted);
     text-decoration: none;
-    transition: color .15s ease;
+    transition: color 0.15s ease;
   }
 
   nav a:hover {
@@ -295,19 +245,19 @@ const me = {
   .now {
     margin: 1.6rem 0 0;
     max-width: var(--measure);
-    font-size: .95rem;
+    font-size: 0.95rem;
     color: var(--muted);
   }
 
   .now-label {
     display: inline-block;
-    margin-right: .6rem;
+    margin-right: 0.6rem;
     font-family: var(--mono);
-    font-size: .62rem;
-    letter-spacing: .12em;
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--accent);
-    vertical-align: .1em;
+    vertical-align: 0.1em;
   }
 
   /* Section headings borrow the index's mono label, not the prose h2. */
@@ -317,12 +267,12 @@ const me = {
 
   h2 {
     margin: 0;
-    padding-bottom: .7rem;
+    padding-bottom: 0.7rem;
     border-bottom: 1px solid var(--border-strong);
     font-family: var(--mono);
-    font-size: .7rem;
+    font-size: 0.7rem;
     font-weight: 400;
-    letter-spacing: .16em;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
     color: var(--faint);
   }
@@ -350,24 +300,26 @@ const me = {
   }
 
   a.pair {
-    transition: background-color .15s ease;
+    transition: background-color 0.15s ease;
   }
 
   a.pair:hover {
     /* Same bleed as the collection rows: the whole row is the target. */
     background: var(--accent-soft);
-    box-shadow: -1rem 0 0 var(--accent-soft), 1rem 0 0 var(--accent-soft);
+    box-shadow:
+      -1rem 0 0 var(--accent-soft),
+      1rem 0 0 var(--accent-soft);
   }
 
   dt,
   .year,
   .label {
     font-family: var(--mono);
-    font-size: .76rem;
-    letter-spacing: .02em;
+    font-size: 0.76rem;
+    letter-spacing: 0.02em;
     color: var(--muted);
     font-variant-numeric: tabular-nums;
-    transition: color .15s ease;
+    transition: color 0.15s ease;
   }
 
   a.pair:hover .year,
@@ -384,62 +336,81 @@ const me = {
   .body {
     display: flex;
     flex-direction: column;
-    gap: .3rem;
+    gap: 0.3rem;
   }
 
   .title {
     font-size: 1.1rem;
     font-weight: 500;
     line-height: 1.3;
-    letter-spacing: -.01em;
+    letter-spacing: -0.01em;
     color: var(--text);
   }
 
   .blurb {
-    font-size: .92rem;
+    font-size: 0.92rem;
     color: var(--muted);
     text-wrap: pretty;
   }
 
   .text {
     color: var(--text);
-    font-size: .98rem;
+    font-size: 0.98rem;
     word-break: break-word;
   }
 
   /* Three columns: date, then the two-line body, then the outcome/liked pair
      stacked and right-aligned — the same shape as the collection index's
-     meta column. Not a link, so no hover state. */
+     meta column. Links out to the entry's own page at /tried/<slug>. */
   .entry {
     display: grid;
     grid-template-columns: 6rem 1fr auto;
     align-items: baseline;
     gap: 1.5rem;
     padding: 1.1rem 0;
+    text-decoration: none;
+    transition: background-color 0.15s ease;
+  }
+
+  .entry:hover {
+    background: var(--accent-soft);
+    box-shadow:
+      -1rem 0 0 var(--accent-soft),
+      1rem 0 0 var(--accent-soft);
   }
 
   .date {
     font-family: var(--mono);
-    font-size: .76rem;
+    font-size: 0.76rem;
     color: var(--muted);
     font-variant-numeric: tabular-nums;
+    transition: color 0.15s ease;
+  }
+
+  .entry:hover .date {
+    color: var(--accent);
   }
 
   .tags {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: .3rem;
+    gap: 0.3rem;
     text-align: right;
     white-space: nowrap;
   }
 
   .tag {
     font-family: var(--mono);
-    font-size: .68rem;
-    letter-spacing: .06em;
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--faint);
+    transition: color 0.15s ease;
+  }
+
+  .entry:hover .tag {
+    color: var(--accent);
   }
 
   .tag-liked {
@@ -466,11 +437,11 @@ const me = {
   }
 
   .caption {
-    margin: .6rem 0 0;
+    margin: 0.6rem 0 0;
     font-family: var(--mono);
-    font-size: .68rem;
+    font-size: 0.68rem;
     line-height: 1.5;
-    letter-spacing: .02em;
+    letter-spacing: 0.02em;
     color: var(--faint);
     text-wrap: pretty;
   }
@@ -481,11 +452,11 @@ const me = {
 
   .more a {
     font-family: var(--mono);
-    font-size: .78rem;
-    letter-spacing: .02em;
+    font-size: 0.78rem;
+    letter-spacing: 0.02em;
     color: var(--muted);
     text-decoration: none;
-    transition: color .15s ease;
+    transition: color 0.15s ease;
   }
 
   .more a:hover {
@@ -501,30 +472,33 @@ const me = {
     .portrait {
       max-width: 11rem;
       order: -1;
-      margin-bottom: .5rem;
+      margin-bottom: 0.5rem;
     }
 
     .pair {
       grid-template-columns: 1fr;
-      gap: .4rem;
+      gap: 0.4rem;
       padding: 1rem 0;
     }
 
     .entry {
       grid-template-columns: 1fr;
-      gap: .4rem;
+      gap: 0.4rem;
       padding: 1rem 0;
     }
 
     .tags {
       flex-direction: row;
       align-items: baseline;
-      gap: .8rem;
+      gap: 0.8rem;
       text-align: left;
     }
 
-    a.pair:hover {
-      box-shadow: -.75rem 0 0 var(--accent-soft), .75rem 0 0 var(--accent-soft);
+    a.pair:hover,
+    .entry:hover {
+      box-shadow:
+        -0.75rem 0 0 var(--accent-soft),
+        0.75rem 0 0 var(--accent-soft);
     }
   }
 </style>
