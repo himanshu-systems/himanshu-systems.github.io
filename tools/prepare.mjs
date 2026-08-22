@@ -29,7 +29,10 @@ async function main() {
   // loadRegistry already resolves BASE_PATH over pages.json's site.base.
   const { site, pages } = await loadRegistry();
   const base = normalizeBaseUrl(site.base);
-  const home = base;
+  // The pill points at the collection index, which lives at /pages now that
+  // the site root is the about page.
+  // joinBase, not a template literal: normalizeBaseUrl already ends in a slash.
+  const collection = joinBase(base, '/pages');
 
   await rm(PUBLIC_DIR, { recursive: true, force: true });
   await mkdir(PUBLIC_DIR, { recursive: true });
@@ -59,7 +62,7 @@ async function main() {
     if (owner === 'passthrough') {
       const { html, fetchedAt } = await passthroughHtml(page);
       const chrome = page.chrome
-        ? chromeMarkup({ home, sourceUrl: page.type === 'external' ? page.url : null, title: site.title })
+        ? chromeMarkup({ collection, sourceUrl: page.type === 'external' ? page.url : null, title: site.title })
         : '';
       await emit(page.route, chrome ? injectChrome(html, chrome) : html);
       entry.fetchedAt = fetchedAt ?? null;

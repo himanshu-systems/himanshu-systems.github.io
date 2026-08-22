@@ -5,7 +5,7 @@
  * raw string, and Chrome.astro renders the same markup inside Astro pages, so
  * both paths stay identical.
  */
-export function chromeMarkup({ home, sourceUrl = null, title = 'Collection' } = {}) {
+export function chromeMarkup({ collection, sourceUrl = null, title = 'Collection' } = {}) {
   const source = sourceUrl
     ? `<a href="${escapeAttr(sourceUrl)}" target="_blank" rel="noopener noreferrer">source</a>`
     : '';
@@ -42,7 +42,7 @@ export function chromeMarkup({ home, sourceUrl = null, title = 'Collection' } = 
 @media print { #__collection_bar { display: none; } }
 </style>
 <div id="__collection_bar" role="navigation" aria-label="Collection">
-  <a href="${escapeAttr(home)}" title="${escapeAttr(title)}">&#8592; Collection</a>
+  <a href="${escapeAttr(collection)}" title="${escapeAttr(title)}">&#8592; Collection</a>
   ${source}
 </div>`;
 }

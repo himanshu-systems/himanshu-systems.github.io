@@ -1,6 +1,6 @@
 ---
 import ThemeInit from '../components/ThemeInit.astro';
-import { home, asset } from '../lib/paths';
+import { collection, asset } from '../lib/paths';
 import '../styles/tokens.css';
 
 interface Props {
@@ -28,7 +28,7 @@ const { title, siteTitle, url } = Astro.props;
   </head>
   <body>
     <div class="bar">
-      <a href={home}>&#8592; Collection</a>
+      <a href={collection}>&#8592; Collection</a>
       <strong>{title}</strong>
       <span class="spacer"></span>
       <span class="hint">Blank below? The source blocks embedding &mdash;</span>

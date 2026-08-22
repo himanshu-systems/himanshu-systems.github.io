@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" width="1200" height="800" role="img" aria-label="image 1 placeholder">
+  <style>
+    .ground { fill: #f1f2f4; }
+    .rule   { stroke: #d3d5da; }
+    .ink    { fill: #8a9099; }
+    @media (prefers-color-scheme: dark) {
+      .ground { fill: #14171b; }
+      .rule   { stroke: #333941; }
+      .ink    { fill: #6b7179; }
+    }
+  </style>
+  <rect class="ground" width="1200" height="800"/>
+  <rect class="rule" x="12" y="12" width="1176" height="776" fill="none" stroke-width="2" stroke-dasharray="10 8"/>
+  <path class="rule" d="M0 0 L1200 800 M1200 0 L0 800" stroke-width="1" opacity=".35"/>
+  <text class="ink" x="50%" y="50%" text-anchor="middle" font-family="IBM Plex Mono, ui-monospace, monospace" font-size="57" letter-spacing="2">image 1</text>
+  <text class="ink" x="50%" y="489" text-anchor="middle" font-family="IBM Plex Mono, ui-monospace, monospace" font-size="36" opacity=".75">replace in static/images/</text>
+</svg>

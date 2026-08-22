@@ -5,8 +5,11 @@
  */
 const BASE = import.meta.env.BASE_URL.replace(/\/+$/, '');
 
-/** The collection index. */
+/** The site root, which is the about page. */
 export const home = `${BASE}/`;
+
+/** The generated collection index, listing every registered page. */
+export const collection = `${BASE}/pages/`;
 
 /** A file served from the site root, e.g. asset('favicon.svg'). */
 export function asset(file: string): string {

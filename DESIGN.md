@@ -164,6 +164,23 @@ grid-template-columns: 13rem 1fr auto;   /* route | title + blurb | kind + meta 
 the meta column turns horizontal. A single well-chosen breakpoint beats four
 half-considered ones.
 
+### Rows
+
+Every two-column row in the system uses one class, `.pair`, and it goes on **the
+element that actually holds the two children** — the `<a>`, or the `<div>` in a
+`<dl>`. Never put it on both a wrapper and its child: the inner grid then lands
+inside the outer grid's first column and the row collapses to `10rem` wide. That
+bug shipped once already.
+
+### Images
+
+Files live in `static/`, which is copied to the site root during `prepare`, so
+`static/images/x.jpg` is written as `'images/x.jpg'` and resolved through
+`asset()`. Every image gets an explicit `border`, a 4px radius to match `pre`,
+and `aspect-ratio: 3 / 2` with `object-fit: cover` so a mixed-size set still
+lines up. The gallery is `repeat(auto-fill, minmax(15rem, 1fr))` — it reflows on
+its own and needs no breakpoint. Captions are mono at `--faint`.
+
 Hover tints the whole row and bleeds the tint past the text on both sides, so the
 row reads as one target rather than a highlighted paragraph:
 
@@ -199,6 +216,12 @@ mouse click does not draw a ring but a Tab key does.
 
 ## Files
 
+Two routes are hand-written Astro pages rather than registry entries: `/` is the
+about page and `/pages` is the generated collection index. A static Astro route
+silently beats the `[...route]` catch-all, so both are listed in `RESERVED` in
+`tools/registry.mjs` — registering either in `pages.json` now fails loudly
+instead of building a page nothing can reach.
+
 | File                              | Holds                                        |
 | --------------------------------- | -------------------------------------------- |
 | `src/styles/tokens.css`           | all three theme states, base element styles  |
@@ -206,8 +229,8 @@ mouse click does not draw a ring but a Tab key does.
 | `src/layouts/Frame.astro`         | the embed wrapper for `mode: "embed"`         |
 | `src/components/ThemeInit.astro`  | pre-paint theme stamp (`is:inline`, in head) |
 | `src/components/ThemeToggle.astro`| the system/light/dark cycle button           |
-| `src/pages/index.astro`           | the directory listing                        |
-| `src/pages/me.astro`              | the bio page; all copy sits in one `me` object|
+| `src/pages/index.astro`           | the about page; all copy sits in one `me` object |
+| `src/pages/pages.astro`           | the generated collection index               |
 | `tools/chrome.mjs`                | the "← Collection" pill                      |
 
 `chrome.mjs` uses **literal colours, not tokens** — by design. It is injected

@@ -1,7 +1,7 @@
 ---
 import { loadRegistry } from '../../tools/registry.mjs';
 import Doc from '../layouts/Doc.astro';
-import { home } from '../lib/paths';
+import { home, collection } from '../lib/paths';
 
 const { site } = await loadRegistry();
 ---
@@ -10,7 +10,7 @@ const { site } = await loadRegistry();
   <p class="code">404</p>
   <h1>No page on that route</h1>
   <p class="lede">This route is not registered in <code>pages.json</code>.</p>
-  <p><a href={home}>Back to the index</a></p>
+  <p><a href={collection}>See every page</a> &middot; <a href={home}>about</a></p>
 </Doc>
 
 <style>

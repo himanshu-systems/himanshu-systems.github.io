@@ -75,10 +75,10 @@ function normalizePage(page, i) {
   if (!page || typeof page !== 'object') throw new Error(`${where} must be an object.`);
 
   const route = normalizeRoute(page.route, where);
-  if (route === '/') {
+  if (RESERVED[route]) {
     throw new Error(
-      `${where} claims "/", which is reserved for the generated collection index. ` +
-        'Register the page at a named route such as "/home" instead.',
+      `${where} claims "${route}", which is reserved for ${RESERVED[route]}. ` +
+        'Register the page at a different route.',
     );
   }
   const type = page.type ?? (page.url ? 'external' : 'local');
@@ -136,6 +136,16 @@ export function normalizeRoute(route, where = 'page') {
   }
   return value;
 }
+
+/**
+ * Routes owned by hand-written Astro pages. A static Astro route silently wins
+ * over the [...route] catch-all, so registering one of these would produce a
+ * page that is built but never reachable. Fail loudly instead.
+ */
+export const RESERVED = {
+  '/': 'the about page',
+  '/pages': 'the generated collection index',
+};
 
 export function normalizeBase(base) {
   if (!base) return '';
