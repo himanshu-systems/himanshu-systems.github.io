@@ -145,6 +145,7 @@ export function normalizeRoute(route, where = 'page') {
 export const RESERVED = {
   '/': 'the about page',
   '/pages': 'the generated collection index',
+  '/tried': 'the experiments log',
 };
 
 export function normalizeBase(base) {

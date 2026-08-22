@@ -2,9 +2,13 @@
 import Doc from '../layouts/Doc.astro';
 import ThemeToggle from '../components/ThemeToggle.astro';
 import { loadRegistry } from '../../tools/registry.mjs';
-import { asset, collection } from '../lib/paths';
+import { asset, collection, routeHref } from '../lib/paths';
+import { tried } from '../data/tried';
 
 const { site } = await loadRegistry();
+
+// Newest 3, as a teaser -- the full, filterable log lives at /tried.
+const recentlyTried = tried.slice(0, 3);
 
 /* ────────────────────────────────────────────────────────────────────────────
  * EDIT EVERYTHING IN THIS BLOCK. Nothing below it needs to change.
@@ -14,7 +18,10 @@ const { site } = await loadRegistry();
  * section entirely — its heading disappears with it.
  *
  * Images live in static/, which is copied to the site root at build time.
- * So static/images/portrait.svg is written here as 'images/portrait.svg'.
+ * So static/images/portrait.jpg is written here as 'images/portrait.jpg'.
+ *
+ * The Tried teaser below is not edited here -- it and the full list at
+ * /tried both read from src/data/tried.ts. Edit entries there.
  * ──────────────────────────────────────────────────────────────────────────── */
 const me = {
   name: 'Himanshu Chavda',
@@ -60,40 +67,6 @@ const me = {
       title: 'Another project',
       blurb: 'One sentence on what it does and why you built it.',
       href: null,
-    },
-  ],
-
-  /* Things you tried: worked, failed, mixed, still going — whatever actually
-     happened. outcome and liked are free text on purpose, so you are never
-     stuck picking from a fixed list; write what fits. */
-  log: [
-    {
-      date: '2026-08',
-      title: 'Something you tried',
-      note: 'What it was and what happened, in a sentence or two.',
-      outcome: 'worked',
-      liked: 'liked it',
-    },
-    {
-      date: '2026-07',
-      title: 'Something that did not pan out',
-      note: 'What you expected, and where it fell apart.',
-      outcome: 'failed',
-      liked: 'not for me',
-    },
-    {
-      date: '2026-06',
-      title: 'Something with a mixed result',
-      note: 'What worked, what did not, and why you kept part of it.',
-      outcome: 'mixed',
-      liked: 'mixed feelings',
-    },
-    {
-      date: '2026-05',
-      title: 'Something still in progress',
-      note: 'Where it stands right now.',
-      outcome: 'ongoing',
-      liked: 'liked it',
     },
   ],
 
@@ -190,11 +163,11 @@ const me = {
   }
 
   {
-    me.log.length > 0 && (
+    recentlyTried.length > 0 && (
       <section>
         <h2>Tried</h2>
         <ol class="rows">
-          {me.log.map((item) => (
+          {recentlyTried.map((item) => (
             <li class="row entry">
               <span class="date">{item.date}</span>
               <span class="body">
@@ -208,6 +181,9 @@ const me = {
             </li>
           ))}
         </ol>
+        <p class="more">
+          <a href={routeHref('/tried')}>See everything I&rsquo;ve tried &rarr;</a>
+        </p>
       </section>
     )
   }
@@ -528,6 +504,23 @@ const me = {
     letter-spacing: .02em;
     color: var(--faint);
     text-wrap: pretty;
+  }
+
+  .more {
+    margin: 1.4rem 0 0;
+  }
+
+  .more a {
+    font-family: var(--mono);
+    font-size: .78rem;
+    letter-spacing: .02em;
+    color: var(--muted);
+    text-decoration: none;
+    transition: color .15s ease;
+  }
+
+  .more a:hover {
+    color: var(--accent);
   }
 
   /* The one breakpoint, matching the collection index. */
