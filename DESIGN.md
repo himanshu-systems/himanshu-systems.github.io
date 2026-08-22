@@ -204,6 +204,34 @@ row reads as one target rather than a highlighted paragraph:
 }
 ```
 
+### Social icons
+
+`src/components/SocialIcon.astro` deliberately isn't the official brand
+marks — GitHub black, LinkedIn blue, Instagram's gradient — which would be
+four foreign colours dropped into a one-accent system. Plain `currentColor`
+outlines instead, in a bordered circle matching the button language
+elsewhere, so hover is the same `--accent` + `--accent-soft` treatment as
+every other interactive element on the page. Unrecognised labels fall back
+to a generic link glyph rather than rendering nothing.
+
+### The floating shape
+
+The one deliberate illustration on an otherwise type-only site
+(`src/components/FloatingShape.astro`) — a wireframe icosahedron, not a
+solid, coloured with `--accent` so it's teal in light and the paler
+dark-mode teal automatically, and re-tints live via a `MutationObserver` on
+`data-theme` if the toggle is used while it's on screen. It sits in a
+bordered box matching the portrait/gallery treatment rather than floating
+free over the page, which is what keeps it feeling like part of this design
+system instead of a dropped-in demo.
+
+Idle motion (slow spin, a small sine-wave bob) is skipped entirely under
+`prefers-reduced-motion`; what's left is only the momentum from a visitor's
+own drag, which decays back to a standstill. Three.js's own bundle doesn't
+tree-shake past roughly 500KB minified regardless of whether you import the
+whole namespace or name individual classes — that's the accepted cost of
+using the library at all, loaded only on this one page.
+
 Spacing runs on a loose 4px-derived scale (`.3 / .45 / .7 / 1.1 / 1.5 / 2.5 / 3rem`).
 Section rhythm uses `clamp()` so it compresses on small screens instead of
 stepping at a breakpoint.
@@ -276,6 +304,8 @@ still gets `asset()` and the base path; an absolute URL is used as-is.
 | `src/layouts/Frame.astro`           | the embed wrapper for `mode: "embed"`         |
 | `src/components/ThemeInit.astro`    | pre-paint theme stamp (`is:inline`, in head) |
 | `src/components/ThemeToggle.astro`  | the system/light/dark cycle button           |
+| `src/components/SocialIcon.astro`   | currentColor outline icons for Elsewhere, not brand marks |
+| `src/components/FloatingShape.astro`| the draggable Three.js wireframe on the about page |
 | `src/lib/supabaseClient.ts`         | the one Supabase client, shared by build-time fetches and `/admin` |
 | `src/lib/site.ts`                   | fetches the about page's single content row  |
 | `src/lib/tried.ts`                  | fetches public Tried rows, sorted newest-first, with slug/href/search built in |
