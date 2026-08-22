@@ -1,0 +1,28 @@
+<h1>HTML basics</h1>
+
+<p>A sample local page, registered at the multi-segment route
+<code>/notes/html-basics</code>. It builds to <code>site/notes/html-basics/index.html</code>,
+which GitHub Pages serves as a clean URL with no <code>.html</code> in it.</p>
+
+<h2>Document skeleton</h2>
+
+<pre><code>&lt;!doctype html&gt;
+&lt;html lang="en"&gt;
+  &lt;head&gt;
+    &lt;meta charset="utf-8"&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1"&gt;
+    &lt;title&gt;Page title&lt;/title&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;h1&gt;Hello&lt;/h1&gt;
+  &lt;/body&gt;
+&lt;/html&gt;</code></pre>
+
+<h2>Fragment or document?</h2>
+
+<p>This file is a fragment: no <code>&lt;html&gt;</code>, no <code>&lt;head&gt;</code>.
+The build detects that and wraps it. Write a full document instead whenever you
+want complete control over the page's styling.</p>
+
+<blockquote>Replace this file with your own notes, or delete the route from
+<code>pages.json</code>.</blockquote>

@@ -1,0 +1,16 @@
+{
+  "name": "html-docs-to-learn",
+  "private": true,
+  "type": "module",
+  "description": "A single GitHub Pages site that routes to local HTML pages and imported external HTML pages.",
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "dev": "node tools/build.mjs --base= && node tools/serve.mjs",
+    "import": "node tools/import.mjs",
+    "add": "node tools/add.mjs",
+    "serve": "node tools/serve.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

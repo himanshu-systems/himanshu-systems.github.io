@@ -1,0 +1,51 @@
+<h1>About this collection</h1>
+
+<p>Every route on this site comes from one file: <code>pages.json</code>. A route is
+either <strong>local</strong> (an HTML file in this repository) or <strong>external</strong>
+(an HTML page that lives somewhere else, such as a Claude artifact).</p>
+
+<h2>Local pages</h2>
+
+<p>Point a route at a file. If the file is a full HTML document it is served
+untouched; if it is a fragment like this one, the build wraps it in a readable
+shell so you can write plain HTML without boilerplate.</p>
+
+<pre><code>{
+  "route": "/about",
+  "type": "local",
+  "file": "pages/about.html"
+}</code></pre>
+
+<h2>External pages</h2>
+
+<p>External routes have three modes.</p>
+
+<table>
+  <thead>
+    <tr><th>Mode</th><th>What the visitor gets</th><th>Survives the source going away?</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>import</code></td><td>A snapshot of the source HTML, served from this domain</td><td>Yes</td></tr>
+    <tr><td><code>embed</code></td><td>The live source inside an iframe</td><td>No</td></tr>
+    <tr><td><code>redirect</code></td><td>An immediate jump to the source URL</td><td>No</td></tr>
+  </tbody>
+</table>
+
+<p><code>import</code> is the default, and the right choice for Claude artifacts:
+an artifact is a self-contained HTML file, so copying it here loses nothing and
+frees the route from anyone else's hosting.</p>
+
+<pre><code>{
+  "route": "/claude-demo",
+  "type": "external",
+  "mode": "import",
+  "url": "https://claude.site/artifacts/..."
+}</code></pre>
+
+<h2>Adding a page</h2>
+
+<pre><code>node tools/add.mjs --route /claude-demo --url https://claude.site/artifacts/... --title "Claude demo"
+npm run build</code></pre>
+
+<p>The snapshot lands in <code>imported/</code> and is committed alongside the code,
+so a deploy never depends on the source being reachable.</p>

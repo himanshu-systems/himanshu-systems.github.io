@@ -1,0 +1,158 @@
+import { readFile, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+export const ROOT = fileURLToPath(new URL('..', import.meta.url));
+export const REGISTRY_FILE = path.join(ROOT, 'pages.json');
+export const CACHE_DIR = path.join(ROOT, 'imported');
+export const OUT_DIR = path.join(ROOT, 'site');
+export const STATIC_DIR = path.join(ROOT, 'static');
+
+const EXTERNAL_MODES = new Set(['import', 'embed', 'redirect']);
+
+/** Read pages.json, apply defaults, validate. Throws on a bad registry. */
+export async function loadRegistry({ base } = {}) {
+  let raw;
+  try {
+    raw = await readFile(REGISTRY_FILE, 'utf8');
+  } catch {
+    throw new Error(`Cannot read ${rel(REGISTRY_FILE)} - the page registry is missing.`);
+  }
+
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch (err) {
+    throw new Error(`${rel(REGISTRY_FILE)} is not valid JSON: ${err.message}`);
+  }
+
+  const site = {
+    title: 'Pages',
+    description: '',
+    base: '',
+    ...(data.site ?? {}),
+  };
+  site.base = normalizeBase(base ?? process.env.BASE_PATH ?? site.base);
+
+  if (!Array.isArray(data.pages)) {
+    throw new Error(`${rel(REGISTRY_FILE)} must have a "pages" array.`);
+  }
+
+  const pages = data.pages.map(normalizePage);
+  assertUniqueRoutes(pages);
+  return { site, pages };
+}
+
+export async function saveRegistry(registry) {
+  const data = await readFile(REGISTRY_FILE, 'utf8').then(JSON.parse);
+  data.pages = registry.pages;
+  await writeFile(REGISTRY_FILE, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
+}
+
+function normalizePage(page, i) {
+  const where = `pages[${i}]`;
+  if (!page || typeof page !== 'object') throw new Error(`${where} must be an object.`);
+
+  const route = normalizeRoute(page.route, where);
+  const type = page.type ?? (page.url ? 'external' : 'local');
+  if (type !== 'local' && type !== 'external') {
+    throw new Error(`${where} ("${route}") has type "${type}"; expected "local" or "external".`);
+  }
+
+  const normalized = {
+    ...page,
+    route,
+    type,
+    title: page.title ?? titleFromRoute(route),
+    description: page.description ?? '',
+    tags: Array.isArray(page.tags) ? page.tags : [],
+    chrome: page.chrome !== false,
+  };
+
+  if (type === 'local') {
+    if (!page.file) throw new Error(`${where} ("${route}") is local but has no "file".`);
+    normalized.file = page.file;
+    normalized.absFile = path.join(ROOT, page.file);
+    if (!existsSync(normalized.absFile)) {
+      throw new Error(`${where} ("${route}") points at ${page.file}, which does not exist.`);
+    }
+  } else {
+    if (!page.url) throw new Error(`${where} ("${route}") is external but has no "url".`);
+    try {
+      normalized.url = new URL(page.url).href;
+    } catch {
+      throw new Error(`${where} ("${route}") has an invalid url: ${page.url}`);
+    }
+    normalized.mode = page.mode ?? 'import';
+    if (!EXTERNAL_MODES.has(normalized.mode)) {
+      throw new Error(
+        `${where} ("${route}") has mode "${normalized.mode}"; expected one of ${[...EXTERNAL_MODES].join(', ')}.`,
+      );
+    }
+  }
+
+  normalized.slug = routeToSlug(route);
+  normalized.outPath = routeToOutPath(route);
+  return normalized;
+}
+
+export function normalizeRoute(route, where = 'page') {
+  if (typeof route !== 'string' || route.length === 0) {
+    throw new Error(`${where} needs a "route" string such as "/docs".`);
+  }
+  let value = route.trim();
+  if (!value.startsWith('/')) value = `/${value}`;
+  if (value.length > 1) value = value.replace(/\/+$/, '');
+  value = value.replace(/\/{2,}/g, '/');
+  if (!/^\/[A-Za-z0-9\-._~/]*$/.test(value)) {
+    throw new Error(`${where} has route "${route}"; use only letters, digits, - _ . ~ and /`);
+  }
+  return value;
+}
+
+export function normalizeBase(base) {
+  if (!base) return '';
+  let value = String(base).trim();
+  if (value === '/') return '';
+  if (!value.startsWith('/')) value = `/${value}`;
+  return value.replace(/\/+$/, '');
+}
+
+/** "/" -> "index", "/notes/html-basics" -> "notes__html-basics" */
+export function routeToSlug(route) {
+  if (route === '/') return 'index';
+  return route.replace(/^\//, '').replace(/\//g, '__');
+}
+
+/** "/" -> "index.html", "/notes/x" -> "notes/x/index.html" */
+export function routeToOutPath(route) {
+  if (route === '/') return 'index.html';
+  return `${route.replace(/^\//, '')}/index.html`;
+}
+
+/** Browser-facing URL for a route, including the Pages base path. */
+export function routeHref(base, route) {
+  if (route === '/') return `${base}/`;
+  return `${base}${route}/`;
+}
+
+export function titleFromRoute(route) {
+  if (route === '/') return 'Home';
+  const last = route.split('/').filter(Boolean).pop() ?? 'Page';
+  return last.replace(/[-_]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+export function rel(p) {
+  return path.relative(ROOT, p).split(path.sep).join('/') || '.';
+}
+
+function assertUniqueRoutes(pages) {
+  const seen = new Map();
+  for (const page of pages) {
+    if (seen.has(page.route)) {
+      throw new Error(`Duplicate route "${page.route}" (pages "${seen.get(page.route)}" and "${page.title}").`);
+    }
+    seen.set(page.route, page.title);
+  }
+}

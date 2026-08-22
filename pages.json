@@ -1,0 +1,34 @@
+{
+  "site": {
+    "title": "HTML DOCS TO Learn",
+    "description": "A collection of hand-written and imported HTML pages, all served from one GitHub Pages site.",
+    "base": "/HTML-DOCS-TO-Learn"
+  },
+  "pages": [
+    {
+      "route": "/about",
+      "title": "About this collection",
+      "description": "How the router works and how to add a page.",
+      "type": "local",
+      "file": "pages/about.html",
+      "tags": ["meta"]
+    },
+    {
+      "route": "/notes/html-basics",
+      "title": "HTML basics",
+      "description": "A local page nested under a multi-segment route.",
+      "type": "local",
+      "file": "pages/html-basics.html",
+      "tags": ["notes", "html"]
+    },
+    {
+      "route": "/example-import",
+      "title": "Example (imported)",
+      "description": "Placeholder external page. Replace url with a Claude artifact URL and run: npm run import.",
+      "type": "external",
+      "mode": "import",
+      "url": "https://example.com/",
+      "tags": ["demo"]
+    }
+  ]
+}

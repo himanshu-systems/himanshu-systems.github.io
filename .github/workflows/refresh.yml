@@ -1,0 +1,37 @@
+name: Refresh imported pages
+
+# Re-downloads every "mode": "import" page and commits the changed snapshots.
+# Pushing the commit triggers the deploy workflow.
+on:
+  workflow_dispatch:
+  # Uncomment to refresh automatically, e.g. every Monday at 06:00 UTC.
+  # schedule:
+  #   - cron: '0 6 * * 1'
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Re-import external pages
+        run: node tools/import.mjs
+
+      - name: Commit updated snapshots
+        run: |
+          if git diff --quiet -- imported; then
+            echo "Snapshots are already up to date."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add imported
+          git commit -m "Refresh imported page snapshots"
+          git push
