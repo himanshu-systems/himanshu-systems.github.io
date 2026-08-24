@@ -12,6 +12,9 @@ const me = await getSiteContent();
 
 // Newest 3, as a teaser -- the full, filterable log lives at /tried.
 const recentlyTried = (await getTriedRows()).slice(0, 3);
+
+// Top 3 only -- a homepage teaser, not the full project history.
+const selectedWork = me.work.slice(0, 3);
 ---
 
 <Doc
@@ -74,11 +77,11 @@ const recentlyTried = (await getTriedRows()).slice(0, 3);
   }
 
   {
-    me.work.length > 0 && (
+    selectedWork.length > 0 && (
       <section>
         <h2>Selected work</h2>
         <ol class="rows">
-          {me.work.map((item) => {
+          {selectedWork.map((item) => {
             const Tag = item.href ? "a" : "div";
             return (
               <li class="row">
@@ -163,6 +166,7 @@ const recentlyTried = (await getTriedRows()).slice(0, 3);
             <a
               class="social-icon"
               href={item.href}
+              target="_blank"
               rel="noopener noreferrer"
               title={`${item.label}: ${item.text}`}
               aria-label={`${item.label}: ${item.text}`}

@@ -321,7 +321,7 @@ still gets `asset()` and the base path; an absolute URL is used as-is.
 | `src/lib/slug.ts`                   | the slugify rule, used by `/admin` when it creates a new entry |
 | `src/lib/filter.ts`                 | `matchesQuery` — the live-filter matcher shared by /pages and /tried |
 | `src/lib/paths.ts`                  | `asset()`, `routeHref()`, and `resolveImage()` for uploaded-vs-committed images |
-| `src/pages/index.astro`             | the about page; renders Supabase content plus a 3-entry Tried teaser |
+| `src/pages/index.astro`             | the about page; renders Supabase content, capped to a 3-entry teaser for both Selected work and Tried, with Elsewhere links opening in a new tab |
 | `src/pages/pages.astro`             | the generated collection index               |
 | `src/pages/tried.astro`             | the full, filterable Tried list              |
 | `src/pages/tried/[slug].astro`      | one entry's own page — image and full description, if set |
