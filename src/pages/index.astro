@@ -380,11 +380,7 @@ const selectedWork = me.work.slice(0, 3);
   }
 
   a.pair:hover {
-    /* Same bleed as the collection rows: the whole row is the target. */
     background: var(--accent-soft);
-    box-shadow:
-      -1rem 0 0 var(--accent-soft),
-      1rem 0 0 var(--accent-soft);
   }
 
   dt,
@@ -467,9 +463,6 @@ const selectedWork = me.work.slice(0, 3);
 
   .entry:hover {
     background: var(--accent-soft);
-    box-shadow:
-      -1rem 0 0 var(--accent-soft),
-      1rem 0 0 var(--accent-soft);
   }
 
   .date {
@@ -585,13 +578,6 @@ const selectedWork = me.work.slice(0, 3);
       align-items: baseline;
       gap: 0.8rem;
       text-align: left;
-    }
-
-    a.pair:hover,
-    .entry:hover {
-      box-shadow:
-        -0.75rem 0 0 var(--accent-soft),
-        0.75rem 0 0 var(--accent-soft);
     }
   }
 </style>
