@@ -40,7 +40,10 @@ const selectedWork = me.work.slice(0, 3);
         {
           me.now && (
             <p class="now">
-              <span class="now-label">Now</span>
+              <span class="now-label">
+                <span class="live-dot" aria-hidden="true"></span>
+                Now
+              </span>
               {me.now}
             </p>
           )
@@ -291,7 +294,9 @@ const selectedWork = me.work.slice(0, 3);
   }
 
   .now-label {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.42rem;
     margin-right: 0.6rem;
     font-family: var(--mono);
     font-size: 0.62rem;
@@ -299,6 +304,36 @@ const selectedWork = me.work.slice(0, 3);
     text-transform: uppercase;
     color: var(--accent);
     vertical-align: 0.1em;
+  }
+
+  /* A small glowing, blurred light next to "Now" -- reads as "live" the way
+     a recording or on-air indicator does. The blur comes from the box-shadow
+     radius, not an actual filter, so the dot itself stays a crisp point of
+     light inside a soft bloom. */
+  .live-dot {
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow:
+      0 0 5px 1px var(--accent),
+      0 0 12px 4px var(--accent-soft);
+    animation: live-glow 2.6s ease-in-out infinite;
+  }
+
+  @keyframes live-glow {
+    0%, 100% {
+      opacity: 0.65;
+      box-shadow:
+        0 0 3px 1px var(--accent),
+        0 0 8px 3px var(--accent-soft);
+    }
+    50% {
+      opacity: 1;
+      box-shadow:
+        0 0 7px 2px var(--accent),
+        0 0 16px 6px var(--accent-soft);
+    }
   }
 
   /* Section headings borrow the index's mono label, not the prose h2. */
