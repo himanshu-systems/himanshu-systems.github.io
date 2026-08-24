@@ -21,6 +21,15 @@ interface Props {
   smoothScroll?: boolean;
   /** Off on /admin -- a registration frame around a data-entry form is noise, not atmosphere. */
   instrument?: boolean;
+  /**
+   * Off on /admin. The .shell--prose rules below style bare h1/h2/p/table for
+   * pages that are documents. /admin is an application surface, not a
+   * document, and it sets its own type scale -- with prose on, `.shell--prose h1`
+   * (0,1,1) outranked admin's own `h1` (0,0,1) and silently blew its heading
+   * up to 2.9rem. Opting out is the fix; raising admin's specificity to win
+   * the fight would just be the same fight, later.
+   */
+  prose?: boolean;
 }
 
 const {
@@ -34,7 +43,10 @@ const {
   floatingShape = true,
   smoothScroll = true,
   instrument = true,
+  prose = true,
 } = Astro.props;
+
+const shellClass = ['shell', wide && 'shell--wide', prose && 'shell--prose'].filter(Boolean).join(' ');
 ---
 
 <html lang="en">
@@ -58,7 +70,7 @@ const {
     {smoothScroll ? (
       <div id="smooth-wrapper">
         <div id="smooth-content">
-          <main class={wide ? 'shell shell--wide' : 'shell'}>
+          <main class={shellClass}>
             <slot />
           </main>
           {chrome && <Chrome sourceUrl={sourceUrl} title={siteTitle} />}
@@ -66,7 +78,7 @@ const {
       </div>
     ) : (
       <>
-        <main class={wide ? 'shell shell--wide' : 'shell'}>
+        <main class={shellClass}>
           <slot />
         </main>
         {chrome && <Chrome sourceUrl={sourceUrl} title={siteTitle} />}
@@ -158,8 +170,10 @@ const {
     max-width: var(--page);
   }
 
-  /* Prose defaults, scoped so the index page can opt out per element. */
-  .shell h1 {
+  /* Prose defaults. Keyed on .shell--prose so an application surface like
+     /admin can opt out entirely (prose={false}) instead of fighting these
+     for specificity. See the prose prop above. */
+  .shell--prose h1 {
     font-weight: 500;
     font-size: clamp(2rem, 1.4rem + 2.4vw, 2.9rem);
     line-height: 1.1;
@@ -168,7 +182,7 @@ const {
     margin: 0 0 1.5rem;
   }
 
-  .shell h2 {
+  .shell--prose h2 {
     font-weight: 500;
     font-size: 1.4rem;
     line-height: 1.25;
@@ -177,32 +191,32 @@ const {
     margin: 3rem 0 .75rem;
   }
 
-  .shell h3 {
+  .shell--prose h3 {
     font-weight: 600;
     font-size: 1.05rem;
     margin: 2.25rem 0 .5rem;
   }
 
-  .shell p {
+  .shell--prose p {
     margin: 0 0 1.1rem;
   }
 
-  .shell ul,
-  .shell ol {
+  .shell--prose ul,
+  .shell--prose ol {
     padding-left: 1.2rem;
   }
 
-  .shell li {
+  .shell--prose li {
     margin: .35rem 0;
   }
 
-  .shell hr {
+  .shell--prose hr {
     border: 0;
     border-top: 1px solid var(--border);
     margin: 3rem 0;
   }
 
-  .shell code {
+  .shell--prose code {
     font-family: var(--mono);
     font-size: .82em;
     background: var(--accent-soft);
@@ -210,7 +224,7 @@ const {
     border-radius: 3px;
   }
 
-  .shell pre {
+  .shell--prose pre {
     font-family: var(--mono);
     font-size: .82rem;
     line-height: 1.7;
@@ -222,13 +236,13 @@ const {
     margin: 1.5rem 0;
   }
 
-  .shell pre code {
+  .shell--prose pre code {
     background: none;
     padding: 0;
     font-size: inherit;
   }
 
-  .shell table {
+  .shell--prose table {
     width: 100%;
     border-collapse: collapse;
     font-size: .95rem;
@@ -236,7 +250,7 @@ const {
     font-variant-numeric: tabular-nums;
   }
 
-  .shell th {
+  .shell--prose th {
     font-weight: 600;
     font-size: .72rem;
     font-family: var(--mono);
@@ -245,20 +259,20 @@ const {
     color: var(--muted);
   }
 
-  .shell th,
-  .shell td {
+  .shell--prose th,
+  .shell--prose td {
     text-align: left;
     border-bottom: 1px solid var(--border);
     padding: .6rem .7rem .6rem 0;
     vertical-align: top;
   }
 
-  .shell img {
+  .shell--prose img {
     max-width: 100%;
     height: auto;
   }
 
-  .shell blockquote {
+  .shell--prose blockquote {
     margin: 1.75rem 0;
     padding-left: 1.1rem;
     border-left: 2px solid var(--border-strong);

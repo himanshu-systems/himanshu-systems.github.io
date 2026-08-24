@@ -7,7 +7,7 @@ import { home, collection, routeHref } from '../lib/paths';
 const { site } = await loadRegistry();
 ---
 
-<Doc title="Admin" siteTitle={site.title} chrome={false} noindex wide floatingShape={false} smoothScroll={false} instrument={false}>
+<Doc title="Admin" siteTitle={site.title} chrome={false} noindex wide floatingShape={false} smoothScroll={false} instrument={false} prose={false}>
   <header>
     <div class="masthead">
       <p class="eyebrow">Admin</p>
@@ -19,14 +19,14 @@ const { site } = await loadRegistry();
       </nav>
     </div>
     <h1>Manage the site</h1>
-    <p class="standfirst">
-      Log in to edit anything on the about page or the Tried log. This page
-      isn't linked from anywhere else, but that isn't what keeps it yours —
-      logging in is. Saving triggers a rebuild automatically.
-    </p>
   </header>
 
   <section id="login-section" class="panel">
+    <p class="standfirst">
+      Everything on the about page and the Tried log is editable here. This
+      page isn't linked from anywhere else, but that isn't what keeps it
+      yours &mdash; logging in is.
+    </p>
     <form id="login-form">
       <label>
         <span>Email</span>
@@ -818,9 +818,14 @@ const { site } = await loadRegistry();
      of the site's serif reading face (forms aren't prose), and a danger-red
      hover on Delete. */
 
-  #login-section,
-  #admin-section {
+  /* One sans face for the entire admin surface, set on the shell rather than
+     on two sections -- the header used to fall outside that pair and render
+     in the site's reading serif, so the page mixed two families in one view.
+     Doc.astro's prose rules are off here (prose={false}), so the type scale
+     below is the only one in play. */
+  .shell {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    max-width: 52rem;
   }
 
   header {
@@ -864,19 +869,17 @@ const { site } = await loadRegistry();
   }
 
   h1 {
-    margin: 0 0 .4rem;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    font-size: 1.3rem;
+    margin: 0;
+    font-size: 1.25rem;
     font-weight: 600;
     letter-spacing: -.01em;
     color: var(--text);
   }
 
   .standfirst {
-    margin: 0;
-    max-width: 34rem;
+    margin: 0 0 1.25rem;
     font-size: .85rem;
-    line-height: 1.5;
+    line-height: 1.55;
     color: var(--muted);
     text-wrap: pretty;
   }
@@ -887,11 +890,10 @@ const { site } = await loadRegistry();
     border-radius: 10px;
     padding: 1.4rem 1.5rem;
     margin-bottom: 1.1rem;
-    max-width: 46rem;
   }
 
   #login-section.panel {
-    max-width: 24rem;
+    max-width: 26rem;
   }
 
   /* ── collapsible About-page sections ── */
@@ -935,8 +937,17 @@ const { site } = await loadRegistry();
     transform: rotate(90deg);
   }
 
+  /* A bare right-aligned digit read as a value, not a tally. The pill makes
+     it obviously a count of what's inside. */
   details.collapsible .count {
     margin-left: auto;
+    min-width: 1.5rem;
+    padding: .12rem .45rem;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--muted);
+    text-align: center;
+    letter-spacing: 0;
     font-variant-numeric: tabular-nums;
   }
 
@@ -946,8 +957,12 @@ const { site } = await loadRegistry();
     padding-top: 1.25rem;
   }
 
+  /* Matches the <summary> label on the collapsible panels beside it -- these
+     are peers and should read as peers. Previously this lost the cascade to
+     Doc.astro's 1.4rem `.shell h2`, so "Profile" rendered twice the size of
+     "What I do" right next to it. */
   .panel h2 {
-    margin: 0 0 1rem;
+    margin: 0 0 1.15rem;
     font-family: var(--mono);
     font-size: .7rem;
     font-weight: 400;
@@ -1092,13 +1107,34 @@ const { site } = await loadRegistry();
 
   /* ── photo upload ── */
 
+  /* The native control ships its own button, which is the one piece of raw
+     browser chrome on the page -- ::file-selector-button restyles it in
+     place so it matches the outline buttons everywhere else. */
   .upload-field input[type='file'] {
-    padding: .3rem 0;
+    padding: 0;
     border: none;
     background: none;
-    width: auto;
-    font-size: .78rem;
+    width: 100%;
+    font-size: .75rem;
+    color: var(--faint);
+  }
+
+  .upload-field input[type='file']::file-selector-button {
+    margin-right: .6rem;
+    font-family: var(--mono);
+    font-size: .72rem;
     color: var(--muted);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: .35rem .75rem;
+    cursor: pointer;
+    transition: color .15s ease, border-color .15s ease;
+  }
+
+  .upload-field input[type='file']::file-selector-button:hover {
+    color: var(--accent);
+    border-color: var(--accent);
   }
 
   .upload-status {
@@ -1110,10 +1146,16 @@ const { site } = await loadRegistry();
     color: #b3453a;
   }
 
-  /* Short fields share a row; a field marked wide always takes the full line. */
+  /* Short fields share a row; a field marked wide always takes the full line.
+     align-items: end is load-bearing: a field whose hint wraps to two lines
+     ("Portrait path in static/images/, or upload below") is taller than its
+     neighbours, and with the default stretch its input sat a line lower than
+     theirs, leaving the row visibly ragged. Bottom-aligning the boxes lines
+     every input in the row up regardless of how tall its label ran. */
   .row-fields {
     display: flex;
     flex-wrap: wrap;
+    align-items: end;
     gap: .85rem;
   }
 
@@ -1173,10 +1215,20 @@ const { site } = await loadRegistry();
     border-color: var(--accent);
   }
 
+  /* Filled, not just bolder. Save / Log in / New entry are the one action
+     that matters on their screen, and every button here previously shared
+     the same outline treatment, so nothing read as the primary path. */
   button.primary {
-    color: var(--text);
-    border-color: var(--border-strong);
-    font-weight: 600;
+    color: var(--bg);
+    background: var(--accent);
+    border-color: var(--accent);
+    font-weight: 500;
+  }
+
+  button.primary:hover {
+    color: var(--bg);
+    background: var(--text);
+    border-color: var(--text);
   }
 
   button.add-row {
