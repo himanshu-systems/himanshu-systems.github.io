@@ -416,6 +416,30 @@ const selectedWork = me.work.slice(0, 3);
     color: var(--accent);
   }
 
+  /* Leader dots, index-style -- only on What I do, which is a real
+     definition list (term → definition) and reads like a glossary. The
+     chronological lists next to it (Selected work, Tried) get none: dots
+     between a date and a title would be decoration, not navigation.
+
+     The dots are a flex-grown pseudo-element rather than a run of typed
+     periods, so they always terminate exactly at the column edge no matter
+     how long the term is -- a fixed string of periods stops wherever it
+     happens to stop, which is what makes hand-typed leaders look broken.
+     dt is a flex container, so the bare text node becomes an anonymous
+     flex item and ::after takes the remaining space. */
+  dt {
+    display: flex;
+    align-items: baseline;
+    gap: 0.55rem;
+  }
+
+  dt::after {
+    content: "";
+    flex: 1;
+    border-bottom: 1px dotted var(--border-strong);
+    transform: translateY(-0.28em);
+  }
+
   dd {
     margin: 0;
     color: var(--muted);
@@ -601,6 +625,12 @@ const selectedWork = me.work.slice(0, 3);
 
     /* No margin left to hang a numeral in once the shell goes full-width. */
     h2::before {
+      display: none;
+    }
+
+    /* The term and its definition stack here, so a leader would run the
+       full width and point at nothing. */
+    dt::after {
       display: none;
     }
   }
