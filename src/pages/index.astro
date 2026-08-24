@@ -339,6 +339,25 @@ const selectedWork = me.work.slice(0, 3);
   /* Section headings borrow the index's mono label, not the prose h2. */
   section {
     margin-top: clamp(2.75rem, 6vw, 4rem);
+    counter-increment: section;
+    position: relative;
+  }
+
+  /* Editorial numerals hung in the left margin -- 01, 02, 03 down the page,
+     the way a technical manual or a contents page numbers its parts. Set in
+     --border-strong rather than --faint so they stay quieter than the labels
+     they number. Dropped below the breakpoint, where there's no margin left
+     to hang anything in. */
+  h2::before {
+    content: counter(section, decimal-leading-zero);
+    position: absolute;
+    left: -3.25rem;
+    top: -0.05rem;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.04em;
+    color: var(--border-strong);
+    font-variant-numeric: tabular-nums;
   }
 
   h2 {
@@ -578,6 +597,11 @@ const selectedWork = me.work.slice(0, 3);
       align-items: baseline;
       gap: 0.8rem;
       text-align: left;
+    }
+
+    /* No margin left to hang a numeral in once the shell goes full-width. */
+    h2::before {
+      display: none;
     }
   }
 </style>

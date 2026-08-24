@@ -19,6 +19,8 @@ interface Props {
   floatingShape?: boolean;
   /** Off on /admin -- lerped scroll fights a form's native scrollIntoView() calls. */
   smoothScroll?: boolean;
+  /** Off on /admin -- graph paper behind a data-entry form is noise, not atmosphere. */
+  instrument?: boolean;
 }
 
 const {
@@ -31,6 +33,7 @@ const {
   noindex = false,
   floatingShape = true,
   smoothScroll = true,
+  instrument = true,
 } = Astro.props;
 ---
 
@@ -51,7 +54,7 @@ const {
     <ThemeInit />
     {smoothScroll && <ScrollInit />}
   </head>
-  <body>
+  <body class={instrument ? 'instrument' : undefined}>
     {smoothScroll ? (
       <div id="smooth-wrapper">
         <div id="smooth-content">
@@ -75,6 +78,83 @@ const {
 </html>
 
 <style is:global>
+  /* ── Instrument chrome ──────────────────────────────────────────────
+     Two ambient layers that sit behind and around the page without ever
+     touching content: engineering graph paper, and a hairline frame with
+     accent registration ticks at the corners. Both are drawn from --border
+     / --accent, so they re-theme for free and stay at the same whisper
+     volume as every other hairline on the site. Both are pointer-events:
+     none and purely decorative, so neither is announced to a screen reader
+     and neither can intercept a click. Off on /admin (instrument={false}).
+
+     To drop either one, delete just its rule -- they're independent. */
+
+  /* Graph paper. Fixed, so it reads as the surface the page rests on
+     rather than something that scrolls with the text. */
+  body.instrument::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-image:
+      linear-gradient(to right, var(--border) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+    background-size: 1.75rem 1.75rem;
+    opacity: .45;
+  }
+
+  /* The page content has to out-stack the grid or it paints underneath it. */
+  body.instrument > #smooth-wrapper,
+  body.instrument > .shell,
+  body.instrument > main {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Registration frame: hairline rectangle, accent ticks at each corner --
+     the crop marks on a print proof, or a viewfinder. Above the floating
+     shape's z-index: 40 deliberately, so the frame reads as the outermost
+     layer of the whole instrument. */
+  body.instrument::after {
+    content: '';
+    position: fixed;
+    inset: 1.15rem;
+    pointer-events: none;
+    z-index: 60;
+    border: 1px solid var(--border);
+    background-origin: border-box;
+    background-repeat: no-repeat;
+    background-image:
+      linear-gradient(var(--accent), var(--accent)),
+      linear-gradient(var(--accent), var(--accent)),
+      linear-gradient(var(--accent), var(--accent)),
+      linear-gradient(var(--accent), var(--accent)),
+      linear-gradient(var(--accent), var(--accent)),
+      linear-gradient(var(--accent), var(--accent)),
+      linear-gradient(var(--accent), var(--accent)),
+      linear-gradient(var(--accent), var(--accent));
+    background-size:
+      12px 1px, 1px 12px,
+      12px 1px, 1px 12px,
+      12px 1px, 1px 12px,
+      12px 1px, 1px 12px;
+    background-position:
+      0 0, 0 0,
+      100% 0, 100% 0,
+      0 100%, 0 100%,
+      100% 100%, 100% 100%;
+  }
+
+  /* Neither layer survives print -- graph paper wastes toner and a fixed
+     frame can only ever mark the first sheet. */
+  @media print {
+    body.instrument::before,
+    body.instrument::after {
+      display: none;
+    }
+  }
+
   /* ScrollSmoother's required shape: the wrapper is clipped to the viewport
      and #smooth-content gets transformed inside it, so the "real" scrollbar
      comes from a spacer ScrollSmoother measures off #smooth-content's height.
