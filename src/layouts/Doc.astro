@@ -79,26 +79,21 @@ const {
 
 <style is:global>
   /* ── Instrument chrome ──────────────────────────────────────────────
-     One ambient layer around the page that never touches content: a
-     hairline frame with accent registration ticks at the corners. Drawn
-     from --border / --accent, so it re-themes for free and stays at the
-     same whisper volume as every other hairline on the site. It's
-     pointer-events: none and purely decorative, so it isn't announced to
-     a screen reader and can't intercept a click. Off on /admin
-     (instrument={false}). */
+     One ambient layer around the page that never touches content: accent
+     registration ticks at the four corners. Drawn from --accent, so it
+     re-themes for free. It's pointer-events: none and purely decorative,
+     so it isn't announced to a screen reader and can't intercept a click.
+     Off on /admin (instrument={false}). */
 
-  /* Registration frame: hairline rectangle, accent ticks at each corner --
-     the crop marks on a print proof, or a viewfinder. Above the floating
-     shape's z-index: 40 deliberately, so the frame reads as the outermost
-     layer of the whole instrument. */
+  /* Registration ticks: four accent corner marks, no rectangle joining
+     them -- the crop marks on a print proof. Above the floating shape's
+     z-index: 40 deliberately, so they read as the outermost layer. */
   body.instrument::after {
     content: '';
     position: fixed;
     inset: 1.15rem;
     pointer-events: none;
     z-index: 60;
-    border: 1px solid var(--border);
-    background-origin: border-box;
     background-repeat: no-repeat;
     background-image:
       linear-gradient(var(--accent), var(--accent)),
@@ -121,7 +116,7 @@ const {
       100% 100%, 100% 100%;
   }
 
-  /* Not in print -- a fixed frame can only ever mark the first sheet. */
+  /* Not in print -- fixed marks can only ever mark the first sheet. */
   @media print {
     body.instrument::after {
       display: none;
