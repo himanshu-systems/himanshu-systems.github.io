@@ -1,7 +1,9 @@
 ---
 import Chrome from '../components/Chrome.astro';
 import ThemeInit from '../components/ThemeInit.astro';
+import ScrollInit from '../components/ScrollInit.astro';
 import FloatingShape from '../components/FloatingShape.astro';
+import SmoothScroll from '../components/SmoothScroll.astro';
 import { asset } from '../lib/paths';
 import '../styles/tokens.css';
 
@@ -15,6 +17,8 @@ interface Props {
   noindex?: boolean;
   /** Off on /admin -- a toy floating over a data-entry form is a liability, not a delight. */
   floatingShape?: boolean;
+  /** Off on /admin -- lerped scroll fights a form's native scrollIntoView() calls. */
+  smoothScroll?: boolean;
 }
 
 const {
@@ -26,6 +30,7 @@ const {
   wide = false,
   noindex = false,
   floatingShape = true,
+  smoothScroll = true,
 } = Astro.props;
 ---
 
@@ -44,17 +49,57 @@ const {
       href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&display=swap"
     />
     <ThemeInit />
+    {smoothScroll && <ScrollInit />}
   </head>
   <body>
-    <main class={wide ? 'shell shell--wide' : 'shell'}>
-      <slot />
-    </main>
-    {chrome && <Chrome sourceUrl={sourceUrl} title={siteTitle} />}
+    {smoothScroll ? (
+      <div id="smooth-wrapper">
+        <div id="smooth-content">
+          <main class={wide ? 'shell shell--wide' : 'shell'}>
+            <slot />
+          </main>
+          {chrome && <Chrome sourceUrl={sourceUrl} title={siteTitle} />}
+        </div>
+      </div>
+    ) : (
+      <>
+        <main class={wide ? 'shell shell--wide' : 'shell'}>
+          <slot />
+        </main>
+        {chrome && <Chrome sourceUrl={sourceUrl} title={siteTitle} />}
+      </>
+    )}
     {floatingShape && <FloatingShape />}
+    {smoothScroll && <SmoothScroll />}
   </body>
 </html>
 
 <style is:global>
+  /* ScrollSmoother's required shape: the wrapper is clipped to the viewport
+     and #smooth-content gets transformed inside it, so the "real" scrollbar
+     comes from a spacer ScrollSmoother measures off #smooth-content's height.
+     Gated on the html.gsap-smooth stamp from ScrollInit -- without it (JS
+     disabled, or prefers-reduced-motion), these two divs stay plain blocks
+     and the page just scrolls the normal way. Printing gets the same native
+     fallback: a fixed, clipped wrapper can only ever print one page's worth. */
+  html.gsap-smooth #smooth-wrapper {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+  }
+
+  html.gsap-smooth #smooth-content {
+    overflow: visible;
+    width: 100%;
+  }
+
+  @media print {
+    html.gsap-smooth #smooth-wrapper {
+      position: static;
+      overflow: visible;
+    }
+  }
+
   .shell {
     max-width: var(--measure);
     margin: 0 auto;

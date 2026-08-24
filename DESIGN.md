@@ -241,6 +241,33 @@ tree-shake past roughly 500KB minified regardless of whether you import the
 whole namespace or name individual classes — that's the accepted cost of
 using the library at all, loaded on every page it appears on.
 
+### Smooth scroll
+
+GSAP's ScrollSmoother (`src/components/SmoothScroll.astro`) lerps the whole
+page's scroll position a beat behind the real one, so the wheel feels weighted
+instead of stepping frame-to-frame. It needs a specific shape to work: a
+`#smooth-wrapper` clipped to the viewport, with `#smooth-content` transformed
+inside it — `Doc.astro` wraps `<main>` and `<Chrome>` in those two divs, and
+the CSS that makes the outer one `position: fixed` is gated on an
+`html.gsap-smooth` class stamped by `src/components/ScrollInit.astro`, an
+inline `<head>` script in the spirit of `ThemeInit.astro`. That gate is the
+progressive-enhancement fallback: under `prefers-reduced-motion` (or with JS
+disabled entirely) the class never lands, the wrapper CSS never matches
+anything, and the two divs behave like plain blocks — the page just scrolls
+natively, with no ScrollSmoother instance ever created. Printing gets the same
+native fallback deliberately, since a `position: fixed`, clipped wrapper can
+only ever print one page's worth of content.
+
+The floating shape stays outside `#smooth-wrapper` on purpose — anything
+`position: fixed` has to live outside the transformed content or it would
+drift with the lerp instead of staying pinned to the viewport. `/admin` opts
+out (`smoothScroll={false}`) for the same reason `floatingShape` does there,
+plus a concrete one: the Tried-entry form calls `scrollIntoView()` when you
+click Edit, and that's simplest to keep working exactly as browsers implement
+it rather than reconcile against a lerped scroll position mid-edit. Touch
+devices are left unsmoothed (`smoothTouch: 0`) — native mobile scrolling
+already feels right, and fighting the OS there costs more than it buys.
+
 Spacing runs on a loose 4px-derived scale (`.3 / .45 / .7 / 1.1 / 1.5 / 2.5 / 3rem`).
 Section rhythm uses `clamp()` so it compresses on small screens instead of
 stepping at a breakpoint.
@@ -309,12 +336,14 @@ still gets `asset()` and the base path; an absolute URL is used as-is.
 | File                                | Holds                                        |
 | ------------------------------------ | -------------------------------------------- |
 | `src/styles/tokens.css`             | all three theme states, base element styles  |
-| `src/layouts/Doc.astro`             | `.shell`, font loading, global prose styles, the `noindex` meta option |
+| `src/layouts/Doc.astro`             | `.shell`, font loading, global prose styles, the `noindex` meta option, the `#smooth-wrapper`/`#smooth-content` shell |
 | `src/layouts/Frame.astro`           | the embed wrapper for `mode: "embed"`         |
 | `src/components/ThemeInit.astro`    | pre-paint theme stamp (`is:inline`, in head) |
 | `src/components/ThemeToggle.astro`  | the system/light/dark cycle button           |
 | `src/components/SocialIcon.astro`   | currentColor outline icons for Elsewhere, not brand marks |
-| `src/components/FloatingShape.astro`| the draggable Three.js wireframe on the about page |
+| `src/components/FloatingShape.astro`| the draggable Three.js wireframe, fixed and site-wide |
+| `src/components/ScrollInit.astro`   | stamps `html.gsap-smooth`, skipped under reduced motion |
+| `src/components/SmoothScroll.astro` | creates the GSAP ScrollSmoother instance |
 | `src/lib/supabaseClient.ts`         | the one Supabase client, shared by build-time fetches and `/admin` |
 | `src/lib/site.ts`                   | fetches the about page's single content row  |
 | `src/lib/tried.ts`                  | fetches public Tried rows, sorted newest-first, with slug/href/search built in |

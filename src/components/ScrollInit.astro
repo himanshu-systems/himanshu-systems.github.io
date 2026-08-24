@@ -1,0 +1,20 @@
+---
+/**
+ * Belongs in <head>, before any painting: stamps a class that lets
+ * SmoothScroll's CSS clip #smooth-wrapper into a fixed viewport pane. Skipped
+ * under prefers-reduced-motion, so those readers get the browser's own
+ * scrolling with no lerped lag -- and, since the class never lands, the
+ * wrapper CSS in Doc.astro never applies either, so the page just scrolls
+ * natively with no JS involved at all.
+ */
+---
+
+<script is:inline>
+  try {
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      document.documentElement.classList.add('gsap-smooth');
+    }
+  } catch {
+    /* matchMedia unavailable: fall back to native scrolling */
+  }
+</script>

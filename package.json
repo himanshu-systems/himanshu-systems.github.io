@@ -21,6 +21,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",
     "astro": "^7.2.4",
+    "gsap": "^3.15.0",
     "quill": "^2.0.2",
     "three": "^0.185.1"
   },

@@ -1,0 +1,27 @@
+---
+/**
+ * Buttery scroll via GSAP's ScrollSmoother, lerping #smooth-content's
+ * position a beat behind the real scroll position. Only instantiated when
+ * ScrollInit's <html class="gsap-smooth"> stamp is present -- absent under
+ * prefers-reduced-motion, in which case #smooth-wrapper stayed a plain block
+ * (see Doc.astro's CSS) and there's nothing here to wire up.
+ */
+---
+
+<script>
+  import { gsap } from 'gsap';
+  import { ScrollTrigger } from 'gsap/ScrollTrigger';
+  import { ScrollSmoother } from 'gsap/ScrollSmoother';
+
+  if (document.documentElement.classList.contains('gsap-smooth')) {
+    gsap.registerPlugin(ScrollTrigger, ScrollSmoother);
+    ScrollSmoother.create({
+      wrapper: '#smooth-wrapper',
+      content: '#smooth-content',
+      smooth: 1.2,
+      // Touch devices already scroll well natively -- fighting the OS here
+      // costs more feel than it buys.
+      smoothTouch: 0,
+    });
+  }
+</script>
