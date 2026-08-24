@@ -375,25 +375,16 @@ const selectedWork = me.work.slice(0, 3);
     text-decoration: none;
   }
 
-  /* A silkier curve than the site's default .15s ease -- these rows are the
-     one place hover gets a soft accent-colored glow (echoing the Now dot's
-     blur) instead of a flat colour swap, so it earns a slower, gentler
-     easing to land well. */
   a.pair {
-    transition:
-      background-color .3s cubic-bezier(.22, 1, .36, 1),
-      box-shadow .3s cubic-bezier(.22, 1, .36, 1);
+    transition: background-color 0.15s ease;
   }
 
   a.pair:hover {
-    /* Same bleed as the collection rows: the whole row is the target.
-       The third shadow is a blurred, negative-spread halo -- a soft glow
-       above and below the row rather than a hard-edged highlight. */
+    /* Same bleed as the collection rows: the whole row is the target. */
     background: var(--accent-soft);
     box-shadow:
       -1rem 0 0 var(--accent-soft),
-      1rem 0 0 var(--accent-soft),
-      0 0 22px -3px var(--accent);
+      1rem 0 0 var(--accent-soft);
   }
 
   dt,
@@ -403,7 +394,7 @@ const selectedWork = me.work.slice(0, 3);
     letter-spacing: 0.02em;
     color: var(--muted);
     font-variant-numeric: tabular-nums;
-    transition: color .3s cubic-bezier(.22, 1, .36, 1);
+    transition: color 0.15s ease;
   }
 
   a.pair:hover .year {
@@ -471,17 +462,14 @@ const selectedWork = me.work.slice(0, 3);
     gap: 1.5rem;
     padding: 1.1rem 0;
     text-decoration: none;
-    transition:
-      background-color .3s cubic-bezier(.22, 1, .36, 1),
-      box-shadow .3s cubic-bezier(.22, 1, .36, 1);
+    transition: background-color 0.15s ease;
   }
 
   .entry:hover {
     background: var(--accent-soft);
     box-shadow:
       -1rem 0 0 var(--accent-soft),
-      1rem 0 0 var(--accent-soft),
-      0 0 22px -3px var(--accent);
+      1rem 0 0 var(--accent-soft);
   }
 
   .date {
@@ -489,7 +477,7 @@ const selectedWork = me.work.slice(0, 3);
     font-size: 0.76rem;
     color: var(--muted);
     font-variant-numeric: tabular-nums;
-    transition: color .3s cubic-bezier(.22, 1, .36, 1);
+    transition: color 0.15s ease;
   }
 
   .entry:hover .date {
@@ -511,7 +499,7 @@ const selectedWork = me.work.slice(0, 3);
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--faint);
-    transition: color .3s cubic-bezier(.22, 1, .36, 1);
+    transition: color 0.15s ease;
   }
 
   .entry:hover .tag {
@@ -603,8 +591,7 @@ const selectedWork = me.work.slice(0, 3);
     .entry:hover {
       box-shadow:
         -0.75rem 0 0 var(--accent-soft),
-        0.75rem 0 0 var(--accent-soft),
-        0 0 18px -3px var(--accent);
+        0.75rem 0 0 var(--accent-soft);
     }
   }
 </style>
