@@ -332,13 +332,91 @@ export function createRipple(
     return media.width > 0 && media.height > 0;
   }
 
+  function mediaSize(): [number, number] {
+    if (media instanceof HTMLImageElement) return [media.naturalWidth, media.naturalHeight];
+    if (media instanceof HTMLVideoElement) return [media.videoWidth, media.videoHeight];
+    return [media!.width, media!.height];
+  }
+
+  /** Parse one axis of object-position into a 0..1 factor. */
+  function positionFactor(value: string, start: string, end: string): number {
+    if (value === start) return 0;
+    if (value === end) return 1;
+    if (value === 'center') return 0.5;
+    if (value.endsWith('%')) {
+      return Math.min(1, Math.max(0, Number.parseFloat(value) / 100));
+    }
+    return 0.5;
+  }
+
+  let mediaCanvas: HTMLCanvasElement | null = null;
+
+  /**
+   * texImage2D uploads an image's *natural* pixels, but the shader samples the
+   * texture across the whole output box. When CSS is cropping the element with
+   * object-fit, those two disagree: the untouched DOM image is cropped, the
+   * texture is not, so the first painted frame snapped the photo from its
+   * cropped framing to the full squashed image.
+   *
+   * Redraw the media into an offscreen canvas the exact size of the output,
+   * applying the same object-fit/object-position crop the browser is applying,
+   * and upload that instead. The texture then matches what is on screen pixel
+   * for pixel, so the canvas can take over mid-ripple with nothing jumping.
+   */
+  function croppedMedia(): HTMLCanvasElement | null {
+    const w = Math.max(1, output.width);
+    const h = Math.max(1, output.height);
+    const [sw, sh] = mediaSize();
+    if (!(sw > 0 && sh > 0)) return null;
+
+    if (!mediaCanvas) mediaCanvas = document.createElement('canvas');
+    if (mediaCanvas.width !== w || mediaCanvas.height !== h) {
+      mediaCanvas.width = w;
+      mediaCanvas.height = h;
+    }
+    const ctx = mediaCanvas.getContext('2d');
+    if (!ctx) return null;
+
+    const style = getComputedStyle(media as Element);
+    const fit = style.objectFit || 'fill';
+    const [px = '50%', py = '50%'] = (style.objectPosition || '50% 50%').split(/\s+/);
+    const fx = positionFactor(px, 'left', 'right');
+    const fy = positionFactor(py, 'top', 'bottom');
+
+    ctx.clearRect(0, 0, w, h);
+
+    if (fit === 'cover' || fit === 'contain' || fit === 'scale-down') {
+      const pick = fit === 'cover' ? Math.max : Math.min;
+      let scale = pick(w / sw, h / sh);
+      if (fit === 'scale-down') scale = Math.min(scale, 1);
+      if (fit === 'cover') {
+        // Crop the source down to the visible window.
+        const cw = Math.min(sw, w / scale);
+        const ch = Math.min(sh, h / scale);
+        ctx.drawImage(media!, (sw - cw) * fx, (sh - ch) * fy, cw, ch, 0, 0, w, h);
+      } else {
+        // Letterbox the whole source inside the box.
+        const dw = sw * scale;
+        const dh = sh * scale;
+        ctx.drawImage(media!, (w - dw) * fx, (h - dh) * fy, dw, dh);
+      }
+    } else {
+      // fill (and anything unrecognised): stretch to the box, as CSS does.
+      ctx.drawImage(media!, 0, 0, w, h);
+    }
+    return mediaCanvas;
+  }
+
   function uploadContent() {
     if (!contentDirty) return;
 
-    // MEDIA MODE: hand the element straight to the GPU. Works in every
-    // browser, no html-in-canvas and no hand-rolled DOM rasterising.
+    // MEDIA MODE: the element goes to the GPU through croppedMedia(), which
+    // reproduces the CSS object-fit crop so the texture matches the rendered
+    // element. Works in every browser -- no html-in-canvas, no DOM rasterising.
     if (mediaMode) {
       if (!mediaReady()) return;
+      const bitmap = croppedMedia();
+      if (!bitmap) return;
       contentDirty = false;
       try {
         gl!.bindTexture(gl!.TEXTURE_2D, contentTexture);
@@ -348,7 +426,7 @@ export function createRipple(
           gl!.RGBA,
           gl!.RGBA,
           gl!.UNSIGNED_BYTE,
-          media!,
+          bitmap,
         );
       } catch (error) {
         // A cross-origin image without CORS headers taints the upload.
@@ -536,6 +614,10 @@ export function createRipple(
 
   const observer = new ResizeObserver(() => {
     syncCanvasSize();
+    // The crop is computed against the output size, so a resize invalidates
+    // the texture -- without this the photo keeps the crop it had at the old
+    // width and stretches.
+    if (mediaMode) contentDirty = true;
     start();
   });
   observer.observe(output);
