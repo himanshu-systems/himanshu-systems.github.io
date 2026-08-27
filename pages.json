@@ -16,17 +16,6 @@
       ]
     },
     {
-      "route": "/notes/html-basics",
-      "title": "HTML basics",
-      "description": "A local page nested under a multi-segment route.",
-      "type": "local",
-      "file": "pages/html-basics.html",
-      "tags": [
-        "notes",
-        "html"
-      ]
-    },
-    {
       "route": "/bpf",
       "title": "eBPF, from first principles",
       "description": "What eBPF actually is, how the verifier thinks, and why the kernel lets you run your code at all.",
@@ -36,17 +25,6 @@
         "notes",
         "systems",
         "kernel"
-      ]
-    },
-    {
-      "route": "/example-import",
-      "title": "Example (imported)",
-      "description": "Placeholder external page. Replace url with a Claude artifact URL and run: npm run import.",
-      "type": "external",
-      "mode": "import",
-      "url": "https://example.com/",
-      "tags": [
-        "demo"
       ]
     },
     {
