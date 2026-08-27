@@ -1,7 +1,7 @@
 {
   "site": {
-    "title": "HTML DOCS TO Learn",
-    "description": "A collection of hand-written and imported HTML pages, all served from one GitHub Pages site.",
+    "title": "The Smallest Mechanism",
+    "description": "Long notes on how things actually work, taken apart down to the mechanism: kernels, networking, transport, and whatever else has my attention.",
     "base": ""
   },
   "pages": [
