@@ -3,6 +3,7 @@ import Doc from "../layouts/Doc.astro";
 import ThemeToggle from "../components/ThemeToggle.astro";
 import SocialIcon from "../components/SocialIcon.astro";
 import AsciiTitle from "../components/AsciiTitle.astro";
+import RipplePhoto from "../components/RipplePhoto.astro";
 import { loadRegistry } from "../../tools/registry.mjs";
 import { asset, resolveImage, collection, routeHref } from "../lib/paths";
 import { getSiteContent } from "../lib/site";
@@ -54,13 +55,9 @@ const selectedWork = me.work.slice(0, 3);
       </div>
       {
         me.portrait && (
-          <img
-            class="portrait"
-            src={resolveImage(me.portrait.src)}
-            alt={me.portrait.alt}
-            width="640"
-            height="800"
-          />
+          <div class="portrait">
+            <RipplePhoto src={me.portrait.src} alt={me.portrait.alt} />
+          </div>
         )
       }
     </div>
@@ -235,11 +232,14 @@ const selectedWork = me.work.slice(0, 3);
     gap: clamp(1.5rem, 4vw, 3rem);
   }
 
+  /* The frame only. The photo inside is a RipplePhoto, which fills this box
+     and owns its own object-fit; overflow keeps the radius clipping both the
+     image and the effect canvas stacked on it. */
   .portrait {
     width: 100%;
     aspect-ratio: 4 / 5;
-    object-fit: cover;
     display: block;
+    overflow: hidden;
     border: 1px solid var(--border);
     border-radius: 4px;
   }
