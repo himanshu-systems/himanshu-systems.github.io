@@ -11,7 +11,9 @@
       "description": "How the router works and how to add a page.",
       "type": "local",
       "file": "pages/about.html",
-      "tags": ["meta"]
+      "tags": [
+        "meta"
+      ]
     },
     {
       "route": "/notes/html-basics",
@@ -19,7 +21,10 @@
       "description": "A local page nested under a multi-segment route.",
       "type": "local",
       "file": "pages/html-basics.html",
-      "tags": ["notes", "html"]
+      "tags": [
+        "notes",
+        "html"
+      ]
     },
     {
       "route": "/bpf",
@@ -27,7 +32,11 @@
       "description": "What eBPF actually is, how the verifier thinks, and why the kernel lets you run your code at all.",
       "type": "local",
       "file": "pages/bpf.html",
-      "tags": ["notes", "systems", "kernel"]
+      "tags": [
+        "notes",
+        "systems",
+        "kernel"
+      ]
     },
     {
       "route": "/example-import",
@@ -36,7 +45,21 @@
       "type": "external",
       "mode": "import",
       "url": "https://example.com/",
-      "tags": ["demo"]
+      "tags": [
+        "demo"
+      ]
+    },
+    {
+      "route": "/webtransport",
+      "title": "The WebTransport Field Manual",
+      "description": "QUIC, HTTP/3 and real-time transport from first principles.",
+      "type": "local",
+      "tags": [
+        "notes",
+        "systems",
+        "networking"
+      ],
+      "file": "pages/webtransport.html"
     }
   ]
 }
