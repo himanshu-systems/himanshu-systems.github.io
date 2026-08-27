@@ -24,7 +24,7 @@ interface Props {
 }
 
 const {
-  duration = 1.6,
+  duration = 2.4,
   delay = 260,
   replayOnClick = true,
   class: className,
@@ -85,7 +85,11 @@ const {
         output,
       },
       {
-        duration: Number(root.dataset.duration) || 1.6,
+        duration: Number(root.dataset.duration) || 2.4,
+        // Gentler than upstream's fixed cubic. At 3 the band was 58% across
+        // after a quarter of the duration, so it read as a flick no matter
+        // what duration said; 1.5 spreads the travel over the whole run.
+        easeExponent: 1.5,
         // The site's one accent, read live so it tracks the theme toggle.
         color: getComputedStyle(root).getPropertyValue('--accent').trim() || '#0b7a6e',
         // Dialled well below the docs demo: this sits behind real reading text,

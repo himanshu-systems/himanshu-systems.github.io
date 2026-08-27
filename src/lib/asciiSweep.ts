@@ -24,6 +24,12 @@ export interface AsciiSweepOptions {
   angle?: number;
   /** Seconds the sweep takes from one panel to the other. */
   duration?: number;
+  /**
+   * Ease-out exponent. 3 is upstream's fixed cubic, which leaves at maximum
+   * velocity and front-loads the travel. Lower is gentler and reads slower for
+   * the same duration; 1 is linear.
+   */
+  easeExponent?: number;
   /** Width of the ascii band as a fraction of the travel (0 to 1). */
   band?: number;
   /** Feather of the band edges as a fraction of the band (0 to 1). */
@@ -123,6 +129,7 @@ const FALLBACK_CAPTURE_DELAY = 500;
 const DEFAULTS: Required<AsciiSweepOptions> = {
   angle: 0,
   duration: 2,
+  easeExponent: 3,
   band: 0.28,
   softness: 0.45,
   turbulence: 0.5,
@@ -1327,14 +1334,28 @@ function initializeAsciiSweep(
   const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
   let reducedMotion = motionQuery.matches;
 
+  /*
+   * Ease out, with the exponent exposed rather than hard-coded at 3.
+   *
+   * Upstream fixes it at cubic so the band leaves at maximum velocity the
+   * instant a tab is clicked -- right for a tab switch, but it front-loads the
+   * travel hard: at cubic the head is 58% of the way across after only 25% of
+   * the duration. Used as a decorative reveal that makes the sweep look rushed
+   * no matter how long `duration` is, because raising the duration stretches
+   * the slow tail, not the fast part anyone actually watches.
+   *
+   * Default stays 3, so the upstream feel is unchanged for anything that
+   * doesn't ask. See easeExponent in AsciiSweepOptions.
+   */
   function ease(t: number): number {
     const c = 1 - Math.min(Math.max(t, 0), 1);
-    return 1 - c * c * c;
+    return 1 - Math.pow(c, Math.max(config.easeExponent, 1));
   }
 
   /** Exact inverse of ease(), used to re-anchor the clock mid sweep. */
   function easeInverse(p: number): number {
-    return 1 - Math.cbrt(1 - Math.min(Math.max(p, 0), 1));
+    const c = 1 - Math.min(Math.max(p, 0), 1);
+    return 1 - Math.pow(c, 1 / Math.max(config.easeExponent, 1));
   }
 
   function frame(now: number) {
