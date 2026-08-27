@@ -2,6 +2,7 @@
 import Doc from "../layouts/Doc.astro";
 import ThemeToggle from "../components/ThemeToggle.astro";
 import SocialIcon from "../components/SocialIcon.astro";
+import AsciiTitle from "../components/AsciiTitle.astro";
 import { loadRegistry } from "../../tools/registry.mjs";
 import { asset, resolveImage, collection, routeHref } from "../lib/paths";
 import { getSiteContent } from "../lib/site";
@@ -35,7 +36,9 @@ const selectedWork = me.work.slice(0, 3);
 
     <div class="lede">
       <div class="lede-text">
-        <h1>{me.role}</h1>
+        <AsciiTitle>
+          <h1>{me.role}</h1>
+        </AsciiTitle>
         <div class="intro" set:html={me.intro} />
         {
           me.now && (

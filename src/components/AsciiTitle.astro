@@ -1,0 +1,172 @@
+---
+/**
+ * Runs Canvas UI's ASCII Sweep over a title: a band of glowing characters
+ * crosses the text once, growing glyphs on the exact lines it passes over.
+ *
+ * The upstream effect sweeps *between* two panels. Here both panels hold the
+ * same title, so there is nothing to swap -- what's left is the band itself
+ * reading as a one-shot reveal over the words.
+ *
+ * Layout: panel A is in normal flow, so the title sizes the wrapper the way it
+ * always did and nothing below it moves. Panel B and the output canvas are
+ * absolutely positioned on top. That's why this doesn't use the upstream React
+ * wrapper, which absolutely positions both panels and needs a fixed height --
+ * wrong for a heading whose height depends on where the text wraps.
+ */
+interface Props {
+  /** Seconds the band takes to cross. */
+  duration?: number;
+  /** Delay before the reveal fires, in ms. */
+  delay?: number;
+  /** Sweep again whenever the title is clicked. */
+  replayOnClick?: boolean;
+  class?: string;
+}
+
+const {
+  duration = 1.6,
+  delay = 260,
+  replayOnClick = true,
+  class: className,
+} = Astro.props;
+---
+
+<div
+  class:list={['ascii-title', className]}
+  data-duration={duration}
+  data-delay={delay}
+  data-replay={replayOnClick ? 'true' : 'false'}
+>
+  {/* Panel A: in flow. This is the copy that sizes the box. */}
+  <canvas class="ascii-source" layoutsubtree="true" data-slot="0">
+    <div class="ascii-panel ascii-panel--flow" data-content="0">
+      <slot />
+    </div>
+  </canvas>
+
+  {/* Panel B: the same title, overlaid. Never read by assistive tech. */}
+  <canvas class="ascii-source" layoutsubtree="true" data-slot="1" aria-hidden="true">
+    <div class="ascii-panel ascii-panel--overlay" data-content="1">
+      <slot />
+    </div>
+  </canvas>
+
+  <canvas class="ascii-output" aria-hidden="true"></canvas>
+</div>
+
+<script>
+  import { createAsciiSweep, supportsHtmlInCanvas } from '../lib/asciiSweep';
+
+  const nativeCapture = supportsHtmlInCanvas();
+
+  for (const root of document.querySelectorAll<HTMLElement>('.ascii-title')) {
+    const sources = root.querySelectorAll<HTMLCanvasElement>('canvas.ascii-source');
+    const output = root.querySelector<HTMLCanvasElement>('canvas.ascii-output');
+    const contents = root.querySelectorAll<HTMLElement>('[data-content]');
+    if (sources.length !== 2 || !output || contents.length !== 2) continue;
+
+    /*
+     * Without html-in-canvas the <canvas> elements are just inert wrappers --
+     * a canvas never lays out its fallback children, so the title inside would
+     * be invisible. Lift the panels out to be direct children of the root and
+     * drop the canvases; the fallback rasteriser reads the live DOM anyway.
+     */
+    if (!nativeCapture) {
+      for (const content of contents) root.append(content);
+      for (const source of sources) source.remove();
+    }
+
+    const instance = createAsciiSweep(
+      {
+        slots: [
+          { source: sources[0], content: contents[0] },
+          { source: sources[1], content: contents[1] },
+        ],
+        output,
+      },
+      {
+        duration: Number(root.dataset.duration) || 1.6,
+        // The site's one accent, read live so it tracks the theme toggle.
+        color: getComputedStyle(root).getPropertyValue('--accent').trim() || '#0b7a6e',
+        // Dialled well below the docs demo: this sits behind real reading text,
+        // not a effects showcase. No tearing, far less flicker and aberration.
+        displace: 0,
+        aberration: 1.5,
+        flicker: 0.18,
+        glow: 1.1,
+        turbulence: 0.35,
+        band: 0.22,
+        scale: 2,
+      },
+    );
+
+    if (!instance) continue;
+
+    // Fires once the fonts have settled, so the band traces the real serif
+    // shapes rather than whatever fallback face was up at first paint.
+    const fire = () => {
+      instance.capture();
+      instance.sweep(instance.current() === 0 ? 1 : 0);
+    };
+
+    const ready = document.fonts?.ready ?? Promise.resolve();
+    ready.then(() => {
+      instance.capture();
+      window.setTimeout(fire, Number(root.dataset.delay) || 0);
+    });
+
+    if (root.dataset.replay === 'true') {
+      root.style.cursor = 'pointer';
+      root.addEventListener('click', fire);
+    }
+  }
+</script>
+
+<style>
+  .ascii-title {
+    position: relative;
+  }
+
+  /* The source canvases only lay out their children under html-in-canvas;
+     in the fallback path the script removes them entirely. */
+  .ascii-source {
+    display: block;
+    width: 100%;
+  }
+
+  .ascii-source[data-slot='1'] {
+    position: absolute;
+    inset: 0;
+  }
+
+  /* flow-root on both panels is load-bearing. The slotted heading carries a
+     bottom margin; without a block formatting context that margin collapses
+     out of the in-flow panel but is still inside the overlay panel's inset:0
+     box. The two captures then have different heights, the shader samples both
+     with the same UVs, and the title ghosts against a vertically offset copy
+     of itself. Containing the margin makes both boxes identical. */
+  .ascii-panel {
+    display: flow-root;
+  }
+
+  .ascii-panel--flow {
+    position: relative;
+  }
+
+  .ascii-panel--overlay {
+    position: absolute;
+    inset: 0;
+  }
+
+  .ascii-output {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  /* The reveal is decoration. Under reduced motion the engine snaps the sweep
+     to its end on the first frame, so the title just appears, unchanged. */
+</style>
