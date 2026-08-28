@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WebSockets · Module 2 — Scale, Reliability &amp; Operations (Parts 9–14)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070a0f; --bg2:#0a0e15; --panel:#0d131d; --panel2:#11192447;
+  --border:#1b2733; --border2:#27384a;
+  --ink:#cdd9e5; --dim:#8a9bb0; --faint:#56697f;
+  --cyan:#2ee6d6; --green:#6ee787; --amber:#f4cf5f; --coral:#f47067; --violet:#b693ff; --blue:#6cb6ff;
+  --mono:"JetBrains Mono",ui-monospace,monospace; --sans:"IBM Plex Sans",system-ui,sans-serif; --maxw:1120px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); font-size:16px; line-height:1.65; -webkit-font-smoothing:antialiased; overflow-x:hidden}
+.bg-fx{position:fixed; inset:0; z-index:-2; pointer-events:none; background:radial-gradient(900px 600px at 80% -5%,rgba(182,147,255,.10),transparent 60%),radial-gradient(800px 700px at 8% 12%,rgba(46,230,214,.07),transparent 55%),linear-gradient(180deg,var(--bg),var(--bg2))}
+.bg-grid{position:fixed; inset:0; z-index:-2; pointer-events:none; opacity:.5; background-image:linear-gradient(rgba(46,230,214,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(46,230,214,.045) 1px,transparent 1px); background-size:44px 44px; mask-image:radial-gradient(ellipse 100% 80% at 50% 30%,#000 40%,transparent 95%)}
+.bg-scan{position:fixed; inset:0; z-index:-1; pointer-events:none; opacity:.35; background:repeating-linear-gradient(0deg,rgba(0,0,0,0) 0 2px,rgba(0,0,0,.18) 2px 3px); mix-blend-mode:multiply}
+nav{position:fixed; top:0; left:0; right:0; z-index:50; backdrop-filter:blur(10px); background:linear-gradient(180deg,rgba(7,10,15,.92),rgba(7,10,15,.55)); border-bottom:1px solid var(--border)}
+.nav-in{max-width:var(--maxw); margin:0 auto; padding:11px 22px; display:flex; align-items:center; gap:18px}
+.brand{font-family:var(--mono); font-weight:800; letter-spacing:.5px; color:var(--cyan); font-size:14px; white-space:nowrap}
+.brand .dot{color:var(--coral)}
+.nav-links{display:flex; gap:3px; margin-left:auto; flex-wrap:wrap}
+.nav-links a{font-family:var(--mono); font-size:11px; color:var(--faint); text-decoration:none; padding:5px 8px; border-radius:5px; transition:.2s; letter-spacing:.3px}
+.nav-links a:hover{color:var(--cyan); background:rgba(46,230,214,.08)}
+section{max-width:var(--maxw); margin:0 auto; padding:78px 22px 36px}
+.kicker{font-family:var(--mono); font-size:12px; letter-spacing:3px; text-transform:uppercase; color:var(--cyan); display:flex; align-items:center; gap:10px}
+.kicker::before{content:""; width:26px; height:1px; background:var(--cyan); box-shadow:0 0 12px var(--cyan)}
+h2{font-family:var(--mono); font-weight:800; font-size:clamp(26px,4.2vw,40px); line-height:1.08; margin:14px 0 8px; letter-spacing:-.5px}
+h3{font-family:var(--mono); font-weight:700; font-size:18px; color:var(--ink); margin:30px 0 6px}
+p{color:var(--dim); max-width:74ch}
+p strong,li strong{color:var(--ink); font-weight:600}
+.lede{font-size:18px; color:#aebccd; max-width:72ch}
+code,.mono{font-family:var(--mono)}
+.hl-cyan{color:var(--cyan)} .hl-green{color:var(--green)} .hl-amber{color:var(--amber)} .hl-coral{color:var(--coral)} .hl-violet{color:var(--violet)} .hl-blue{color:var(--blue)}
+em.note{color:var(--amber); font-style:normal}
+ul.clean{list-style:none; padding:0; margin:14px 0; max-width:74ch}
+ul.clean li{position:relative; padding-left:22px; margin:8px 0; color:var(--dim)}
+ul.clean li::before{content:"▸"; position:absolute; left:0; color:var(--cyan)}
+.cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px; margin:22px 0}
+.card{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px 18px; position:relative; overflow:hidden}
+.card::before{content:""; position:absolute; top:0; left:0; width:100%; height:2px; background:linear-gradient(90deg,var(--cyan),transparent)}
+.card h4{font-family:var(--mono); font-size:13px; margin:2px 0 6px; color:var(--ink)}
+.card p{font-size:14px; margin:0; color:var(--faint)}
+.card.amber::before{background:linear-gradient(90deg,var(--amber),transparent)}
+.card.coral::before{background:linear-gradient(90deg,var(--coral),transparent)}
+.card.violet::before{background:linear-gradient(90deg,var(--violet),transparent)}
+.card.green::before{background:linear-gradient(90deg,var(--green),transparent)}
+.panel{background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:20px; margin:22px 0}
+.panel-h{font-family:var(--mono); font-size:12px; letter-spacing:2px; text-transform:uppercase; color:var(--faint); margin-bottom:14px; display:flex; align-items:center; gap:8px}
+.panel-h .led{width:8px; height:8px; border-radius:50%; background:var(--cyan); box-shadow:0 0 10px var(--cyan); animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.controls{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; align-items:center}
+button.btn{font-family:var(--mono); font-size:12px; background:var(--panel2); color:var(--dim); border:1px solid var(--border2); padding:8px 14px; border-radius:8px; cursor:pointer; transition:.18s; letter-spacing:.4px}
+button.btn:hover{color:var(--ink); border-color:var(--cyan)}
+button.btn.active{background:rgba(46,230,214,.12); color:var(--cyan); border-color:var(--cyan)}
+.metric{display:flex; gap:18px; flex-wrap:wrap; margin-top:14px}
+.metric .m b{display:block; font-size:24px; color:var(--cyan); font-weight:800; font-family:var(--mono)}
+.metric .m span{font-size:11px; color:var(--faint); letter-spacing:1px; text-transform:uppercase}
+.tbl{width:100%; border-collapse:collapse; font-size:13px; margin:18px 0; border-radius:10px; overflow:hidden}
+.tbl th{font-family:var(--mono); font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--cyan); text-align:left; padding:11px 12px; background:var(--panel); border-bottom:1px solid var(--border2)}
+.tbl td{padding:11px 12px; border-bottom:1px solid var(--border); color:var(--dim); vertical-align:top}
+.tbl td:first-child{font-family:var(--mono); color:var(--ink); white-space:nowrap}
+.tbl tr:hover td{background:rgba(46,230,214,.03)}
+.yes{color:var(--green)} .no{color:var(--coral)} .meh{color:var(--amber)}
+.sim-note{font-family:var(--mono); font-size:12px; color:var(--faint); margin-top:12px; min-height:18px}
+/* hero */
+.hero{max-width:var(--maxw); margin:0 auto; padding:130px 22px 30px; position:relative}
+.hero .tag{font-family:var(--mono); font-size:12px; letter-spacing:4px; color:var(--cyan); text-transform:uppercase}
+.hero h1{font-family:var(--mono); font-weight:800; font-size:clamp(34px,7vw,72px); line-height:.98; margin:16px 0 0; letter-spacing:-1.5px; background:linear-gradient(180deg,#eef5ff,#9b86ff 140%); -webkit-background-clip:text; background-clip:text; color:transparent}
+.hero .sub{font-size:19px; color:#a9b9cb; max-width:66ch; margin-top:18px}
+.chip{font-family:var(--mono); font-size:11px; color:var(--dim); border:1px solid var(--border2); padding:6px 11px; border-radius:20px; background:var(--panel)}
+.chip b{color:var(--cyan)}
+.meta{display:flex; gap:10px; flex-wrap:wrap; margin-top:24px}
+/* diagrams */
+.diagram{font-family:var(--mono); font-size:12px; background:#060a10; border:1px solid var(--border2); border-radius:10px; padding:18px; overflow-x:auto; white-space:pre; color:var(--dim); line-height:1.5}
+/* epoll widget */
+.epoll-stage{display:grid; grid-template-columns:1fr 280px; gap:16px; margin-top:8px}
+@media(max-width:760px){.epoll-stage{grid-template-columns:1fr}}
+.connwall{display:grid; grid-template-columns:repeat(8,1fr); gap:6px; padding:14px; background:#060a10; border:1px solid var(--border2); border-radius:10px}
+.cell{aspect-ratio:1; border-radius:6px; border:1px solid var(--border2); display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-size:9px; color:var(--faint); transition:.2s}
+.cell.ready{background:rgba(46,230,214,.18); border-color:var(--cyan); color:var(--cyan); box-shadow:0 0 10px rgba(46,230,214,.4)}
+.cell.blocked{opacity:.4}
+.sidebox{background:#060a10; border:1px solid var(--border2); border-radius:10px; padding:16px; font-family:var(--mono); font-size:12px}
+.sidebox .row{display:flex; justify-content:space-between; margin:8px 0; color:var(--dim)}
+.sidebox .row b{color:var(--cyan)}
+.meter{height:10px; background:var(--border); border-radius:6px; overflow:hidden; margin-top:4px}
+.meter > i{display:block; height:100%; background:linear-gradient(90deg,var(--green),var(--amber),var(--coral)); transition:width .4s}
+/* fanout */
+.fan-stage{position:relative; height:320px; background:#060a10; border:1px solid var(--border2); border-radius:12px; overflow:hidden}
+.node{position:absolute; font-family:var(--mono); font-size:11px; padding:8px 10px; border-radius:8px; border:1px solid; background:#0a1019; text-align:center; transform:translate(-50%,-50%); z-index:2}
+.node.pub{border-color:var(--blue); color:var(--blue)}
+.node.broker{border-color:var(--violet); color:var(--violet); box-shadow:0 0 18px rgba(182,147,255,.3)}
+.node.gw{border-color:var(--green); color:var(--green)}
+.node.cli{border-color:var(--border2); color:var(--faint); font-size:9px; padding:4px 6px}
+.fan-line{position:absolute; height:1px; background:var(--border2); transform-origin:left center; z-index:1}
+.fdot{position:absolute; width:9px; height:9px; border-radius:50%; background:var(--amber); box-shadow:0 0 12px var(--amber); z-index:3; transform:translate(-50%,-50%); transition:left linear, top linear}
+/* backoff */
+.bo-grid{display:grid; grid-template-columns:1fr; gap:12px}
+canvas.plot{width:100%; height:240px; background:#060a10; border:1px solid var(--border2); border-radius:10px; display:block}
+.slider{display:flex; align-items:center; gap:10px; font-family:var(--mono); font-size:12px; color:var(--dim)}
+.slider input[type=range]{flex:1; accent-color:var(--cyan)}
+.slider b{color:var(--cyan); min-width:60px; text-align:right}
+/* cswsh */
+.attack{display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-top:8px}
+@media(max-width:760px){.attack{grid-template-columns:1fr 1fr}}
+.astep{background:#060a10; border:1px solid var(--border2); border-radius:9px; padding:12px; font-size:12px; color:var(--faint); opacity:.35; transition:.4s; min-height:100px}
+.astep.on{opacity:1; border-color:var(--coral); color:var(--dim)}
+.astep .n{font-family:var(--mono); font-size:10px; color:var(--coral); letter-spacing:1px; display:block; margin-bottom:6px}
+.astep.fix{border-color:var(--green)} .astep.fix .n{color:var(--green)}
+/* calculator */
+.calc{display:grid; grid-template-columns:300px 1fr; gap:18px; margin-top:8px}
+@media(max-width:760px){.calc{grid-template-columns:1fr}}
+.calc .inputs{background:#060a10; border:1px solid var(--border2); border-radius:10px; padding:16px}
+.field{margin:12px 0}
+.field label{font-family:var(--mono); font-size:11px; color:var(--faint); letter-spacing:.5px; display:block; margin-bottom:5px}
+.field input{font-family:var(--mono); font-size:13px; width:100%; background:#0a1019; color:var(--green); border:1px solid var(--border2); border-radius:7px; padding:8px 10px}
+.field input:focus{outline:none; border-color:var(--cyan)}
+.out-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px}
+.out{background:#060a10; border:1px solid var(--border2); border-radius:10px; padding:14px; position:relative; overflow:hidden}
+.out::before{content:""; position:absolute; top:0; left:0; right:0; height:2px; background:var(--cyan)}
+.out.warn::before{background:var(--coral)}
+.out .lbl{font-family:var(--mono); font-size:10px; color:var(--faint); letter-spacing:1px; text-transform:uppercase}
+.out .val{font-family:var(--mono); font-size:22px; font-weight:800; color:var(--cyan); margin-top:6px}
+.out.warn .val{color:var(--coral)}
+.out .hint{font-size:11px; color:var(--faint); margin-top:4px}
+.reveal{opacity:0; transform:translateY(24px); transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+.reveal.in{opacity:1; transform:none}
+footer{max-width:var(--maxw); margin:40px auto 0; padding:40px 22px 80px; border-top:1px solid var(--border)}
+.roadmap{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin-top:18px}
+.rm{background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:14px}
+.rm .n{font-family:var(--mono); font-size:11px; color:var(--cyan); letter-spacing:1px}
+.rm p{font-size:13px; margin:6px 0 0; color:var(--faint)}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.001ms!important; transition-duration:.12s!important}}
+</style>
+</head>
+<body>
+<div class="bg-fx"></div><div class="bg-grid"></div><div class="bg-scan"></div>
+
+<nav><div class="nav-in">
+  <div class="brand">WS<span class="dot">://</span>MODULE-2</div>
+  <div class="nav-links">
+    <a href="#p9">09·BROWSER</a><a href="#p10">10·SERVER</a><a href="#p11">11·SCALING</a>
+    <a href="#p12">12·RELIABILITY</a><a href="#p13">13·SECURITY</a><a href="#p14">14·PERF</a>
+  </div>
+</div></nav>
+
+<header class="hero">
+  <div class="tag">Module 2 · Parts 9–14 · Scale · Reliability · Operations</div>
+  <h1>A million sockets,<br>one engineer's mental model.</h1>
+  <p class="sub">Module 1 built the protocol from the byte up. Now we hold it open at scale: how browsers and servers actually run millions of connections, how messages fan out across a cluster, how connections die and recover, how they get attacked — and exactly what hardware a given connection count costs.</p>
+  <div class="meta">
+    <span class="chip"><b>epoll</b> vs threads, animated</span>
+    <span class="chip"><b>pub/sub</b> fan-out sim</span>
+    <span class="chip"><b>reconnect-storm</b> visualizer</span>
+    <span class="chip"><b>CSWSH</b> attack walkthrough</span>
+    <span class="chip"><b>live</b> 100K→10M calculator</span>
+  </div>
+</header>
+
+<!-- ===== PART 9 ===== -->
+<section id="p9">
+  <div class="kicker reveal">Part 09 — Browser Internals</div>
+  <h2 class="reveal">The socket isn't where your JS runs</h2>
+  <p class="lede reveal">Modern browsers are multi-process. A sandboxed <strong>renderer</strong> runs your JavaScript on a <em class="note">single main thread</em>; a privileged <strong>network process</strong> owns the actual sockets. WebSocket bytes are read in the network process and shipped over IPC to the renderer, where each message is queued as a <strong>task</strong> on the event loop. Your <code>onmessage</code> never preempts — it runs <em class="note">between</em> other tasks.</p>
+
+  <div class="panel reveal">
+    <div class="panel-h"><span class="led"></span>Chromium architecture — where a frame becomes an onmessage call</div>
+    <div class="diagram">┌─────────────────── NETWORK SERVICE PROCESS (privileged) ───────────────────┐
+│   owns TCP/TLS socket  ·  reads bytes  ·  WS frame parser  ·  un-mask N/A   │
+│   (server→client frames are unmasked)        ▼                              │
+└──────────────────────────────── Mojo IPC ──────┼───────────────────────────┘
+                                                 ▼
+┌─────────────────── RENDERER PROCESS (sandboxed, per-site) ─────────────────┐
+│   MAIN THREAD ─ single event loop:                                          │
+│     [ task ][ task ][ MESSAGE EVENT ][ task ][ rAF ][ MESSAGE EVENT ] ...    │
+│        if a task runs 200ms, every queued message waits 200ms ──┐           │
+│   ws.onmessage(e) runs here ◄───────────────────────────────────┘           │
+│   ws.send(x)  →  copies into network process's SEND buffer (never blocks)   │
+└─────────────────────────────────────────────────────────────────────────────┘</div>
+    <div class="controls" style="margin-top:14px"><button class="btn active" id="elPlay">▶ DELIVER A MESSAGE THROUGH THE LOOP</button>
+      <button class="btn" id="elBlock">SIMULATE A 1s BLOCKING TASK</button></div>
+    <div id="loopViz" style="display:flex; gap:6px; flex-wrap:wrap; font-family:var(--mono); font-size:11px"></div>
+    <div class="sim-note" id="elNote">The main thread processes one task at a time. A long task starves message delivery even though the bytes already arrived in the network process.</div>
+  </div>
+
+  <div class="cards">
+    <div class="card reveal"><h4 class="hl-blue">Why split processes</h4><p>Security (sandbox can't touch raw sockets/fs), stability (a network crash doesn't kill your tab), site isolation. Cost: every message crosses an IPC boundary.</p></div>
+    <div class="card reveal amber"><h4 class="hl-amber">Backpressure footgun</h4><p><code>ws.send()</code> <strong>never blocks</strong> — it buffers in memory. On a slow uplink, unbounded sends grow <code>ws.bufferedAmount</code> until the tab OOMs. You must gate on <code>bufferedAmount</code> yourself.</p></div>
+    <div class="card reveal violet"><h4 class="hl-violet">Use a Worker</h4><p>WebSocket works in Web Workers — move parsing/serialization off the main thread so a busy UI doesn't stall delivery, and a flood of messages doesn't jank rendering.</p></div>
+    <div class="card reveal coral"><h4 class="hl-coral">Limits &amp; throttling</h4><p>Chrome caps ~255 WS per host (separate from the 6 HTTP/1.1 limit). Background tabs get throttled — heartbeats may lag, triggering false disconnects.</p></div>
+  </div>
+</section>
+
+<!-- ===== PART 10 ===== -->
+<section id="p10">
+  <div class="kicker reveal">Part 10 — Server Internals</div>
+  <h2 class="reveal">C10K → C10M: stop giving each connection a thread</h2>
+  <p class="lede reveal">A WebSocket connection is mostly <em class="note">idle</em> — it waits. The naive model gives each connection a thread blocked in <code>read()</code>. At a million connections that's a million thread stacks and a scheduler in meltdown. The fix is <strong>readiness notification</strong>: a few threads ask the kernel "<em class="note">which of these N sockets have data right now?</em>" — <code>epoll</code> (Linux), <code>kqueue</code> (BSD/macOS), <code>IOCP</code> (Windows, completion-based).</p>
+
+  <div class="panel reveal">
+    <div class="panel-h"><span class="led"></span>Toggle the I/O model — watch 24 connections, ~⅓ ready each tick</div>
+    <div class="controls">
+      <button class="btn" id="mThread">THREAD-PER-CONNECTION</button>
+      <button class="btn active" id="mEvent">EVENT LOOP + epoll</button>
+    </div>
+    <div class="epoll-stage">
+      <div class="connwall" id="connwall"></div>
+      <div class="sidebox" id="ioBox"></div>
+    </div>
+    <div class="sim-note" id="ioNote"></div>
+  </div>
+
+  <table class="tbl reveal">
+    <tr><th>Runtime</th><th>Concurrency model</th><th>Per-conn cost</th><th>Notes for 1M conns</th></tr>
+    <tr><td>Node.js</td><td>single-thread libuv loop → epoll</td><td>low (heap objects)</td><td>JS callbacks; cluster/SO_REUSEPORT to use all cores; watch GC</td></tr>
+    <tr><td>Go</td><td>goroutines on netpoller (epoll)</td><td>~2–8 KB stack</td><td>blocking-style code, async underneath; millions feasible</td></tr>
+    <tr><td>Rust</td><td>async tasks (tokio) on epoll</td><td>tiny (state machine)</td><td>no GC, lowest memory/CPU; hardest to write</td></tr>
+    <tr><td>Java</td><td>NIO selectors (Netty) / virtual threads (Loom)</td><td>small (Netty) / large (OS thread)</td><td>Netty is the workhorse; Loom revives readable blocking code</td></tr>
+    <tr><td>nginx</td><td>event-driven C, epoll</td><td>minimal</td><td>excellent TLS-terminating WS reverse proxy / fan-in</td></tr>
+    <tr><td>HAProxy</td><td>event-driven L4/L7</td><td>minimal</td><td>sticky load balancing, health checks, connection limits</td></tr>
+  </table>
+  <div class="cards">
+    <div class="card reveal green"><h4 class="hl-green">epoll is O(ready), not O(N)</h4><p><code>epoll_wait()</code> returns only the fds with events — cost scales with <em class="note">active</em> connections, not total. <code>select()</code>/<code>poll()</code> rescan all N every call → die past ~1024 fds.</p></div>
+    <div class="card reveal coral"><h4 class="hl-coral">If you removed it</h4><p>Thread-per-conn at 1M: ~1M × 512 KB stacks ≈ <strong>512 GB</strong> of stacks, plus context-switch storms. The machine falls over long before the network does.</p></div>
+    <div class="card reveal amber"><h4 class="hl-amber">Edge vs level-triggered</h4><p>Level-triggered keeps notifying while data remains (simpler). Edge-triggered notifies once per readiness edge → you must drain fully or you hang. Classic 3 AM bug.</p></div>
+  </div>
+</section>
+
+<!-- ===== PART 11 ===== -->
+<section id="p11">
+  <div class="kicker reveal">Part 11 — Scaling Across Machines</div>
+  <h2 class="reveal">Statefulness is the whole problem</h2>
+  <p class="lede reveal">A connection lives on <em class="note">one</em> gateway process. To deliver "user A messaged room R" to A's 10,000 followers spread across 50 gateways, every gateway must learn of the event. That requires a <strong>shared message bus</strong> and a <strong>fan-out</strong> strategy. The load balancer's job is <strong>stickiness</strong>: route a client's handshake (and reconnects) to a node that can serve it; the single long-lived TCP connection then pins itself to that node automatically.</p>
+
+  <div class="panel reveal">
+    <div class="panel-h"><span class="led"></span>Fan-out simulator — one publish → many deliveries</div>
+    <div class="controls">
+      <span class="slider" style="min-width:200px">gateways <input type="range" id="fGw" min="2" max="5" value="3"><b id="fGwV">3</b></span>
+      <span class="slider" style="min-width:220px">clients / gw <input type="range" id="fCli" min="2" max="6" value="4"><b id="fCliV">4</b></span>
+      <button class="btn active" id="fPub">▶ PUBLISH ONE MESSAGE</button>
+    </div>
+    <div class="fan-stage" id="fanStage"></div>
+    <div class="metric">
+      <div class="m"><b id="fanRatio">1 : 12</b><span>publish : deliveries (amplification)</span></div>
+      <div class="m"><b id="fanHops" style="color:var(--violet)">broker</b><span>every gateway subscribes</span></div>
+    </div>
+  </div>
+
+  <table class="tbl reveal">
+    <tr><th>Bus</th><th>Delivery</th><th>Latency</th><th>Best for</th><th>Weakness</th></tr>
+    <tr><td>Redis Pub/Sub</td><td>at-most-once, fire-and-forget</td><td class="yes">very low</td><td>presence, ephemeral broadcast, typing indicators</td><td class="no">no persistence/replay; node down → misses</td></tr>
+    <tr><td>NATS</td><td>at-most-once (+ JetStream persist)</td><td class="yes">very low</td><td>high-throughput pub/sub, subjects/wildcards</td><td class="meh">core is ephemeral; add JetStream for durability</td></tr>
+    <tr><td>Kafka</td><td>durable, ordered, replayable</td><td class="meh">higher</td><td>audit, ordered event streams, at-least-once</td><td class="no">heavier; overkill for transient presence</td></tr>
+  </table>
+  <div class="cards">
+    <div class="card reveal coral"><h4 class="hl-coral">Hot channel = hotspot</h4><p>A celebrity or a popular trading symbol concentrates fan-out on a few nodes. Fixes: shard channels, dedicate nodes to hot topics, or tree/hierarchical fan-out.</p></div>
+    <div class="card reveal"><h4 class="hl-cyan">WhatsApp / Discord</h4><p>Erlang/Elixir on the BEAM — millions of lightweight processes per box, one per connection, built-in supervision. Discord shards "guilds"; Rust on hot paths.</p></div>
+    <div class="card reveal amber"><h4 class="hl-amber">Trading (Binance / Kite)</h4><p>Latency-obsessed market-data fan-out, often per-symbol sharding and snapshot+delta streams; internal transport may be multicast/UDP, WS at the edge.</p></div>
+  </div>
+</section>
+
+<!-- ===== PART 12 ===== -->
+<section id="p12">
+  <div class="kicker reveal">Part 12 — Reliability &amp; Failure</div>
+  <h2 class="reveal">The connection that's dead but doesn't know it</h2>
+  <p class="lede reveal">A cut cable, a crashed peer, or a NAT box silently dropping its mapping leaves a <strong>half-open</strong> connection: one side is gone, the other thinks it's fine. TCP won't tell you for ~2 hours. The only cure is application <strong>heartbeats</strong> — WebSocket <span class="hl-violet">Ping (0x9) / Pong (0xA)</span> control frames. Send a Ping every T seconds; no Pong within the window → declare dead and close. (Browsers auto-reply to Ping; from JS you can't send a Ping, so apps often add their own ping message.)</p>
+
+  <div class="panel reveal">
+    <div class="panel-h"><span class="led" style="background:var(--coral);box-shadow:0 0 10px var(--coral)"></span>Reconnect-storm visualizer — 200 clients reconnect after a server restart</div>
+    <div class="controls">
+      <button class="btn active" id="jOff">NAIVE: fixed retry (no jitter)</button>
+      <button class="btn" id="jOn">EXPONENTIAL BACKOFF + FULL JITTER</button>
+    </div>
+    <div class="bo-grid">
+      <div class="slider">base <input type="range" id="boBase" min="100" max="2000" step="100" value="500"><b id="boBaseV">500ms</b></div>
+      <div class="slider">factor <input type="range" id="boFactor" min="1.2" max="3" step="0.1" value="2"><b id="boFactorV">2.0×</b></div>
+      <canvas class="plot" id="boCanvas"></canvas>
+    </div>
+    <div class="sim-note" id="boNote"></div>
+  </div>
+
+  <div class="cards">
+    <div class="card reveal coral"><h4 class="hl-coral">Thundering herd</h4><p>All clients reconnect at once → a self-inflicted SYN+TLS+handshake flood that re-kills the server you just restarted. Backoff <em class="note">with jitter</em> de-synchronizes them.</p></div>
+    <div class="card reveal amber"><h4 class="hl-amber">No built-in resume</h4><p>Unlike SSE's <code>Last-Event-ID</code>, WebSocket has no resumption. You build it: per-message IDs, client sends "last seen" on reconnect, server replays from a buffer, client dedups. Design for <strong>at-least-once + idempotency</strong>.</p></div>
+    <div class="card reveal green"><h4 class="hl-green">Graceful shutdown</h4><p>On deploy: stop accepting, send Close <code>1001 going away</code>, drain, and <em class="note">stagger</em> so clients don't all reconnect on the same millisecond.</p></div>
+  </div>
+</section>
+
+<!-- ===== PART 13 ===== -->
+<section id="p13">
+  <div class="kicker reveal">Part 13 — Security</div>
+  <h2 class="reveal">Cross-Site WebSocket Hijacking</h2>
+  <p class="lede reveal">The WebSocket handshake is an HTTP request, so the browser <strong>auto-attaches cookies</strong> — and the Same-Origin Policy that protects <code>fetch</code> does <em class="note">not</em> apply. If your server authenticates by cookie alone and skips the <code>Origin</code> check, any site can open an authenticated socket as your logged-in user. Step through the attack, then the fix.</p>
+
+  <div class="panel reveal">
+    <div class="panel-h"><span class="led" style="background:var(--coral);box-shadow:0 0 10px var(--coral)"></span>Attack → defense walkthrough</div>
+    <div class="controls"><button class="btn active" id="atkPlay">▶ RUN ATTACK</button><button class="btn" id="atkFix">SHOW FIX</button></div>
+    <div class="attack" id="attack">
+      <div class="astep" data-s="0"><span class="n">STEP 1</span>Victim is logged into <b>bank.com</b>; a session cookie sits in their browser.</div>
+      <div class="astep" data-s="1"><span class="n">STEP 2</span>Victim visits <b>evil.com</b> (phishing, ad, anything).</div>
+      <div class="astep" data-s="2"><span class="n">STEP 3</span>evil.com JS runs <code>new WebSocket("wss://bank.com/api")</code>.</div>
+      <div class="astep" data-s="3"><span class="n">STEP 4</span>Browser attaches bank.com cookies to the handshake. No SOP block.</div>
+      <div class="astep" data-s="4"><span class="n">STEP 5</span>Server sees a valid session → evil.com now reads/sends as the victim. ☠</div>
+    </div>
+    <div class="sim-note" id="atkNote"></div>
+  </div>
+
+  <div class="cards">
+    <div class="card reveal green"><h4 class="hl-green">Fix #1 — check Origin</h4><p>Reject handshakes whose un-forgeable <code>Origin</code> isn't allow-listed. First and cheapest line of defense.</p></div>
+    <div class="card reveal green"><h4 class="hl-green">Fix #2 — token, not ambient cookie</h4><p>Require an explicit auth token (CSRF-style or JWT) the attacker can't read cross-origin. Browser WS can't set an <code>Authorization</code> header, so send the token in the <strong>first message</strong> or via subprotocol — avoid query strings (they get logged).</p></div>
+    <div class="card reveal coral"><h4 class="hl-coral">Resource-exhaustion DoS</h4><p>Connections are cheap to open, expensive to hold. Defenses: per-IP connection + rate limits, handshake timeout, <strong>auth before allocating buffers</strong>, max message size, ping-timeout reaping.</p></div>
+    <div class="card reveal amber"><h4 class="hl-amber">Validate length before allocating</h4><p>A frame can <em class="note">claim</em> a 64-bit length of gigabytes. Never pre-allocate from the claim. Same for <code>permessage-deflate</code>: cap the decompressed size or a tiny frame becomes a memory bomb.</p></div>
+  </div>
+</section>
+
+<!-- ===== PART 14 ===== -->
+<section id="p14">
+  <div class="kicker reveal">Part 14 — Performance Engineering</div>
+  <h2 class="reveal">What does a connection actually cost?</h2>
+  <p class="lede reveal">Every connection consumes a <strong>file descriptor</strong>, two <strong>kernel socket buffers</strong>, and some <strong>application state</strong>. Multiply by your connection count and the answer is concrete hardware. Drive the model below — the presets reproduce the canonical 100K / 1M / 10M figures.</p>
+
+  <div class="panel reveal">
+    <div class="panel-h"><span class="led"></span>Live resource calculator</div>
+    <div class="controls">
+      <button class="btn" data-preset="100000">100K</button>
+      <button class="btn active" data-preset="1000000">1M</button>
+      <button class="btn" data-preset="10000000">10M</button>
+    </div>
+    <div class="calc">
+      <div class="inputs">
+        <div class="field"><label>CONNECTIONS</label><input id="cConns" type="number" value="1000000"></div>
+        <div class="field"><label>KERNEL BUFFER / SOCKET (KB, send+recv)</label><input id="cBuf" type="number" value="8"></div>
+        <div class="field"><label>APP STATE / CONNECTION (KB)</label><input id="cApp" type="number" value="10"></div>
+        <div class="field"><label>MESSAGES / SEC / CONNECTION</label><input id="cRate" type="number" value="1" step="0.1"></div>
+        <div class="field"><label>AVG MESSAGE SIZE (BYTES)</label><input id="cSize" type="number" value="100"></div>
+        <div class="field"><label>RAM / SERVER (GB)</label><input id="cRam" type="number" value="32"></div>
+      </div>
+      <div class="out-grid" id="calcOut"></div>
+    </div>
+    <div class="sim-note">Estimates. CPU assumes ~2 µs/message (syscall + mask/unmask + parse + a little TLS); real numbers depend on TLS, compression, and batching. The point is the <em class="note">shape</em>: memory and fds dominate the connection count; CPU and bandwidth dominate the message rate.</div>
+  </div>
+
+  <div class="cards">
+    <div class="card reveal coral"><h4 class="hl-coral">File-descriptor wall</h4><p>Default <code>ulimit -n</code> is <strong>1024</strong>. You must raise per-process <code>nofile</code> and system <code>fs.file-max</code> above your connection count, or you hit "too many open files" at exactly 1024 conns.</p></div>
+    <div class="card reveal amber"><h4 class="hl-amber">Buffer tuning is mandatory</h4><p>Untuned <code>tcp_rmem/wmem</code> (100s of KB each) × 1M conns = <strong>100s of GB</strong>. Shrink them and lean on autotuning — trade per-connection throughput for connection density.</p></div>
+    <div class="card reveal violet"><h4 class="hl-violet">Ephemeral-port ceiling</h4><p>An LB/proxy making upstream connections is capped at ~64K per <code>(dst IP, dst port)</code> tuple. Spread across more backends/ports, or you starve ports before memory.</p></div>
+  </div>
+</section>
+
+<footer>
+  <div class="kicker">End of Module 2</div>
+  <h3 class="mono">You can now size, scale, harden, and debug a real-time fleet.</h3>
+  <p>Parts 9–14 covered the operational reality: the browser's process/event-loop model, the server's epoll-driven C10M model, cross-machine fan-out over a bus, half-open detection and backoff, the CSWSH attack and its fixes, and the concrete hardware cost of a connection count. Module 1 (Parts 1–8) is the protocol foundation underneath all of it.</p>
+  <div class="roadmap">
+    <div class="rm"><div class="n">MODULE 3 · Parts 15–16</div><p>WebSocket vs HTTP/2/3, SSE, gRPC, QUIC, WebRTC, WebTransport — architecture, latency, when to choose which; plus deep case studies (Binance, Zerodha Kite, game servers).</p></div>
+    <div class="rm"><div class="n">MODULE 4 · Part 17</div><p>Build a WebSocket server from raw TCP sockets — handshake, frame parser/encoder, ping/pong, close — runnable and annotated line by line.</p></div>
+    <div class="rm"><div class="n">MODULE 5 · Parts 18–20</div><p>Fragmentation, permessage-deflate, subprotocols &amp; extensions; common misconceptions and interview traps; consolidated mental models.</p></div>
+  </div>
+</footer>
+
+<script>
+"use strict";
+const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{threshold:.12});
+document.querySelectorAll('.reveal').forEach((el,i)=>{el.style.transitionDelay=(Math.min(i%6,5)*55)+'ms';io.observe(el);});
+
+/* ===== PART 9: event loop ===== */
+(function(){
+  const viz=document.getElementById('loopViz'), note=document.getElementById('elNote');
+  const tasks=['task','task','rAF','task','timer','task','task','paint'];
+  function render(highlight,blockIdx){
+    viz.innerHTML='';
+    tasks.forEach((t,i)=>{
+      const d=document.createElement('div');
+      const isMsg=(i===highlight); const isBlock=(i===blockIdx);
+      d.textContent=isMsg?'onmessage':(isBlock?'⏳ 1s task':t);
+      d.style.cssText='padding:7px 9px;border-radius:6px;border:1px solid var(--border2);'+
+        (isMsg?'background:rgba(46,230,214,.18);color:var(--cyan);border-color:var(--cyan)':
+         isBlock?'background:rgba(244,112,103,.18);color:var(--coral);border-color:var(--coral)':'color:var(--faint)');
+      viz.appendChild(d);
+    });
+  }
+  render(-1,-1);
+  document.getElementById('elPlay').addEventListener('click',()=>{
+    let i=0; const id=setInterval(()=>{ render(i===3?3:-1,-1); if(i===3)note.textContent='The message event is just another task — it runs in its turn, never interrupting the task before it.'; i++; if(i>tasks.length){clearInterval(id);render(-1,-1);} },reduce?60:380);
+  });
+  document.getElementById('elBlock').addEventListener('click',()=>{
+    render(-1,1); note.innerHTML='A 1s task at position 2 holds the thread. The message bytes are already in the network process — but <span class="hl-coral">onmessage can\'t fire until the loop is free.</span> This is why heavy work belongs in a Worker.';
+    setTimeout(()=>render(4,1),reduce?80:1100);
+  });
+})();
+
+/* ===== PART 10: epoll vs threads ===== */
+(function(){
+  const wall=document.getElementById('connwall'), box=document.getElementById('ioBox'), note=document.getElementById('ioNote');
+  const N=24; let mode='event', cells=[];
+  for(let i=0;i<N;i++){ const c=document.createElement('div'); c.className='cell'; c.textContent='fd'+i; wall.appendChild(c); cells.push(c); }
+  function tick(){
+    cells.forEach(c=>{ c.classList.remove('ready'); if(mode==='thread')c.classList.add('blocked'); else c.classList.remove('blocked'); });
+    let ready=0;
+    cells.forEach(c=>{ if(Math.random()<0.33){ c.classList.add('ready'); c.classList.remove('blocked'); ready++; } });
+    paint(ready);
+  }
+  function paint(ready){
+    if(mode==='thread'){
+      const stackMB=(N*512/1024).toFixed(1);
+      box.innerHTML=`<div style="color:var(--coral);font-weight:700;margin-bottom:8px">THREAD-PER-CONNECTION</div>
+        <div class="row"><span>OS threads</span><b style="color:var(--coral)">${N}</b></div>
+        <div class="row"><span>blocked in read()</span><b style="color:var(--coral)">${N-ready}</b></div>
+        <div class="row"><span>runnable</span><b>${ready}</b></div>
+        <div class="row"><span>stack memory</span><b style="color:var(--coral)">${stackMB} MB</b></div>
+        <div class="meter"><i style="width:90%"></i></div>
+        <div style="color:var(--faint);font-size:11px;margin-top:10px">×512 KB stack each. At 1M conns ≈ 512 GB + context-switch storm.</div>`;
+      note.innerHTML='Each connection owns a thread blocked in <code>read()</code>. Most threads do nothing but cost a stack and scheduler slot.';
+    } else {
+      box.innerHTML=`<div style="color:var(--green);font-weight:700;margin-bottom:8px">EVENT LOOP + epoll</div>
+        <div class="row"><span>OS threads</span><b style="color:var(--green)">1–N<sub>cores</sub></b></div>
+        <div class="row"><span>epoll_wait() returns</span><b style="color:var(--cyan)">${ready} ready fds</b></div>
+        <div class="row"><span>work this tick</span><b>O(${ready})</b></div>
+        <div class="row"><span>idle conns cost</span><b style="color:var(--green)">~0 CPU</b></div>
+        <div class="meter"><i style="width:18%"></i></div>
+        <div style="color:var(--faint);font-size:11px;margin-top:10px">Cost scales with <i>active</i> conns, not total. Idle millions sit free.</div>`;
+      note.innerHTML='One loop asks the kernel for the ready set. <span class="hl-green">Only the lit fds are processed</span> — idle connections are nearly free.';
+    }
+  }
+  let timer=null;
+  function setMode(m){ mode=m;
+    document.getElementById('mThread').classList.toggle('active',m==='thread');
+    document.getElementById('mEvent').classList.toggle('active',m==='event'); tick(); }
+  document.getElementById('mThread').addEventListener('click',()=>setMode('thread'));
+  document.getElementById('mEvent').addEventListener('click',()=>setMode('event'));
+  const eio=new IntersectionObserver((es)=>{es.forEach(e=>{ if(e.isIntersecting){ tick(); if(!reduce&&!timer)timer=setInterval(tick,1300);} else if(timer){clearInterval(timer);timer=null;} });},{threshold:.2});
+  eio.observe(wall); setMode('event');
+})();
+
+/* ===== PART 11: fan-out ===== */
+(function(){
+  const stage=document.getElementById('fanStage'); if(!stage)return;
+  const gwS=document.getElementById('fGw'), cliS=document.getElementById('fCli');
+  const gwV=document.getElementById('fGwV'), cliV=document.getElementById('fCliV');
+  const ratio=document.getElementById('fanRatio');
+  let layout={};
+  function build(){
+    stage.innerHTML=''; layout={pub:null,broker:null,gws:[],clients:[]};
+    const W=stage.clientWidth, H=stage.clientHeight;
+    const G=+gwS.value, C=+cliS.value; gwV.textContent=G; cliV.textContent=C;
+    const pub={x:W*0.10,y:H*0.5}; const broker={x:W*0.34,y:H*0.5};
+    layout.pub=pub; layout.broker=broker;
+    function place(cls,html,x,y){ const n=document.createElement('div'); n.className='node '+cls; n.innerHTML=html; n.style.left=x+'px'; n.style.top=y+'px'; stage.appendChild(n); return {x,y,el:n}; }
+    function line(a,b){ const dx=b.x-a.x, dy=b.y-a.y, len=Math.hypot(dx,dy), ang=Math.atan2(dy,dx)*180/Math.PI;
+      const l=document.createElement('div'); l.className='fan-line'; l.style.left=a.x+'px'; l.style.top=a.y+'px'; l.style.width=len+'px'; l.style.transform=`rotate(${ang}deg)`; stage.appendChild(l); }
+    for(let g=0;g<G;g++){
+      const gy=H*(g+1)/(G+1); const gx=W*0.60; const gw={x:gx,y:gy};
+      line(broker,gw);
+      for(let c=0;c<C;c++){
+        const cy=gy + (c-(C-1)/2)*22; const cx=W*0.86; line(gw,{x:cx,y:cy});
+        layout.clients.push(place('cli','◦',cx,cy));
+      }
+      layout.gws.push(place('gw','GW'+g,gx,gy));
+    }
+    place('pub','PUBLISH',pub.x,pub.y); place('broker','BROKER<br><span style="font-size:9px">Redis / NATS</span>',broker.x,broker.y);
+    ratio.textContent='1 : '+(G*C);
+  }
+  function dot(from,to,dur,cb){
+    const d=document.createElement('div'); d.className='fdot'; d.style.left=from.x+'px'; d.style.top=from.y+'px'; d.style.transition=`left ${dur}ms linear, top ${dur}ms linear`; stage.appendChild(d);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{ d.style.left=to.x+'px'; d.style.top=to.y+'px'; }));
+    setTimeout(()=>{ d.remove(); cb&&cb(); }, dur+30);
+  }
+  function publish(){
+    dot(layout.pub,layout.broker,500,()=>{
+      layout.gws.forEach((gw,gi)=>{
+        dot(layout.broker,gw,500,()=>{
+          const mine=layout.clients.filter((_,idx)=>Math.floor(idx/(+cliS.value))===gi);
+          mine.forEach(cl=>dot(gw,cl,420,()=>{ cl.el.style.borderColor='var(--cyan)'; cl.el.style.color='var(--cyan)'; setTimeout(()=>{cl.el.style.borderColor='';cl.el.style.color='';},500); }));
+        });
+      });
+    });
+  }
+  gwS.addEventListener('input',build); cliS.addEventListener('input',build);
+  document.getElementById('fPub').addEventListener('click',publish);
+  const fio=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){build();}});},{threshold:.2});
+  fio.observe(stage);
+  window.addEventListener('resize',()=>{clearTimeout(window.__fr);window.__fr=setTimeout(build,200);});
+})();
+
+/* ===== PART 12: backoff / herd ===== */
+(function(){
+  const cv=document.getElementById('boCanvas'); if(!cv)return;
+  const ctx=cv.getContext('2d');
+  const baseS=document.getElementById('boBase'), facS=document.getElementById('boFactor');
+  const baseV=document.getElementById('boBaseV'), facV=document.getElementById('boFactorV'), note=document.getElementById('boNote');
+  let jitter=false;
+  function size(){ const r=cv.getBoundingClientRect(); cv.width=r.width*devicePixelRatio; cv.height=r.height*devicePixelRatio; ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); return r; }
+  function draw(){
+    const r=size(); const W=r.width,H=r.height; ctx.clearRect(0,0,W,H);
+    const base=+baseS.value, factor=+facS.value; baseV.textContent=base+'ms'; facV.textContent=factor.toFixed(1)+'×';
+    const NCLIENTS=200, ATTEMPTS=7, cap=30000, WINDOW=20000; // 20s window
+    // compute each client's reconnect timestamps
+    const buckets=new Array(80).fill(0); const bw=WINDOW/buckets.length;
+    for(let c=0;c<NCLIENTS;c++){
+      let t=0;
+      for(let a=0;a<ATTEMPTS;a++){
+        let delay=Math.min(cap,base*Math.pow(factor,a));
+        if(jitter) delay=Math.random()*delay;            // full jitter
+        t+=delay;
+        if(t>WINDOW) break;
+        const bi=Math.floor(t/bw); if(bi>=0&&bi<buckets.length) buckets[bi]++;
+      }
+    }
+    const max=Math.max(...buckets,1);
+    // axes
+    ctx.strokeStyle='#27384a'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(36,8); ctx.lineTo(36,H-22); ctx.lineTo(W-8,H-22); ctx.stroke();
+    ctx.fillStyle='#56697f'; ctx.font='10px JetBrains Mono';
+    ctx.fillText('reconnect attempts', 44, 16);
+    ctx.fillText('0s',36,H-8); ctx.fillText('20s',W-26,H-8);
+    const bwidth=(W-44)/buckets.length;
+    buckets.forEach((v,i)=>{
+      const h=(v/max)*(H-36); const x=36+i*bwidth; const y=H-22-h;
+      ctx.fillStyle = jitter ? 'rgba(110,231,135,.8)' : 'rgba(244,112,103,.85)';
+      ctx.fillRect(x+1,y,Math.max(1,bwidth-1.5),h);
+    });
+    // peak marker
+    ctx.fillStyle = jitter?'#6ee787':'#f47067'; ctx.font='bold 11px JetBrains Mono';
+    ctx.fillText('peak: '+max+' clients/'+ (bw/1000).toFixed(1)+'s', W-180, 16);
+    note.innerHTML = jitter
+      ? 'With <span class="hl-green">exponential backoff + full jitter</span>, the 200 clients spread across time — peak load per slot collapses. The server breathes.'
+      : 'With a <span class="hl-coral">fixed retry interval</span>, all 200 clients retry in lockstep — tall synchronized spikes re-crush the server. This is the reconnect storm.';
+  }
+  function setJ(j){ jitter=j; document.getElementById('jOff').classList.toggle('active',!j); document.getElementById('jOn').classList.toggle('active',j); draw(); }
+  document.getElementById('jOff').addEventListener('click',()=>setJ(false));
+  document.getElementById('jOn').addEventListener('click',()=>setJ(true));
+  baseS.addEventListener('input',draw); facS.addEventListener('input',draw);
+  const bio=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting)draw();});},{threshold:.2});
+  bio.observe(cv);
+  window.addEventListener('resize',()=>{clearTimeout(window.__br);window.__br=setTimeout(draw,150);});
+})();
+
+/* ===== PART 13: CSWSH ===== */
+(function(){
+  const steps=[...document.querySelectorAll('#attack .astep')], note=document.getElementById('atkNote');
+  function run(){
+    steps.forEach(s=>{s.classList.remove('on','fix'); s.querySelector('.n').nextSibling;});
+    // reset text? steps keep original text
+    let i=0; const id=setInterval(()=>{ if(i<steps.length){ steps[i].classList.add('on'); i++; } else { clearInterval(id); note.innerHTML='The Same-Origin Policy that blocks cross-site <code>fetch</code> reads does <span class="hl-coral">not</span> apply to the WebSocket handshake. Cookies ride along automatically.'; } },reduce?80:650);
+  }
+  function fix(){
+    steps.forEach((s,i)=>{ s.classList.add('on'); });
+    steps[4].classList.add('fix'); steps[4].innerHTML='<span class="n">DEFENDED</span>Server checks <b>Origin</b> ≠ allow-list → <b>reject</b>. And requires an explicit token cross-origin JS can\'t read. ✓';
+    note.innerHTML='Two cheap fixes neutralize it: <span class="hl-green">allow-list the Origin header</span> (browser sets it un-forgeably) <b>and</b> require a non-ambient token.';
+  }
+  document.getElementById('atkPlay').addEventListener('click',run);
+  document.getElementById('atkFix').addEventListener('click',fix);
+  const aio=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting)run();});},{threshold:.3});
+  aio.observe(document.getElementById('attack'));
+})();
+
+/* ===== PART 14: calculator ===== */
+(function(){
+  const ids=['cConns','cBuf','cApp','cRate','cSize','cRam'].map(i=>document.getElementById(i));
+  const [conns,buf,app,rate,size,ram]=ids;
+  const out=document.getElementById('calcOut');
+  const fmtN=n=>n>=1e9?(n/1e9).toFixed(1)+'B':n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(0)+'K':(''+Math.round(n));
+  const gb=b=>b/1e9;
+  function calc(){
+    const C=+conns.value||0, KB=+buf.value||0, AP=+app.value||0, R=+rate.value||0, SZ=+size.value||0, RAM=+ram.value||0;
+    const kernelB=C*KB*1024, appB=C*AP*1024, totalB=kernelB+appB;
+    const mps=C*R; const bw=mps*(SZ+6)*8; const cores=mps*2e-6;
+    const perServerConns = RAM>0 ? Math.floor(RAM*1e9/((KB+AP)*1024)) : 0;
+    const servers = perServerConns>0 ? Math.ceil(C/perServerConns) : 0;
+    const fdWarn = C>1024;
+    const cards=[
+      {l:'File descriptors',v:fmtN(C),h:fdWarn?'> default 1024 — raise nofile / fs.file-max':'within default limit',warn:fdWarn},
+      {l:'Kernel buffers',v:gb(kernelB).toFixed(1)+' GB',h:KB+' KB × '+fmtN(C),warn:gb(kernelB)>100},
+      {l:'App state',v:gb(appB).toFixed(1)+' GB',h:AP+' KB × '+fmtN(C)},
+      {l:'Total RAM',v:gb(totalB).toFixed(1)+' GB',h:'kernel + app, before payloads',warn:gb(totalB)>RAM*4},
+      {l:'Messages / sec',v:fmtN(mps),h:R+' /conn × '+fmtN(C)},
+      {l:'Bandwidth',v:(bw/1e9).toFixed(2)+' Gbps',h:'incl. ~6B frame overhead'},
+      {l:'CPU (rough)',v:'~'+cores.toFixed(1)+' cores',h:'≈2 µs / message'},
+      {l:'Servers @ '+RAM+'GB',v:servers>0?(''+servers):'—',h:perServerConns>0?(fmtN(perServerConns)+' conns/box (mem-bound)'):'set RAM/server',warn:servers>50}
+    ];
+    out.innerHTML=cards.map(c=>`<div class="out${c.warn?' warn':''}"><div class="lbl">${c.l}</div><div class="val">${c.v}</div><div class="hint">${c.h}</div></div>`).join('');
+  }
+  ids.forEach(i=>i.addEventListener('input',calc));
+  document.querySelectorAll('[data-preset]').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('[data-preset]').forEach(x=>x.classList.remove('active')); b.classList.add('active');
+    conns.value=b.dataset.preset; calc();
+  }));
+  calc();
+})();
+</script>
+</body>
+</html>

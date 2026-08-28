@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Protocol Lab — HTTP/2 &amp; HTTP/3 Visualized</title>
+<style>
+  :root{
+    --bg:#070a0f; --bg2:#0c121b; --panel:#0f1722; --panel2:#131d2b;
+    --ink:#e7eef7; --mut:#8aa0b6; --dim:#5b7088; --line:#1d2a3a;
+    --cyan:#36e0d4; --amber:#ffb454; --mag:#ff6ec7; --grn:#7ee787;
+    --blu:#6cb6ff; --red:#ff5a6a; --vio:#b794f6;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;scroll-behavior:smooth}
+  body{display:flex;min-height:100vh}
+  a{color:var(--cyan);text-decoration:none}
+
+  /* ---------- NAV ---------- */
+  #nav{position:fixed;top:0;left:0;height:100vh;width:230px;background:linear-gradient(180deg,#0a0f17,#080c12);
+    border-right:1px solid var(--line);padding:18px 0;overflow-y:auto;z-index:50}
+  #nav .brand{padding:0 18px 14px;border-bottom:1px solid var(--line);margin-bottom:8px}
+  #nav .brand h1{font-size:15px;margin:0;letter-spacing:.5px}
+  #nav .brand .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--cyan);
+    margin-right:7px;box-shadow:0 0 10px var(--cyan);animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  #nav .brand p{font-size:10.5px;color:var(--dim);margin:5px 0 0;font-family:var(--mono)}
+  #nav a.lnk{display:flex;align-items:center;gap:9px;padding:9px 18px;font-size:12.5px;color:var(--mut);
+    cursor:pointer;border-left:2px solid transparent;transition:.15s}
+  #nav a.lnk:hover{background:#0e1622;color:var(--ink)}
+  #nav a.lnk.on{background:#0e1928;color:var(--cyan);border-left-color:var(--cyan)}
+  #nav a.lnk .ix{font-family:var(--mono);font-size:10px;color:var(--dim);width:18px}
+  #nav a.lnk.on .ix{color:var(--cyan)}
+  .navtog{display:none}
+
+  /* ---------- MAIN ---------- */
+  main{margin-left:230px;flex:1;min-width:0}
+  section.view{display:none;padding:34px 40px 90px;max-width:1080px;animation:fade .4s}
+  section.view.on{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .kicker{font-family:var(--mono);font-size:11px;letter-spacing:2px;color:var(--cyan);text-transform:uppercase}
+  h2.title{font-size:27px;margin:8px 0 6px;line-height:1.15}
+  .lead{color:var(--mut);font-size:14.5px;line-height:1.6;max-width:760px}
+  h3{font-size:16px;margin:30px 0 10px;display:flex;align-items:center;gap:9px}
+  h3 .bar{width:3px;height:16px;background:var(--cyan);border-radius:2px}
+  p.body{color:#c4d2e2;font-size:13.5px;line-height:1.65;max-width:740px}
+  .mono{font-family:var(--mono)}
+  .hl{color:var(--cyan)} .hl2{color:var(--amber)} .hl3{color:var(--mag)}
+  code{font-family:var(--mono);background:#0c1420;border:1px solid var(--line);padding:1px 6px;
+    border-radius:5px;font-size:12px;color:var(--grn)}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin:18px 0;
+    box-shadow:0 1px 0 rgba(255,255,255,.02) inset}
+  .ctrls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 14px}
+  .btn{font-family:var(--mono);font-size:12px;background:#11203250;color:var(--ink);border:1px solid var(--line);
+    padding:8px 14px;border-radius:8px;cursor:pointer;transition:.15s;user-select:none}
+  .btn:hover{border-color:var(--cyan);color:var(--cyan)}
+  .btn.prim{background:linear-gradient(180deg,#15favc,#0e3b52);border-color:#1c5a72}
+  .btn.prim{background:#0e2c3a;border-color:#1c5a72;color:var(--cyan)}
+  .btn.warn:hover{border-color:var(--amber);color:var(--amber)}
+  .btn.danger:hover{border-color:var(--red);color:var(--red)}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .seg button{font-family:var(--mono);font-size:12px;background:transparent;color:var(--mut);border:0;
+    padding:8px 13px;cursor:pointer;transition:.12s}
+  .seg button.on{background:#123040;color:var(--cyan)}
+  .seg button:not(:last-child){border-right:1px solid var(--line)}
+  canvas{display:block;width:100%;border-radius:10px;background:
+    linear-gradient(#0a121c,#0a121c) padding-box,#0a121c;border:1px solid var(--line)}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px;font-size:11.5px;color:var(--mut);font-family:var(--mono)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:11px;height:11px;border-radius:3px;display:inline-block}
+
+  .stat{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px}
+  .stat .k{flex:1;min-width:120px;background:#0b1420;border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+  .stat .k .lab{font-size:10px;letter-spacing:1px;color:var(--dim);text-transform:uppercase;font-family:var(--mono)}
+  .stat .k .val{font-size:21px;font-family:var(--mono);margin-top:5px}
+  .note{font-size:12px;color:var(--dim);font-family:var(--mono);margin-top:10px;line-height:1.6}
+
+  /* byte layout */
+  .bytemap{display:flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:6px}
+  .field{flex-grow:1;padding:14px 8px;text-align:center;cursor:pointer;position:relative;
+    border-right:1px solid #0a0f17;transition:.15s;min-width:54px}
+  .field:last-child{border-right:0}
+  .field:hover{filter:brightness(1.25)}
+  .field.sel{outline:2px solid #fff;outline-offset:-2px;z-index:2}
+  .field .nm{font-family:var(--mono);font-size:12px;font-weight:600}
+  .field .bits{font-family:var(--mono);font-size:9.5px;opacity:.8;margin-top:3px}
+  .bitruler{display:flex;font-family:var(--mono);font-size:8.5px;color:var(--dim);margin-top:4px}
+  .detail{margin-top:14px;background:#0b1420;border:1px solid var(--line);border-left:3px solid var(--cyan);
+    border-radius:8px;padding:13px 15px;min-height:60px}
+  .detail h4{margin:0 0 6px;font-family:var(--mono);font-size:13px;color:var(--cyan)}
+  .detail p{margin:0;font-size:12.5px;color:#c4d2e2;line-height:1.55}
+
+  table.tbl{width:100%;border-collapse:collapse;margin-top:10px;font-size:12.5px}
+  table.tbl th,table.tbl td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+  table.tbl th{font-family:var(--mono);font-size:10.5px;letter-spacing:.5px;color:var(--dim);text-transform:uppercase}
+  table.tbl td.mono{font-family:var(--mono);color:var(--grn)}
+  table.tbl tr:hover td{background:#0c1622}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:1100px){.grid2{grid-template-columns:1fr}}
+
+  .cmp{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .cmp .col{padding:14px;border-right:1px solid var(--line)}
+  .cmp .col:last-child{border-right:0}
+  .cmp .col h5{margin:0 0 4px;font-size:13px;font-family:var(--mono)}
+  .cmp .col .rtt{font-size:30px;font-family:var(--mono);font-weight:700;margin:6px 0}
+  .cmp .col small{color:var(--dim);font-size:11px}
+  @media(max-width:720px){.cmp{grid-template-columns:1fr}.cmp .col{border-right:0;border-bottom:1px solid var(--line)}}
+
+  .pill{display:inline-block;font-family:var(--mono);font-size:10px;padding:3px 9px;border-radius:20px;
+    border:1px solid var(--line);color:var(--mut);margin:0 5px 5px 0}
+  .pill.g{color:var(--grn);border-color:#1d4a2e}
+  .pill.a{color:var(--amber);border-color:#5a4420}
+  .pill.r{color:var(--red);border-color:#5a2028}
+
+  .callout{background:linear-gradient(135deg,#0e1c2a,#0c1622);border:1px solid var(--line);border-radius:12px;
+    padding:16px 18px;margin:18px 0;border-left:3px solid var(--amber)}
+  .callout .t{font-family:var(--mono);font-size:12px;color:var(--amber);letter-spacing:.5px;margin-bottom:6px}
+  .callout p{margin:0;font-size:13px;color:#c4d2e2;line-height:1.6}
+
+  .foot{color:var(--dim);font-size:11px;font-family:var(--mono);border-top:1px solid var(--line);
+    margin-top:40px;padding-top:18px;line-height:1.7}
+
+  /* mobile */
+  @media(max-width:860px){
+    #nav{transform:translateX(-100%);transition:.25s;width:250px}
+    #nav.open{transform:none}
+    main{margin-left:0}
+    section.view{padding:64px 18px 70px}
+    .navtog{display:flex;position:fixed;top:12px;left:12px;z-index:60;width:42px;height:42px;
+      align-items:center;justify-content:center;background:#0e1928;border:1px solid var(--line);
+      border-radius:10px;cursor:pointer}
+    .navtog div{width:18px;height:2px;background:var(--cyan);position:relative}
+    .navtog div::before,.navtog div::after{content:"";position:absolute;left:0;width:18px;height:2px;background:var(--cyan)}
+    .navtog div::before{top:-6px}.navtog div::after{top:6px}
+    h2.title{font-size:22px}
+    .scrim{display:none;position:fixed;inset:0;background:#000a;z-index:40}
+    .scrim.on{display:block}
+  }
+</style>
+</head>
+<body>
+
+<div class="navtog" onclick="toggleNav()"><div></div></div>
+<div class="scrim" onclick="toggleNav()"></div>
+
+<aside id="nav">
+  <div class="brand">
+    <h1><span class="dot"></span>PROTOCOL LAB</h1>
+    <p>http/2 · http/3 · quic · tcp · tls</p>
+  </div>
+  <a class="lnk on" data-v="intro"><span class="ix">00</span>The Core Problem</a>
+  <a class="lnk" data-v="hol"><span class="ix">01</span>HOL Blocking Lab</a>
+  <a class="lnk" data-v="tcp"><span class="ix">02</span>TCP Congestion</a>
+  <a class="lnk" data-v="hand"><span class="ix">03</span>Handshake Race</a>
+  <a class="lnk" data-v="mux"><span class="ix">04</span>Multiplexing</a>
+  <a class="lnk" data-v="frame"><span class="ix">05</span>HTTP/2 Frame</a>
+  <a class="lnk" data-v="quic"><span class="ix">06</span>QUIC Packet</a>
+  <a class="lnk" data-v="crypto"><span class="ix">07</span>QUIC Keys</a>
+  <a class="lnk" data-v="perf"><span class="ix">08</span>Performance</a>
+  <a class="lnk" data-v="ref"><span class="ix">09</span>Full Reference</a>
+</aside>
+
+<main>
+
+<!-- ============ INTRO ============ -->
+<section class="view on" id="intro">
+  <div class="kicker">Wire protocol → implementation</div>
+  <h2 class="title">The one idea that explains everything</h2>
+  <p class="lead">Every jump — HTTP/1.1 → HTTP/2 → HTTP/3 — is a fight against <b class="hl">head-of-line blocking</b>.
+  Each version kills it at one layer and exposes it at the next. Watch the packets move and you'll never forget where each protocol wins and loses.</p>
+
+  <div class="panel">
+    <h3 style="margin-top:0"><span class="bar"></span>One lost packet, three protocols</h3>
+    <p class="body">A server sends one red, one cyan, one amber resource at the same time. The 3rd packet is lost.
+    Hit play and watch <i>what gets stuck</i>. This little loop is the whole course in 6 seconds.</p>
+    <div class="ctrls">
+      <button class="btn prim" id="iPlay">▶ Play loss event</button>
+      <button class="btn" id="iReset">↺ Reset</button>
+    </div>
+    <canvas id="introCv" height="300"></canvas>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--red)"></i>Stream A</span>
+      <span><i class="sw" style="background:var(--cyan)"></i>Stream B</span>
+      <span><i class="sw" style="background:var(--amber)"></i>Stream C</span>
+      <span><i class="sw" style="background:#33425a"></i>blocked / waiting</span>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel" style="margin-top:0">
+      <div class="pill r">HTTP/1.1</div><div class="pill">6 TCP connections</div>
+      <p class="body" style="margin-top:8px">One resource per connection at a time. No app-layer multiplexing, so people opened ~6 sockets and invented <i>domain sharding, spriting, inlining</i>. A lost packet only stalls its own connection — but you're capped at 6 things in flight and pay a handshake for each.</p>
+    </div>
+    <div class="panel" style="margin-top:0">
+      <div class="pill a">HTTP/2</div><div class="pill">1 TCP connection</div>
+      <p class="body" style="margin-top:8px">Many streams multiplexed as binary frames over <b>one</b> TCP stream. Fixes app-layer blocking — but TCP still delivers one ordered byte stream, so <b class="hl2">one lost segment freezes every stream</b>. This is the flaw HTTP/3 exists to fix.</p>
+    </div>
+    <div class="panel" style="margin-top:0">
+      <div class="pill g">HTTP/3</div><div class="pill">QUIC over UDP</div>
+      <p class="body" style="margin-top:8px">QUIC runs in <b>user space</b> over UDP and tracks loss <b>per stream</b>. A lost packet only stalls its own stream; the others keep being delivered to the page. It also fuses the TLS 1.3 handshake into the transport handshake.</p>
+    </div>
+    <div class="panel" style="margin-top:0">
+      <div class="pill">The twist</div>
+      <p class="body" style="margin-top:8px">It's not free. QUIC's user-space, per-packet crypto + ACK processing costs roughly <b class="hl3">2× the CPU</b> and can be <b class="hl3">up to 45.2% slower</b> than HTTP/2 on a 1 Gbps link. HTTP/3 is a win for the <i>slow tail</i> of users, not a universal speedup.</p>
+    </div>
+  </div>
+
+  <div class="callout">
+    <div class="t">HOW TO USE THIS SITE</div>
+    <p>Every section is a live, pausable animation with the real wire-level numbers baked in (frame byte offsets, the QUIC v1 salt, RTT counts, default SETTINGS). Tap the menu (top-left on mobile) to jump between modules. Start with <b>01 — HOL Blocking Lab</b>: it's the centerpiece.</p>
+  </div>
+</section>
+
+<!-- ============ HOL ============ -->
+<section class="view" id="hol">
+  <div class="kicker">Module 01</div>
+  <h2 class="title">Head-of-Line Blocking Lab</h2>
+  <p class="lead">Pick a protocol, fire a packet loss, and watch exactly which streams stall and which keep flowing. Same loss, three very different outcomes.</p>
+
+  <div class="panel">
+    <div class="ctrls">
+      <div class="seg" id="holMode">
+        <button data-m="h1" class="on">HTTP/1.1</button>
+        <button data-m="h2">HTTP/2</button>
+        <button data-m="h3">HTTP/3</button>
+      </div>
+      <button class="btn prim" id="holPlay">▶ Run</button>
+      <button class="btn danger" id="holDrop">⚡ Drop a packet</button>
+      <button class="btn" id="holReset">↺ Reset</button>
+    </div>
+    <canvas id="holCv" height="360"></canvas>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--red)"></i>Stream A</span>
+      <span><i class="sw" style="background:var(--cyan)"></i>Stream B</span>
+      <span><i class="sw" style="background:var(--amber)"></i>Stream C</span>
+      <span><i class="sw" style="background:var(--grn)"></i>Stream D</span>
+      <span><i class="sw" style="background:#33425a"></i>HOL-blocked</span>
+      <span><i class="sw" style="background:var(--red);opacity:.5"></i>retransmit</span>
+    </div>
+    <div class="note" id="holNote">Mode: HTTP/1.1 — 6 independent TCP connections. A drop on one connection never blocks the others, but only 6 resources move at once.</div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel" style="margin-top:0">
+      <h3 style="margin-top:0"><span class="bar"></span>What you're seeing</h3>
+      <p class="body"><b class="hl2">HTTP/2:</b> all streams ride one ordered TCP byte stream. When a segment is lost, TCP refuses to deliver <i>any</i> later bytes to the app until the retransmit lands — so cyan/amber/green packets that already arrived sit in the kernel buffer, greyed out. That's transport-layer HOL blocking.</p>
+      <p class="body"><b class="hl">HTTP/3:</b> QUIC carries an explicit Stream ID per frame and recovers loss per stream. Only stream A waits for its retransmit; B, C, D are delivered to the page immediately.</p>
+    </div>
+    <div class="panel" style="margin-top:0">
+      <h3 style="margin-top:0"><span class="bar"></span>Single-loss impact</h3>
+      <table class="tbl">
+        <tr><th>Protocol</th><th>Streams stalled by 1 loss</th></tr>
+        <tr><td>HTTP/1.1 (6 conns)</td><td class="mono">1 of 6 connections</td></tr>
+        <tr><td>HTTP/2 (1 conn)</td><td class="mono" style="color:var(--red)">ALL multiplexed streams</td></tr>
+        <tr><td>HTTP/3 (QUIC)</td><td class="mono" style="color:var(--grn)">only the affected stream</td></tr>
+      </table>
+      <p class="note">TCP guarantees in-order delivery of a single byte stream: byte N+1 is never handed up before byte N. That guarantee is the source of HTTP/2's blocking — and QUIC sidesteps it by giving each stream its own delivery order.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TCP ============ -->
+<section class="view" id="tcp">
+  <div class="kicker">Module 02</div>
+  <h2 class="title">TCP Congestion Control, Live</h2>
+  <p class="lead">Slow start doubles the congestion window every RTT until something breaks. Then the algorithm decides how hard to back off. Watch CUBIC, Reno, and BBR react to the same loss.</p>
+
+  <div class="panel">
+    <div class="ctrls">
+      <div class="seg" id="ccMode">
+        <button data-c="cubic" class="on">CUBIC</button>
+        <button data-c="reno">Reno</button>
+        <button data-c="bbr">BBR</button>
+      </div>
+      <button class="btn prim" id="ccPlay">▶ Run</button>
+      <button class="btn danger" id="ccLoss">⚡ Inject loss</button>
+      <button class="btn" id="ccReset">↺ Reset</button>
+    </div>
+    <canvas id="ccCv" height="320"></canvas>
+    <div class="stat">
+      <div class="k"><div class="lab">cwnd</div><div class="val" id="ccCwnd">10</div></div>
+      <div class="k"><div class="lab">phase</div><div class="val" id="ccPhase" style="font-size:15px;padding-top:7px">slow start</div></div>
+      <div class="k"><div class="lab">RTT #</div><div class="val" id="ccRtt">0</div></div>
+      <div class="k"><div class="lab">ssthresh</div><div class="val" id="ccSsth">∞</div></div>
+    </div>
+    <div class="note" id="ccNote">Slow start: cwnd starts at the initial window (10 MSS) and doubles each RTT — exponential growth until the first loss or ssthresh.</div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel" style="margin-top:0">
+      <h3 style="margin-top:0"><span class="bar"></span>The three reactions</h3>
+      <p class="body"><b class="hl">CUBIC</b> (Linux/Win/macOS default): on loss, multiply window by β=0.7 (a 30% cut), then regrow along a <i>cubic curve</i> in time since loss — RTT-independent, so flows with different RTTs stay fair. <code>W(t)=C·(t−K)³+W_max</code>, C=0.4.</p>
+      <p class="body"><b class="hl2">Reno</b>: classic AIMD — halve on loss (×0.5), then add 1 MSS per RTT. Gentle but slow to refill a fat pipe.</p>
+      <p class="body"><b class="hl3">BBR</b>: ignores loss as a signal. Models bottleneck bandwidth × min-RTT and paces at the BDP. Keeps throughput high on lossy links where CUBIC collapses — the reason it matters for mobile.</p>
+    </div>
+    <div class="panel" style="margin-top:0">
+      <h3 style="margin-top:0"><span class="bar"></span>RTO &amp; retransmit math (RFC 6298)</h3>
+      <p class="body">Loss is detected two ways: <b>3 duplicate ACKs</b> → fast retransmit (no waiting), or the <b>retransmission timeout</b> fires. The RTO is built from a smoothed RTT and its variance:</p>
+      <p class="body mono" style="background:#0b1420;border:1px solid var(--line);border-radius:8px;padding:12px;font-size:11.5px;color:var(--grn)">
+        RTTVAR = ¾·RTTVAR + ¼·|SRTT − R|<br>
+        SRTT&nbsp;&nbsp; = ⅞·SRTT&nbsp;&nbsp; + ⅛·R<br>
+        RTO&nbsp;&nbsp;&nbsp; = SRTT + max(G, 4·RTTVAR)
+      </p>
+      <p class="note">α=⅛, β=¼, K=4. Order matters — RTTVAR is updated before SRTT. RTO is floored at 1 second. A fat-pipe rule of thumb: 10 Gbps at 100 ms RTT with CUBIC needs packet loss below ~0.000003%.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ HANDSHAKE ============ -->
+<section class="view" id="hand">
+  <div class="kicker">Module 03</div>
+  <h2 class="title">Handshake Race — counting round trips</h2>
+  <p class="lead">Time-to-first-byte is dominated by round trips before any data flows. Press play to race the connection setups packet-by-packet.</p>
+
+  <div class="panel">
+    <div class="ctrls">
+      <button class="btn prim" id="hsPlay">▶ Race all three</button>
+      <button class="btn" id="hsReset">↺ Reset</button>
+    </div>
+    <canvas id="hsCv" height="380"></canvas>
+    <div class="cmp" style="margin-top:14px">
+      <div class="col"><h5 style="color:var(--red)">HTTP/1.1 + TLS 1.2</h5><div class="rtt" id="r1" style="color:var(--red)">3</div><small>TCP (1) + TLS 1.2 (2) round trips before first byte</small></div>
+      <div class="col"><h5 style="color:var(--amber)">HTTP/2 + TLS 1.3</h5><div class="rtt" id="r2" style="color:var(--amber)">2</div><small>TCP (1) + TLS 1.3 (1). The cert is now encrypted.</small></div>
+      <div class="col"><h5 style="color:var(--grn)">HTTP/3 / QUIC</h5><div class="rtt" id="r3" style="color:var(--grn)">1</div><small>Transport + crypto fused. 0-RTT on resume.</small></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel" style="margin-top:0">
+      <h3 style="margin-top:0"><span class="bar"></span>Why HTTP/3 is exactly 1 RTT faster</h3>
+      <p class="body">The honest comparison is against a <i>modern</i> stack. TCP+TLS 1.3 is already 2 RTT. QUIC folds the crypto handshake into the transport handshake, saving one round trip → <b class="hl">1 RTT</b>. On a resumed connection with a cached PSK it sends application data in the very first flight → <b class="hl">0-RTT</b>. The "2–3 RTT faster" headline only holds versus the older TLS 1.2 stack.</p>
+      <p class="note">0-RTT data is replayable and lacks forward secrecy, so it's restricted to idempotent requests (GET, not "transfer $100").</p>
+    </div>
+    <div class="panel" style="margin-top:0">
+      <h3 style="margin-top:0"><span class="bar"></span>ALPN &amp; why TLS 1.3 is mandatory in H3</h3>
+      <p class="body"><b>ALPN</b> negotiates the protocol — <code>h2</code> or <code>h3</code> — inside the TLS handshake, with no extra round trip. QUIC <i>requires</i> TLS 1.3 because it has no separate TLS record layer: it pulls per-encryption-level secrets straight from the TLS 1.3 key schedule (HKDF). TLS 1.2's design simply can't export those keys cleanly.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MUX ============ -->
+<section class="view" id="mux">
+  <div class="kicker">Module 04</div>
+  <h2 class="title">Multiplexing &amp; the Scheduler</h2>
+  <p class="lead">Multiplexing is a scheduling problem: N streams share one pipe of bandwidth B. <i>How</i> you interleave their frames changes when each resource finishes.</p>
+
+  <div class="panel">
+    <div class="ctrls">
+      <div class="seg" id="muxMode">
+        <button data-x="rr" class="on">Round-robin</button>
+        <button data-x="seq">Sequential (by priority)</button>
+      </div>
+      <button class="btn prim" id="muxPlay">▶ Run</button>
+      <button class="btn" id="muxReset">↺ Reset</button>
+    </div>
+    <canvas id="muxCv" height="330"></canvas>
+    <div class="note" id="muxNote">Round-robin: each stream gets B/N. Everything progresses in parallel but everything also finishes late — a half-downloaded JS file is useless, so this is often the wrong default for the web.</div>
+  </div>
+
+  <div class="panel">
+    <h3 style="margin-top:0"><span class="bar"></span>Why browsers abandoned the HTTP/2 priority tree</h3>
+    <p class="body">RFC 7540 let every stream declare a parent, a weight (1–256), and an exclusive flag — a full weighted dependency tree. In practice the three engines built <b>radically different trees</b>: Firefox used phantom grouping nodes, Chrome used a mostly-linear sequential order, Safari differed again. Servers couldn't honor all of them well, so RFC 9113 <b class="hl2">deprecated the whole scheme</b>.</p>
+    <p class="body">The replacement, <b>RFC 9218 Extensible Priorities</b>, is just two signals in a header: <code>urgency</code> (u=0–7, default 3) and <code>incremental</code> (boolean, default false). Send the lowest urgency-number group first; interleave incremental resources, serve non-incremental ones one at a time. Simple enough that implementations actually agree.</p>
+    <div style="margin-top:12px">
+      <span class="pill r">RFC 7540 dependency tree — deprecated</span>
+      <span class="pill g">RFC 9218 urgency + incremental — current</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FRAME ============ -->
+<section class="view" id="frame">
+  <div class="kicker">Module 05</div>
+  <h2 class="title">HTTP/2 Frame Anatomy</h2>
+  <p class="lead">Every HTTP/2 frame opens with the same <b class="hl">9-octet header</b>. Tap a field to inspect its exact bit width and meaning. These offsets are what your parser's state machine actually reads.</p>
+
+  <div class="panel">
+    <div class="bitruler" id="frameRuler"></div>
+    <div class="bytemap" id="frameMap"></div>
+    <div class="detail" id="frameDetail">
+      <h4>Tap a field above</h4>
+      <p>The 9-byte header is fixed; the payload that follows depends on the Type. Total frame on the wire = 9 + Length octets.</p>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel" style="margin-top:0">
+      <h3 style="margin-top:0"><span class="bar"></span>Frame types &amp; codes (RFC 9113 §6)</h3>
+      <table class="tbl">
+        <tr><th>Type</th><th>Code</th><th>Role</th></tr>
+        <tr><td>DATA</td><td class="mono">0x0</td><td>message body</td></tr>
+        <tr><td>HEADERS</td><td class="mono">0x1</td><td>HPACK field block + opens stream</td></tr>
+        <tr><td>PRIORITY</td><td class="mono">0x2</td><td>deprecated</td></tr>
+        <tr><td>RST_STREAM</td><td class="mono">0x3</td><td>abrupt stream cancel + error code</td></tr>
+        <tr><td>SETTINGS</td><td class="mono">0x4</td><td>connection params (stream 0)</td></tr>
+        <tr><td>PUSH_PROMISE</td><td class="mono">0x5</td><td>server push (rarely used)</td></tr>
+        <tr><td>PING</td><td class="mono">0x6</td><td>RTT / liveness, 8 opaque bytes</td></tr>
+        <tr><td>GOAWAY</td><td class="mono">0x7</td><td>graceful shutdown + last stream id</td></tr>
+        <tr><td>WINDOW_UPDATE</td><td class="mono">0x8</td><td>flow-control credit</td></tr>
+        <tr><td>CONTINUATION</td><td class="mono">0x9</td><td>more header block fragment</td></tr>
+      </table>
+    </div>
+    <div class="panel" style="margin-top:0">
+      <h3 style="margin-top:0"><span class="bar"></span>Default SETTINGS &amp; the preface</h3>
+      <table class="tbl">
+        <tr><th>Setting</th><th>Default</th></tr>
+        <tr><td>HEADER_TABLE_SIZE</td><td class="mono">4096</td></tr>
+        <tr><td>ENABLE_PUSH</td><td class="mono">1</td></tr>
+        <tr><td>INITIAL_WINDOW_SIZE</td><td class="mono">65535</td></tr>
+        <tr><td>MAX_FRAME_SIZE</td><td class="mono">16384</td></tr>
+        <tr><td>MAX_CONCURRENT_STREAMS</td><td class="mono">∞ (2³²−1)</td></tr>
+      </table>
+      <p class="note" style="margin-top:12px">Connection opens with the magic preface <code>PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n</code> followed by a SETTINGS frame. Client streams are odd, server-pushed streams even. The exact SETTINGS order + a WINDOW_UPDATE delta of 15,663,105 is now used to fingerprint Chrome.</p>
+    </div>
+  </div>
+  <div class="callout">
+    <div class="t">HPACK IN ONE BREATH</div>
+    <p>Headers compress via a 61-entry <b>static table</b> + a per-connection FIFO <b>dynamic table</b> (default 4096 B; entry size = name+value+32). Integers use prefix coding; strings use a fixed static Huffman code. The static (not adaptive) code is deliberate: it denies CRIME-style compression oracles. Sensitive values use the <i>never-indexed</i> literal so they never enter the table.</p>
+  </div>
+</section>
+
+<!-- ============ QUIC PACKET ============ -->
+<section class="view" id="quic">
+  <div class="kicker">Module 06</div>
+  <h2 class="title">QUIC Packet Anatomy</h2>
+  <p class="lead">QUIC has two header forms and a clever variable-length integer. Toggle between them — these are the bytes Wireshark removes header-protection from before it can show you anything.</p>
+
+  <div class="panel">
+    <div class="ctrls">
+      <div class="seg" id="qMode">
+        <button data-q="long" class="on">Long header (Initial)</button>
+        <button data-q="short">Short header (1-RTT)</button>
+      </div>
+    </div>
+    <div class="bytemap" id="qMap"></div>
+    <div class="detail" id="qDetail">
+      <h4>Tap a field</h4>
+      <p>Long headers carry the version + connection IDs and are used during setup (Initial / Handshake / 0-RTT / Retry). Short headers are the steady-state 1-RTT data packets.</p>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel" style="margin-top:0">
+      <h3 style="margin-top:0"><span class="bar"></span>Variable-length integers (RFC 9000 §16)</h3>
+      <p class="body">The <b>2 most-significant bits of the first byte</b> pick the encoding length. One scheme covers values from 0 to 2⁶²−1:</p>
+      <table class="tbl">
+        <tr><th>2 MSB</th><th>Length</th><th>Range</th></tr>
+        <tr><td class="mono">00</td><td>1 byte</td><td class="mono">0 – 63</td></tr>
+        <tr><td class="mono">01</td><td>2 bytes</td><td class="mono">0 – 16383</td></tr>
+        <tr><td class="mono">10</td><td>4 bytes</td><td class="mono">0 – 2³⁰−1</td></tr>
+        <tr><td class="mono">11</td><td>8 bytes</td><td class="mono">0 – 2⁶²−1</td></tr>
+      </table>
+    </div>
+    <div class="panel" style="margin-top:0">
+      <h3 style="margin-top:0"><span class="bar"></span>Packets vs frames vs spaces</h3>
+      <p class="body">A UDP datagram carries one+ QUIC <b>packets</b> (coalesced); each packet carries one+ <b>frames</b> (STREAM, ACK, CRYPTO, PADDING, …). Packet numbers live in <b>three separate spaces</b> — Initial, Handshake, Application — each numbered independently from 0.</p>
+      <p class="body">Crucially, a retransmitted frame goes in a <b>new</b> packet number, so QUIC never has TCP's "is this ACK for the original or the retransmit?" ambiguity. Long packet types: <code>Initial 0x0</code>, <code>0-RTT 0x1</code>, <code>Handshake 0x2</code>, <code>Retry 0x3</code>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CRYPTO ============ -->
+<section class="view" id="crypto">
+  <div class="kicker">Module 07</div>
+  <h2 class="title">QUIC Key Derivation Flow</h2>
+  <p class="lead">QUIC's Initial keys are derived from something the attacker can see — the client's Destination Connection ID — plus a fixed published salt. Press play to walk the HKDF chain step by step.</p>
+
+  <div class="panel">
+    <div class="ctrls">
+      <button class="btn prim" id="kyPlay">▶ Step through derivation</button>
+      <button class="btn" id="kyReset">↺ Reset</button>
+    </div>
+    <canvas id="kyCv" height="420"></canvas>
+    <div class="note">v1 salt is a constant in RFC 9001 §5.2 — Initial packets are "encrypted" but anyone can derive these keys; the point is integrity + obfuscation against dumb middleboxes, not secrecy. Real secrecy starts with Handshake keys (from ECDHE).</div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel" style="margin-top:0">
+      <h3 style="margin-top:0"><span class="bar"></span>The labels (RFC 9001 / HKDF-Expand-Label)</h3>
+      <table class="tbl">
+        <tr><th>Step</th><th>Label / value</th></tr>
+        <tr><td>v1 Initial salt</td><td class="mono" style="font-size:10px">38762cf7f55934b3 4d179ae6a4c80cad ccbb7f0a</td></tr>
+        <tr><td>client secret</td><td class="mono">"client in"</td></tr>
+        <tr><td>server secret</td><td class="mono">"server in"</td></tr>
+        <tr><td>AEAD key</td><td class="mono">"quic key"</td></tr>
+        <tr><td>AEAD iv</td><td class="mono">"quic iv"</td></tr>
+        <tr><td>header prot.</td><td class="mono">"quic hp"</td></tr>
+      </table>
+    </div>
+    <div class="panel" style="margin-top:0">
+      <h3 style="margin-top:0"><span class="bar"></span>Two layers: payload then header</h3>
+      <p class="body"><b>1. Packet protection</b> — AEAD encrypts the payload; nonce = IV XOR packet-number; the cleartext header is the associated data.</p>
+      <p class="body"><b>2. Header protection</b> — applied <i>after</i>. Sample 16 bytes of the ciphertext → <code>mask = AES-ECB(hp_key, sample)</code> → XOR the mask onto the first byte's low bits and the packet number. The hp key never rotates on key update, which is exactly why it can protect the Key Phase bit. Wireshark must undo this layer before it can show you the packet number at all.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PERF ============ -->
+<section class="view" id="perf">
+  <div class="kicker">Module 08</div>
+  <h2 class="title">Performance — the honest picture</h2>
+  <p class="lead">Drag loss rate up and watch the crossover. HTTP/3's advantage is real but conditional; on a clean fast link it can actually lose.</p>
+
+  <div class="panel">
+    <div class="ctrls">
+      <span class="mono" style="font-size:12px;color:var(--mut)">Packet loss:</span>
+      <input type="range" id="lossSlider" min="0" max="14" value="2" step="1" style="flex:1;min-width:160px;accent-color:#36e0d4">
+      <span class="mono" id="lossVal" style="color:var(--cyan);font-size:13px;width:42px">2%</span>
+    </div>
+    <canvas id="perfCv" height="300"></canvas>
+    <div class="stat">
+      <div class="k"><div class="lab">HTTP/2 finish</div><div class="val" id="p2" style="color:var(--amber)">—</div></div>
+      <div class="k"><div class="lab">HTTP/3 finish</div><div class="val" id="p3" style="color:var(--grn)">—</div></div>
+      <div class="k"><div class="lab">H3 advantage</div><div class="val" id="pAdv" style="color:var(--cyan)">—</div></div>
+    </div>
+    <div class="note" id="perfNote"></div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel" style="margin-top:0">
+      <h3 style="margin-top:0"><span class="bar"></span>Measured endpoints</h3>
+      <p class="body"><b class="hl">High loss wins:</b> at 12% loss with no proxy, a download took <b>113.42 s on HTTP/2</b> vs <b>20.98 s on HTTP/3</b> — an 81.5% improvement (arXiv 2409.16267). Beyond ~8% loss H3 pulls decisively ahead.</p>
+      <p class="body"><b class="hl3">Fast network loses:</b> "QUIC is not Quick Enough over Fast Internet" (ACM WWW 2024) measured QUIC up to <b>45.2% slower</b> than HTTP/2 at 1 Gbps, and ~3–15% behind above ~600 Mbps — receiver-side per-packet processing and user-space ACKs are the bottleneck.</p>
+    </div>
+    <div class="panel" style="margin-top:0">
+      <h3 style="margin-top:0"><span class="bar"></span>The rule of thumb</h3>
+      <p class="body">HTTP/3 is an <b>evolution, not a revolution</b> (Robin Marx). It mainly helps the slowest 1–10% of your audience: high-RTT mobile, lossy Wi-Fi, satellite. On low-RTT, low-loss fiber, HTTP/2 may still win and HTTP/3 costs ~2× CPU.</p>
+      <p class="note">Loss-based CUBIC reads loss as congestion and throttles hard — so at 1% loss its throughput collapses while BBR and QUIC's per-stream recovery hold up. The "always use H3" advice is wrong for fast networks.</p>
+      <div style="margin-top:10px">
+        <span class="pill g">mobile / lossy → H3</span>
+        <span class="pill a">datacenter / fiber → measure</span>
+        <span class="pill r">CPU-bound edge → watch H3 cost</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ REF ============ -->
+<section class="view" id="ref">
+  <div class="kicker">Module 09</div>
+  <h2 class="title">Full 19-Part Reference</h2>
+  <p class="lead">The animations above cover the conceptual spine. The complete principal-engineer writeup — all 19 parts, every frame, the RFC reading guide, source-file paths, and design trade-offs — lives in the companion document.</p>
+
+  <div class="panel">
+    <h3 style="margin-top:0"><span class="bar"></span>What's in the companion doc</h3>
+    <p class="body">Problem evolution with numbers · TCP as if implementing it · TLS 1.2 vs 1.3 packet-by-packet · every HTTP/2 frame's binary layout + error codes · HPACK internals + CRIME/BREACH · multiplexing math + RFC 9218 · why QUIC (UDP, user space, anti-ossification) · full QUIC packet format · QUIC cryptography step by step · loss recovery (RFC 9002 constants) · QPACK encoder/decoder streams · the Chromium / quiche / nghttp2 / lsquic source map · Wireshark filters + SSLKEYLOGFILE · the RFC reading guide (7540/7541/9000/9001/9002/9114/9204/9218) · and a critical trade-off analysis of every major design choice.</p>
+    <p class="body" style="color:var(--cyan)">↑ That document is the other artifact in this conversation — open it alongside this site as your text reference.</p>
+  </div>
+
+  <div class="grid2">
+    <div class="panel" style="margin-top:0">
+      <h3 style="margin-top:0"><span class="bar"></span>RFCs to read, in order</h3>
+      <table class="tbl">
+        <tr><th>RFC</th><th>What</th></tr>
+        <tr><td class="mono">9113</td><td>HTTP/2 (supersedes 7540)</td></tr>
+        <tr><td class="mono">7541</td><td>HPACK</td></tr>
+        <tr><td class="mono">9000</td><td>QUIC transport</td></tr>
+        <tr><td class="mono">9001</td><td>QUIC + TLS</td></tr>
+        <tr><td class="mono">9002</td><td>QUIC loss recovery</td></tr>
+        <tr><td class="mono">9114</td><td>HTTP/3</td></tr>
+        <tr><td class="mono">9204</td><td>QPACK</td></tr>
+        <tr><td class="mono">9218</td><td>Extensible Priorities</td></tr>
+      </table>
+    </div>
+    <div class="panel" style="margin-top:0">
+      <h3 style="margin-top:0"><span class="bar"></span>Source you'll want open</h3>
+      <p class="body mono" style="font-size:11.5px;line-height:1.9;color:#c4d2e2">
+      chromium <span style="color:var(--dim)">net/</span> — URLRequest → HttpNetworkTransaction → HttpStreamFactory::JobController (the H2-vs-H3 race)<br>
+      <span class="hl">quiche</span> (Rust) — gso.rs, octets/, tokio-quiche/<br>
+      <span class="hl2">nghttp2</span> (C) — H2 framer + HPACK<br>
+      <span class="hl3">lsquic</span> (C) — QUIC + ls-qpack<br>
+      <span style="color:var(--grn)">envoy</span> — thread-per-worker; nghttp2 + quiche
+      </p>
+    </div>
+  </div>
+
+  <div class="foot">
+    PROTOCOL LAB · built as a visual companion to the wire-to-implementation reference.<br>
+    Numbers cited from RFCs 9113/7541/9000/9001/9002/9114/9204/9218 · the SIGCOMM 2017 QUIC paper · arXiv 2409.16267 &amp; 2310.09423 · Cloudflare/Fastly engineering. Treat vendor percentages as indicative.
+  </div>
+</section>
+
+</main>
+
+<script>
+/* ===================== NAV ===================== */
+const links=[...document.querySelectorAll('.lnk')];
+const views=[...document.querySelectorAll('.view')];
+let current='intro';
+const anims={}; // registry: viewId -> {start,stop}
+function show(v){
+  views.forEach(s=>s.classList.toggle('on',s.id===v));
+  links.forEach(l=>l.classList.toggle('on',l.dataset.v===v));
+  // stop previous, start new
+  if(anims[current]&&anims[current].stop)anims[current].stop();
+  current=v;
+  if(anims[v]&&anims[v].start)anims[v].start();
+  window.scrollTo(0,0);
+}
+links.forEach(l=>l.addEventListener('click',()=>{show(l.dataset.v);closeNav();}));
+function toggleNav(){document.getElementById('nav').classList.toggle('open');document.querySelector('.scrim').classList.toggle('on');}
+function closeNav(){document.getElementById('nav').classList.remove('open');document.querySelector('.scrim').classList.remove('on');}
+
+/* helper: hi-dpi canvas sizing */
+function fit(cv){
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  const w=cv.clientWidth, h=cv.height;
+  cv.width=w*dpr; cv.height=h*dpr;
+  const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {ctx,w,h};
+}
+const COL={A:'#ff5a6a',B:'#36e0d4',C:'#ffb454',D:'#7ee787',block:'#33425a'};
+
+/* ===================== INTRO ANIM ===================== */
+(function(){
+  const cv=document.getElementById('introCv');let ctx,w,h,raf,t=0,playing=false,dropped=false;
+  function setup(){const r=fit(cv);ctx=r.ctx;w=r.w;h=r.h;}
+  const streams=[{c:'A',y:0},{c:'B',y:0},{c:'C',y:0}];
+  function draw(){
+    setup();ctx.clearRect(0,0,w,h);
+    const sx=70,ex=w-70, midY=h/2;
+    // server + client
+    ctx.fillStyle='#0e1b29';ctx.strokeStyle='#1d2a3a';
+    roundRect(ctx,sx-58,40,46,h-80,8,true,true);roundRect(ctx,ex+12,40,46,h-80,8,true,true);
+    ctx.fillStyle='#8aa0b6';ctx.font='10px '+mono();ctx.textAlign='center';
+    ctx.fillText('SERVER',sx-35,h-95);ctx.fillText('CLIENT',ex+35,h-95);
+    // wire
+    ctx.strokeStyle='#142233';ctx.lineWidth=1;
+    for(let i=0;i<3;i++){const y=midY+(i-1)*54;ctx.beginPath();ctx.moveTo(sx,y);ctx.lineTo(ex,y);ctx.stroke();}
+    // packets: 3 per stream
+    const order=['A','B','C','A','B','C']; // packet sequence; index 2 (first C) is "the lost one" -> actually drop pkt index 2
+    const colorOf=c=>COL[c];
+    let prog=t/100; // 0..N
+    for(let s=0;s<3;s++){
+      const c=streams[s].c, y=midY+(s-1)*54;
+      for(let p=0;p<3;p++){
+        const seq=s+p*3; // staggered
+        let pp=prog-seq*0.5;
+        if(pp<0)continue;
+        let x=sx+pp*( (ex-sx)/4 );
+        const isLost = (s===2&&p===0&&dropped); // amber stream first packet lost (the "3rd packet")
+        if(isLost){
+          if(x>(sx+ex)/2){ // vanish at midpoint
+            ctx.fillStyle='#ff5a6a';ctx.font='13px '+mono();ctx.fillText('✕',(sx+ex)/2,y-14);
+            continue;
+          }
+        }
+        if(x>ex)x=ex;
+        // HOL: in this intro we show H2-style behaviour: if lost packet not yet retransmitted, later packets that passed midpoint freeze
+        ctx.fillStyle=colorOf(c);
+        roundRect(ctx,x-12,y-9,24,18,4,true,false);
+        ctx.fillStyle='#06121d';ctx.font='9px '+mono();ctx.fillText(c+(p+1),x,y+3.5);
+      }
+    }
+    ctx.textAlign='left';
+    if(dropped){ctx.fillStyle='#ffb454';ctx.font='11px '+mono();ctx.fillText('packet C1 lost — in HTTP/2 everything behind it would stall',sx,28);}
+    if(playing){t+=1.1;if(t>520){t=520;}raf=requestAnimationFrame(draw);}
+  }
+  document.getElementById('iPlay').onclick=()=>{playing=true;dropped=true;if(t>=520)t=0;cancelAnimationFrame(raf);draw();};
+  document.getElementById('iReset').onclick=()=>{playing=false;dropped=false;t=0;cancelAnimationFrame(raf);draw();};
+  anims.intro={start:()=>{t=0;dropped=false;playing=false;draw();},stop:()=>{playing=false;cancelAnimationFrame(raf);}};
+  window.addEventListener('resize',()=>{if(current==='intro')draw();});
+})();
+
+/* ===================== HOL LAB ===================== */
+(function(){
+  const cv=document.getElementById('holCv');let ctx,w,h,raf,t=0,playing=false,mode='h1',dropAt=-1;
+  const note=document.getElementById('holNote');
+  const notes={
+    h1:'Mode: HTTP/1.1 — 6 independent TCP connections. A drop on one connection never blocks the others, but only 6 resources move at once.',
+    h2:'Mode: HTTP/2 — one TCP connection. A single lost segment freezes EVERY stream: later packets sit in the kernel buffer (greyed) until the retransmit arrives. Transport-layer HOL blocking.',
+    h3:'Mode: HTTP/3 / QUIC — per-stream loss recovery. Only the stream that lost a packet waits; the other streams are delivered to the page immediately.'
+  };
+  function setMode(m){mode=m;[...document.querySelectorAll('#holMode button')].forEach(b=>b.classList.toggle('on',b.dataset.m===m));note.textContent=notes[m];reset();}
+  [...document.querySelectorAll('#holMode button')].forEach(b=>b.onclick=()=>setMode(b.dataset.m));
+  function setup(){const r=fit(cv);ctx=r.ctx;w=r.w;h=r.h;}
+  function reset(){t=0;playing=false;dropAt=-1;cancelAnimationFrame(raf);draw();}
+  const lanesH1=6, streamsMux=['A','B','C','D'];
+  function draw(){
+    setup();ctx.clearRect(0,0,w,h);
+    const sx=64,ex=w-64,top=30,bot=h-30;
+    ctx.fillStyle='#0e1b29';ctx.strokeStyle='#1d2a3a';
+    roundRect(ctx,8,top+6,46,bot-top-12,8,true,true);roundRect(ctx,w-54,top+6,46,bot-top-12,8,true,true);
+    ctx.fillStyle='#8aa0b6';ctx.font='10px '+mono();ctx.textAlign='center';
+    ctx.fillText('SERVER',31,bot-2);ctx.fillText('CLIENT',w-31,bot-2);
+    ctx.textAlign='left';
+    const prog=t/100;
+    if(mode==='h1'){
+      // 6 lanes, lane 2 (index 2) drops a packet
+      for(let l=0;l<lanesH1;l++){
+        const y=top+18+l*((bot-top-30)/(lanesH1-1));
+        ctx.strokeStyle='#142233';ctx.beginPath();ctx.moveTo(sx,y);ctx.lineTo(ex,y);ctx.stroke();
+        ctx.fillStyle='#5b7088';ctx.font='9px '+mono();ctx.fillText('conn'+(l+1),sx-2,y-9);
+        for(let p=0;p<4;p++){
+          let pp=prog-p*0.7-l*0.15;if(pp<0)continue;
+          const lostLane=(l===2&&p===1&&dropAt>=0);
+          let x=sx+pp*((ex-sx)/5);
+          if(lostLane){
+            // stall: packet p=1 lost, p>=1 on THIS lane wait until retransmit
+            if(p>=1 && pp< (dropAt!=-99?99:0)){}
+          }
+          // simple: lane2 packet1 disappears at mid, later packets on lane2 delayed
+          if(l===2 && dropAt>=0){
+            if(p===1){
+              if(x>(sx+ex)/2){ctx.fillStyle='#ff5a6a';ctx.font='12px '+mono();ctx.fillText('✕',(sx+ex)/2,y-12);continue;}
+            } else if(p>1){
+              // delayed by 1.5 units (retransmit cost)
+              let dp=pp-1.6;if(dp<0)continue;x=sx+dp*((ex-sx)/5);
+            }
+          }
+          if(x>ex)x=ex;
+          ctx.fillStyle=l===2?'#ff5a6a':['#36e0d4','#ffb454','#7ee787','#b794f6','#6cb6ff','#36e0d4'][l];
+          roundRect(ctx,x-10,y-7,20,14,3,true,false);
+        }
+      }
+      if(dropAt>=0){ctx.fillStyle='#ffb454';ctx.font='11px '+mono();ctx.fillText('only conn3 stalls — other 5 connections flow normally',sx,18);}
+    } else {
+      // single wire, 4 colored streams interleaved
+      const y=(top+bot)/2;
+      ctx.strokeStyle='#142233';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(sx,y);ctx.lineTo(ex,y);ctx.stroke();ctx.lineWidth=1;
+      ctx.fillStyle='#5b7088';ctx.font='9px '+mono();
+      ctx.fillText(mode==='h2'?'1 TCP byte-stream':'1 QUIC connection (UDP)',sx,y-58);
+      // client-side delivery stacks per stream
+      const stacks={A:0,B:0,C:0,D:0};
+      const seq=[]; // build packet sequence A B C D A B C D ...
+      for(let i=0;i<16;i++)seq.push(streamsMux[i%4]);
+      // the lost packet = sequence index 2 (the "3rd packet", stream C)
+      const lostIdx=2, lostStream='C';
+      for(let i=0;i<seq.length;i++){
+        let pp=prog-i*0.45;if(pp<0)continue;
+        const c=seq[i];
+        const isLost=(i===lostIdx&&dropAt>=0);
+        let x=sx+pp*((ex-sx)/7);
+        // retransmit timing
+        let retransmitArrived = dropAt>=0 && prog > (lostIdx*0.45 + 3.2); // retransmit lands later
+        if(isLost){
+          if(!retransmitArrived){
+            if(x>(sx+ex)/2){ctx.fillStyle='#ff5a6a';ctx.font='12px '+mono();ctx.fillText('✕',(sx+ex)/2,y-16);continue;}
+          } else {
+            // retransmit travels (faded)
+            let dp=prog-(lostIdx*0.45+3.2);x=sx+dp*((ex-sx)/7);
+            ctx.globalAlpha=0.6;ctx.fillStyle=COL[c];roundRect(ctx,x-11,y-8,22,16,4,true,false);ctx.globalAlpha=1;
+            ctx.fillStyle='#06121d';ctx.font='8px '+mono();ctx.fillText('RT',x,y+3);
+            if(x>=ex-12){deliver(c);}
+            continue;
+          }
+        }
+        // arrived at client?
+        if(x>=ex-12){
+          if(mode==='h2'){
+            // HOL: cannot deliver anything at/after lostIdx until retransmit arrives
+            if(dropAt>=0 && i>lostIdx && !retransmitArrived){
+              // show queued/greyed at client edge
+              ctx.fillStyle=COL.block;roundRect(ctx,ex-22,top+18+((i-lostIdx-1)%6)*16,18,12,3,true,false);
+              continue;
+            }
+          }
+          deliver(c);continue;
+        }
+        ctx.fillStyle=COL[c];roundRect(ctx,x-11,y-8,22,16,4,true,false);
+        ctx.fillStyle='#06121d';ctx.font='8px '+mono();ctx.textAlign='center';ctx.fillText(c,x,y+3);ctx.textAlign='left';
+      }
+      function deliver(c){
+        const idx=streamsMux.indexOf(c);
+        const bx=w-50+0, by=top+18+stacks[c]*15;
+        // draw delivered tick into client column per stream row
+      }
+      // delivered columns (visual): 4 rows on client side
+      streamsMux.forEach((c,idx)=>{
+        const ry=top+20+idx*((bot-top-40)/3);
+        ctx.fillStyle='#0b1622';roundRect(ctx,w-50,ry-7,38,14,3,true,false);
+        ctx.fillStyle=COL[c];ctx.font='8px '+mono();ctx.textAlign='center';ctx.fillText('S'+c,w-31,ry+3);ctx.textAlign='left';
+      });
+      if(dropAt>=0){
+        ctx.fillStyle=mode==='h2'?'#ff5a6a':'#7ee787';ctx.font='11px '+mono();
+        ctx.fillText(mode==='h2'?'stream C lost → ALL streams blocked (grey) until retransmit':'stream C lost → only C waits, A/B/D delivered',sx,18);
+      }
+    }
+    if(playing){t+=1.0;if(t>900)t=900;raf=requestAnimationFrame(draw);}
+  }
+  document.getElementById('holPlay').onclick=()=>{playing=true;if(t>=900)t=0;cancelAnimationFrame(raf);draw();};
+  document.getElementById('holDrop').onclick=()=>{dropAt=t;playing=true;cancelAnimationFrame(raf);draw();};
+  document.getElementById('holReset').onclick=reset;
+  anims.hol={start:()=>{reset();},stop:()=>{playing=false;cancelAnimationFrame(raf);}};
+  window.addEventListener('resize',()=>{if(current==='hol')draw();});
+})();
+
+/* ===================== TCP CONGESTION ===================== */
+(function(){
+  const cv=document.getElementById('ccCv');let ctx,w,h,raf,playing=false,mode='cubic';
+  let pts=[],cwnd=10,ssthresh=Infinity,rtt=0,phase='slow start',lossT=-1,wmax=0;
+  const E={cwnd:document.getElementById('ccCwnd'),phase:document.getElementById('ccPhase'),
+    rtt:document.getElementById('ccRtt'),ssth:document.getElementById('ccSsth'),note:document.getElementById('ccNote')};
+  const notes={
+    cubic:'CUBIC: cut window ×0.7 on loss (30% drop), then regrow along a cubic curve in time — RTT-independent for fairness.',
+    reno:'Reno (AIMD): halve on loss, then +1 MSS/RTT. Safe and simple but slow to refill a large bandwidth-delay pipe.',
+    bbr:'BBR: loss is NOT the signal. It paces at estimated bottleneck-bandwidth × min-RTT, so random loss barely dents throughput.'
+  };
+  [...document.querySelectorAll('#ccMode button')].forEach(b=>b.onclick=()=>{mode=b.dataset.c;[...document.querySelectorAll('#ccMode button')].forEach(x=>x.classList.toggle('on',x===b));E.note.textContent=notes[mode];reset();});
+  function setup(){const r=fit(cv);ctx=r.ctx;w=r.w;h=r.h;}
+  function reset(){pts=[];cwnd=10;ssthresh=Infinity;rtt=0;phase='slow start';lossT=-1;wmax=0;playing=false;cancelAnimationFrame(raf);draw();upd();}
+  function upd(){E.cwnd.textContent=Math.round(cwnd);E.phase.textContent=phase;E.rtt.textContent=rtt;E.ssth.textContent=ssthresh===Infinity?'∞':Math.round(ssthresh);}
+  function step(){
+    rtt++;
+    if(mode==='bbr'){ // grow to a ceiling, probe gently, loss ignored
+      const ceil=46;
+      if(cwnd<ceil)cwnd=Math.min(ceil,cwnd*1.6);else cwnd=ceil+Math.sin(rtt/2)*3;
+      phase=cwnd<ceil-2?'startup':'probe bw';
+    } else if(mode==='reno'){
+      if(cwnd<ssthresh){cwnd*=2;phase='slow start';}else{cwnd+=1;phase='congestion avoid';}
+    } else { // cubic
+      if(lossT<0 && cwnd<ssthresh){cwnd*=2;phase='slow start';}
+      else{
+        phase='congestion avoid';
+        const C=0.4,B=0.7;const K=Math.cbrt(wmax*(1-B)/C);const tt=(rtt-lossT);
+        cwnd=C*Math.pow(tt-K,3)+wmax; if(cwnd<1)cwnd=1;
+      }
+    }
+    pts.push({r:rtt,c:cwnd,loss:false});
+  }
+  function injectLoss(){
+    wmax=cwnd;
+    if(mode==='reno'){cwnd*=0.5;ssthresh=cwnd;}
+    else if(mode==='cubic'){cwnd*=0.7;ssthresh=cwnd;lossT=rtt;}
+    else{cwnd*=0.85;} // bbr barely reacts
+    if(pts.length)pts[pts.length-1].loss=true;
+    phase='loss → backoff';upd();
+  }
+  function draw(){
+    setup();ctx.clearRect(0,0,w,h);
+    const pad=38,gx=pad,gy=h-pad,gw=w-pad-14,gh=h-pad-18;
+    // axes
+    ctx.strokeStyle='#1d2a3a';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(gx,18);ctx.lineTo(gx,gy);ctx.lineTo(gx+gw,gy);ctx.stroke();
+    ctx.fillStyle='#5b7088';ctx.font='9px '+mono();
+    ctx.save();ctx.translate(12,h/2);ctx.rotate(-Math.PI/2);ctx.textAlign='center';ctx.fillText('cwnd (MSS)',0,0);ctx.restore();
+    ctx.textAlign='center';ctx.fillText('RTT rounds →',gx+gw/2,h-8);ctx.textAlign='left';
+    // gridlines
+    const maxR=Math.max(20,rtt+2),maxC=Math.max(60,...pts.map(p=>p.c))*1.1;
+    for(let i=1;i<=4;i++){const yy=18+(gy-18)*i/4;ctx.strokeStyle='#0f1a27';ctx.beginPath();ctx.moveTo(gx,yy);ctx.lineTo(gx+gw,yy);ctx.stroke();
+      ctx.fillStyle='#3b4a5e';ctx.fillText(Math.round(maxC*(1-i/4)),gx+3,yy-3);}
+    // ssthresh line
+    if(ssthresh!==Infinity){const yy=18+(gh)*(1-ssthresh/maxC);ctx.strokeStyle='#5a4420';ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(gx,yy);ctx.lineTo(gx+gw,yy);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#ffb454';ctx.fillText('ssthresh',gx+gw-50,yy-4);}
+    // curve
+    const col=mode==='cubic'?'#36e0d4':mode==='reno'?'#ffb454':'#b794f6';
+    ctx.strokeStyle=col;ctx.lineWidth=2;ctx.beginPath();
+    pts.forEach((p,i)=>{const x=gx+gw*(p.r/maxR),y=18+gh*(1-p.c/maxC);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+    ctx.stroke();ctx.lineWidth=1;
+    // loss markers
+    pts.forEach(p=>{if(p.loss){const x=gx+gw*(p.r/maxR),y=18+gh*(1-p.c/maxC);ctx.fillStyle='#ff5a6a';ctx.beginPath();ctx.arc(x,y,4,0,7);ctx.fill();ctx.font='9px '+mono();ctx.fillText('loss',x+6,y-4);}});
+    // head dot
+    if(pts.length){const p=pts[pts.length-1],x=gx+gw*(p.r/maxR),y=18+gh*(1-p.c/maxC);ctx.fillStyle=col;ctx.beginPath();ctx.arc(x,y,4,0,7);ctx.fill();}
+  }
+  function loop(){if(!playing)return;step();upd();draw();if(rtt<maxRound())raf=setTimeout(()=>requestAnimationFrame(loop),420);else playing=false;}
+  function maxRound(){return 30;}
+  document.getElementById('ccPlay').onclick=()=>{if(rtt>=30)reset();playing=true;loop();};
+  document.getElementById('ccLoss').onclick=()=>{injectLoss();draw();};
+  document.getElementById('ccReset').onclick=reset;
+  anims.cc={start:reset,stop:()=>{playing=false;cancelAnimationFrame(raf);}};
+  window.addEventListener('resize',()=>{if(current==='tcp')draw();});
+})();
+
+/* ===================== HANDSHAKE RACE ===================== */
+(function(){
+  const cv=document.getElementById('hsCv');let ctx,w,h,raf,t=0,playing=false;
+  // each protocol: list of messages with {dir:1=c->s, label, rtt}
+  const flows={
+    h1:{name:'HTTP/1.1 + TLS 1.2',col:'#ff5a6a',msgs:[
+      {d:1,l:'SYN'},{d:-1,l:'SYN-ACK'},{d:1,l:'ACK'},
+      {d:1,l:'ClientHello'},{d:-1,l:'ServerHello+Cert+KeyExch'},
+      {d:1,l:'ClientKeyExch+Finished'},{d:-1,l:'Finished'},
+      {d:1,l:'GET /'},{d:-1,l:'200 OK ◀ first byte'}]},
+    h2:{name:'HTTP/2 + TLS 1.3',col:'#ffb454',msgs:[
+      {d:1,l:'SYN'},{d:-1,l:'SYN-ACK'},{d:1,l:'ACK'},
+      {d:1,l:'ClientHello + key_share'},{d:-1,l:'ServerHello + {Cert} encrypted'},
+      {d:1,l:'Finished + GET /'},{d:-1,l:'200 OK ◀ first byte'}]},
+    h3:{name:'HTTP/3 / QUIC',col:'#7ee787',msgs:[
+      {d:1,l:'Initial: ClientHello + key_share'},{d:-1,l:'Initial+Handshake: ServerHello {Cert}'},
+      {d:1,l:'Handshake done + GET /'},{d:-1,l:'200 OK ◀ first byte'}]}
+  };
+  function setup(){const r=fit(cv);ctx=r.ctx;w=r.w;h=r.h;}
+  function draw(){
+    setup();ctx.clearRect(0,0,w,h);
+    const keys=['h1','h2','h3'],colW=w/3;
+    keys.forEach((k,ci)=>{
+      const f=flows[k];const cx0=ci*colW+18,cx1=(ci+1)*colW-18;
+      const sxx=cx0+10, cxx=cx1-10;
+      // vertical actor lines
+      ctx.strokeStyle='#16real';ctx.strokeStyle='#162636';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(sxx,40);ctx.lineTo(sxx,h-20);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(cxx,40);ctx.lineTo(cxx,h-20);ctx.stroke();
+      ctx.fillStyle=f.col;ctx.font='10px '+mono();ctx.textAlign='center';
+      ctx.fillText(f.name,(sxx+cxx)/2,20);
+      ctx.fillStyle='#5b7088';ctx.font='8px '+mono();
+      ctx.fillText('C',sxx,36);ctx.fillText('S',cxx,36);
+      // messages appear over time
+      const perMsg=44, startY=50, speed=1.4;
+      f.msgs.forEach((m,i)=>{
+        const appear=i*speed;
+        if(t<appear)return;
+        const y=startY+i*perMsg;
+        const fromX=m.d===1?sxx:cxx, toX=m.d===1?cxx:sxx;
+        let prog=Math.min(1,(t-appear)/speed);
+        const curX=fromX+(toX-fromX)*prog;
+        ctx.strokeStyle=f.col;ctx.globalAlpha=0.5;ctx.beginPath();ctx.moveTo(fromX,y);ctx.lineTo(curX,y);ctx.stroke();ctx.globalAlpha=1;
+        // arrowhead + dot
+        ctx.fillStyle=f.col;ctx.beginPath();ctx.arc(curX,y,3,0,7);ctx.fill();
+        if(prog>=1){
+          ctx.fillStyle='#c4d2e2';ctx.font='8.5px '+mono();ctx.textAlign=m.d===1?'left':'right';
+          const lx=m.d===1?fromX+4:fromX-4;
+          ctx.fillText(m.l,lx,y-5);
+        }
+      });
+      ctx.textAlign='left';
+      // RTT badge when done
+      const done=t> f.msgs.length*speed+1;
+      if(done){
+        const rtt=k==='h1'?'3 RTT':k==='h2'?'2 RTT':'1 RTT';
+        ctx.fillStyle=f.col;ctx.font='13px '+mono();ctx.textAlign='center';
+        ctx.fillText('▶ first byte @ '+rtt,(sxx+cxx)/2,h-8);ctx.textAlign='left';
+      }
+    });
+    // dividers
+    ctx.strokeStyle='#0f1a27';for(let i=1;i<3;i++){ctx.beginPath();ctx.moveTo(i*colW,30);ctx.lineTo(i*colW,h-20);ctx.stroke();}
+    if(playing){t+=0.04;if(t>14)t=14;raf=requestAnimationFrame(draw);}
+  }
+  document.getElementById('hsPlay').onclick=()=>{playing=true;if(t>=14)t=0;cancelAnimationFrame(raf);draw();};
+  document.getElementById('hsReset').onclick=()=>{playing=false;t=0;cancelAnimationFrame(raf);draw();};
+  anims.hand={start:()=>{t=0;playing=false;draw();},stop:()=>{playing=false;cancelAnimationFrame(raf);}};
+  window.addEventListener('resize',()=>{if(current==='hand')draw();});
+})();
+
+/* ===================== MULTIPLEXING ===================== */
+(function(){
+  const cv=document.getElementById('muxCv');let ctx,w,h,raf,t=0,playing=false,mode='rr';
+  const note=document.getElementById('muxNote');
+  const notes={rr:'Round-robin: each stream gets B/N. Everything progresses in parallel but everything also finishes late — a half-downloaded JS file is useless, so this is often the wrong default for the web.',
+    seq:'Sequential by priority: give one stream the whole pipe until done, then the next. Critical CSS/JS finishes first and becomes usable sooner. This is closer to what Chrome historically did.'};
+  [...document.querySelectorAll('#muxMode button')].forEach(b=>b.onclick=()=>{mode=b.dataset.x;[...document.querySelectorAll('#muxMode button')].forEach(x=>x.classList.toggle('on',x===b));note.textContent=notes[mode];t=0;draw();});
+  function setup(){const r=fit(cv);ctx=r.ctx;w=r.w;h=r.h;}
+  const S=['A','B','C','D'];const need={A:6,B:6,C:6,D:6};
+  function draw(){
+    setup();ctx.clearRect(0,0,w,h);
+    const leftX=20,wireX=w*0.42,clientX=w-150;
+    // source queues
+    ctx.fillStyle='#5b7088';ctx.font='9px '+mono();ctx.fillText('stream buffers',leftX,16);
+    const sent={A:0,B:0,C:0,D:0};
+    // compute how many frames have left each stream by time t under scheduler
+    const totalFrames=Math.floor(t/8);
+    for(let n=0;n<totalFrames;n++){
+      let s;
+      if(mode==='rr')s=S[n%4];
+      else{ // sequential: fill A then B...
+        s=S[Math.min(3,Math.floor(n/6))];
+      }
+      if(sent[s]<need[s])sent[s]++;
+    }
+    S.forEach((c,i)=>{
+      const y=40+i*64;
+      ctx.fillStyle=COL[c];ctx.font='11px '+mono();ctx.fillText('S'+c,leftX,y-16);
+      // remaining frames in buffer
+      for(let f=0;f<need[c];f++){
+        const got=f<sent[c];
+        ctx.fillStyle=got?'#16222f':COL[c];ctx.globalAlpha=got?0.4:1;
+        roundRect(ctx,leftX+24+f*16,y-10,13,20,3,true,false);ctx.globalAlpha=1;
+      }
+    });
+    // the wire (scheduler output)
+    ctx.strokeStyle='#1d2a3a';ctx.beginPath();ctx.moveTo(wireX,20);ctx.lineTo(wireX,h-16);ctx.stroke();
+    ctx.fillStyle='#8aa0b6';ctx.font='9px '+mono();ctx.textAlign='center';ctx.fillText('scheduler',wireX,14);ctx.textAlign='left';
+    // packets travelling on single wire to client
+    const flying=Math.floor(t/8);
+    for(let n=Math.max(0,flying-10);n<flying;n++){
+      let s;if(mode==='rr')s=S[n%4];else s=S[Math.min(3,Math.floor(n/6))];
+      if(n>= (need.A+need.B+need.C+need.D))continue;
+      const age=t-n*8; const x=wireX+ (age/8)* ((clientX-wireX)/11); const y= h/2 + Math.sin(n)*4;
+      if(x>clientX)continue;
+      ctx.fillStyle=COL[s];roundRect(ctx,x-9,y-7,18,14,3,true,false);
+      ctx.fillStyle='#06121d';ctx.font='8px '+mono();ctx.textAlign='center';ctx.fillText(s,x,y+3);ctx.textAlign='left';
+    }
+    // client delivered bars
+    ctx.fillStyle='#5b7088';ctx.font='9px '+mono();ctx.fillText('delivered',clientX,16);
+    S.forEach((c,i)=>{
+      const y=40+i*64;const done=sent[c]>=need[c];
+      ctx.strokeStyle='#16222f';roundRect(ctx,clientX,y-10,120,20,4,false,true);
+      ctx.fillStyle=COL[c];const pw=120*(sent[c]/need[c]);roundRect(ctx,clientX,y-10,pw,20,4,true,false);
+      if(done){ctx.fillStyle='#06121d';ctx.font='9px '+mono();ctx.textAlign='center';ctx.fillText('✓ usable',clientX+60,y+3);ctx.textAlign='left';}
+    });
+    if(mode==='seq'){ctx.fillStyle='#7ee787';ctx.font='10px '+mono();ctx.fillText('S A finishes first → usable early',clientX-2,h-6);}
+    else{ctx.fillStyle='#ffb454';ctx.font='10px '+mono();ctx.fillText('all finish together → all late',clientX-2,h-6);}
+    if(playing){t+=1.1;if(t> (need.A+need.B+need.C+need.D)*8+90)t=t;else raf=requestAnimationFrame(draw);if(t<=(need.A+need.B+need.C+need.D)*8+90)raf=requestAnimationFrame(draw);}
+  }
+  document.getElementById('muxPlay').onclick=()=>{playing=true;t=0;cancelAnimationFrame(raf);draw();};
+  document.getElementById('muxReset').onclick=()=>{playing=false;t=0;cancelAnimationFrame(raf);draw();};
+  anims.mux={start:()=>{t=0;playing=false;draw();},stop:()=>{playing=false;cancelAnimationFrame(raf);}};
+  window.addEventListener('resize',()=>{if(current==='mux')draw();});
+})();
+
+/* ===================== HTTP/2 FRAME MAP ===================== */
+(function(){
+  const fields=[
+    {nm:'Length',bits:24,col:'#0e3b52',d:'24-bit payload length in octets. Default cap 16,384 (MAX_FRAME_SIZE); larger needs negotiation. Excess → FRAME_SIZE_ERROR.'},
+    {nm:'Type',bits:8,col:'#3a2c52',d:'8-bit frame type: 0x0 DATA, 0x1 HEADERS, 0x3 RST_STREAM, 0x4 SETTINGS, 0x6 PING, 0x7 GOAWAY, 0x8 WINDOW_UPDATE, 0x9 CONTINUATION.'},
+    {nm:'Flags',bits:8,col:'#52401c',d:'8-bit flags, meaning depends on Type. e.g. END_STREAM (0x1) and END_HEADERS (0x4) on HEADERS; ACK (0x1) on SETTINGS/PING.'},
+    {nm:'R',bits:1,col:'#2a1820',d:'1 reserved bit. MUST be sent 0 and ignored on receipt. (Some stacks abuse it; spec says leave it 0.)'},
+    {nm:'Stream Identifier',bits:31,col:'#0e3b3a',d:'31-bit stream ID. 0 = connection-level (SETTINGS, PING, GOAWAY, conn WINDOW_UPDATE). Client streams odd, server-push even, monotonically increasing.'},
+    {nm:'Payload',bits:'…',col:'#13202c',d:'Type-dependent body. DATA carries message bytes; HEADERS carries an HPACK field block (optionally with priority + padding). Length octets long.'}
+  ];
+  const map=document.getElementById('frameMap'),det=document.getElementById('frameDetail'),ruler=document.getElementById('frameRuler');
+  ruler.innerHTML='<div style="flex:24;text-align:left">bit 0</div><div style="flex:8"></div><div style="flex:8"></div><div style="flex:1"></div><div style="flex:31;text-align:right">bit 71 ┃ payload →</div>';
+  fields.forEach((f,i)=>{
+    const flexBits=f.bits==='…'?20:f.bits;
+    const el=document.createElement('div');el.className='field';el.style.background=f.col;el.style.flexGrow=flexBits;
+    el.innerHTML=`<div class="nm">${f.nm}</div><div class="bits">${f.bits==='…'?'variable':f.bits+' bit'}</div>`;
+    el.onclick=()=>{[...map.children].forEach(c=>c.classList.remove('sel'));el.classList.add('sel');
+      det.innerHTML=`<h4>${f.nm} — ${f.bits==='…'?'variable length':f.bits+' bits'}</h4><p>${f.d}</p>`;};
+    map.appendChild(el);
+  });
+})();
+
+/* ===================== QUIC PACKET MAP ===================== */
+(function(){
+  const longF=[
+    {nm:'Hdr Form=1',bits:1,col:'#0e3b52',d:'Header Form bit = 1 → long header. Used during connection setup.'},
+    {nm:'Fixed=1',bits:1,col:'#10303f',d:'Fixed bit, always 1 (anti-ossification "QUIC bit"). 0 here means "not QUIC".'},
+    {nm:'Type',bits:2,col:'#3a2c52',d:'Long packet type: 0x0 Initial, 0x1 0-RTT, 0x2 Handshake, 0x3 Retry.'},
+    {nm:'Reserved/PN-Len',bits:4,col:'#2a1820',d:'Type-specific bits; for Initial/Handshake/0-RTT the low 2 bits are the Packet Number length (protected by header protection).'},
+    {nm:'Version',bits:32,col:'#0e3b3a',d:'32-bit version. 0x00000001 = QUIC v1 (RFC 9000). 0 = Version Negotiation packet.'},
+    {nm:'DCID Len',bits:8,col:'#52401c',d:'Length of Destination Connection ID (0–20). Explicit because long headers must be parseable by anyone.'},
+    {nm:'DCID',bits:'0-160',col:'#143a44',d:'Destination Connection ID. For the first client Initial, this random value also seeds the Initial keys.'},
+    {nm:'SCID Len',bits:8,col:'#52401c',d:'Length of Source Connection ID (0–20).'},
+    {nm:'SCID',bits:'0-160',col:'#143a44',d:'Source Connection ID the peer should use to address this endpoint. Enables connection migration.'},
+    {nm:'Token/Len/PN',bits:'…',col:'#13202c',d:'Initial adds Token Length+Token; then Length (varint) + Packet Number (1–4 B) + protected payload of frames.'}
+  ];
+  const shortF=[
+    {nm:'Hdr Form=0',bits:1,col:'#0e3b52',d:'Header Form bit = 0 → short header. The steady-state 1-RTT data packet.'},
+    {nm:'Fixed=1',bits:1,col:'#10303f',d:'Fixed "QUIC bit", always 1.'},
+    {nm:'Spin',bits:1,col:'#3a2c52',d:'Latency spin bit — lets passive observers estimate RTT without breaking encryption.'},
+    {nm:'Reserved',bits:2,col:'#2a1820',d:'2 reserved bits, protected by header protection.'},
+    {nm:'Key Phase',bits:1,col:'#52251c',d:'Key Phase bit — toggles to signal a key update. Protected by the (non-rotating) header-protection key.'},
+    {nm:'PN Len',bits:2,col:'#52401c',d:'Packet Number length − 1 (so 1–4 bytes). Protected.'},
+    {nm:'DCID',bits:'impl.',col:'#143a44',d:'Destination Connection ID — NO explicit length field; the receiver knows its own CID length out of band. This is how short headers stay compact.'},
+    {nm:'Packet Number',bits:'8-32',col:'#0e3b3a',d:'1–4 byte truncated packet number (full value is 62-bit, reconstructed from context). Header-protected.'},
+    {nm:'Payload',bits:'…',col:'#13202c',d:'AEAD-protected frames (STREAM, ACK, …).'}
+  ];
+  const map=document.getElementById('qMap'),det=document.getElementById('qDetail');
+  function render(set){
+    map.innerHTML='';
+    set.forEach(f=>{
+      let flex=typeof f.bits==='number'?Math.max(f.bits,3): (f.bits==='…'?18: f.bits.includes('160')?18: f.bits.includes('impl')?14:14);
+      const el=document.createElement('div');el.className='field';el.style.background=f.col;el.style.flexGrow=flex;
+      el.innerHTML=`<div class="nm" style="font-size:11px">${f.nm}</div><div class="bits">${typeof f.bits==='number'?f.bits+' bit':f.bits}</div>`;
+      el.onclick=()=>{[...map.children].forEach(c=>c.classList.remove('sel'));el.classList.add('sel');
+        det.innerHTML=`<h4>${f.nm}</h4><p>${f.d}</p>`;};
+      map.appendChild(el);
+    });
+  }
+  render(longF);
+  [...document.querySelectorAll('#qMode button')].forEach(b=>b.onclick=()=>{
+    [...document.querySelectorAll('#qMode button')].forEach(x=>x.classList.toggle('on',x===b));
+    render(b.dataset.q==='long'?longF:shortF);
+    det.innerHTML='<h4>Tap a field</h4><p>'+(b.dataset.q==='long'?'Long header — connection setup packets (Initial/Handshake/0-RTT/Retry).':'Short header — 1-RTT steady-state data packets.')+'</p>';
+  });
+})();
+
+/* ===================== QUIC KEY DERIVATION ===================== */
+(function(){
+  const cv=document.getElementById('kyCv');let ctx,w,h,raf,step=0,playing=false,t=0;
+  const nodes=[
+    {x:.5,y:.07,w:300,h:42,t:'Destination Connection ID',s:'(from client, e.g. 0x8394c8f0…) + v1 salt 0x38762cf7…',c:'#0e3b52'},
+    {x:.5,y:.24,w:300,h:42,t:'initial_secret = HKDF-Extract(salt, DCID)',s:'2062e8b3cd8d5209…',c:'#10303f'},
+    {x:.27,y:.44,w:230,h:46,t:'client_initial_secret',s:'HKDF-Expand-Label(…, "client in")',c:'#3a2c52'},
+    {x:.73,y:.44,w:230,h:46,t:'server_initial_secret',s:'HKDF-Expand-Label(…, "server in")',c:'#3a2c52'},
+    {x:.5,y:.72,w:420,h:78,t:'per-direction keys',s:'key ← "quic key" (16B AES-128)\niv  ← "quic iv"  (12B)\nhp  ← "quic hp"  (16B, header protection)',c:'#0e3b3a'}
+  ];
+  const edges=[[0,1],[1,2],[1,3],[2,4],[3,4]];
+  function setup(){const r=fit(cv);ctx=r.ctx;w=r.w;h=r.h;}
+  function box(n,active,dim){
+    const X=n.x*w-n.w/2, Y=n.y*h, W=n.w, H=n.h;
+    ctx.globalAlpha=dim?0.25:1;
+    ctx.fillStyle=n.c;ctx.strokeStyle=active?'#36e0d4':'#1d2a3a';ctx.lineWidth=active?2:1;
+    roundRect(ctx,X,Y,W,H,8,true,true);
+    ctx.fillStyle=active?'#eaf6ff':'#c4d2e2';ctx.font='11px '+mono();ctx.textAlign='center';
+    ctx.fillText(n.t,n.x*w,Y+16);
+    ctx.fillStyle='#7ee787';ctx.font='9.5px '+mono();
+    n.s.split('\n').forEach((ln,i)=>ctx.fillText(ln,n.x*w,Y+30+i*12));
+    ctx.textAlign='left';ctx.globalAlpha=1;ctx.lineWidth=1;
+  }
+  function draw(){
+    setup();ctx.clearRect(0,0,w,h);
+    // edges
+    edges.forEach((e,i)=>{
+      const a=nodes[e[0]],b=nodes[e[1]];
+      const on=step>Math.max(e[0],e[1]);
+      ctx.strokeStyle=on?'#36e0d4':'#16222f';ctx.lineWidth=on?2:1;ctx.globalAlpha=on?0.8:0.4;
+      ctx.beginPath();ctx.moveTo(a.x*w,a.y*h+a.h);ctx.lineTo(b.x*w,b.y*h);ctx.stroke();ctx.globalAlpha=1;ctx.lineWidth=1;
+    });
+    nodes.forEach((n,i)=>box(n,i===step,i>step));
+    ctx.fillStyle='#5b7088';ctx.font='10px '+mono();ctx.textAlign='center';
+    ctx.fillText('step '+(Math.min(step,4)+1)+' / 5',w/2,h-6);ctx.textAlign='left';
+    if(playing){t+=0.016;if(t>=1){t=0;step++;if(step>=nodes.length){playing=false;step=nodes.length-1;}}raf=requestAnimationFrame(draw);}
+  }
+  document.getElementById('kyPlay').onclick=()=>{if(step>=nodes.length-1){step=0;}playing=true;t=0;cancelAnimationFrame(raf);draw();};
+  document.getElementById('kyReset').onclick=()=>{playing=false;step=0;t=0;cancelAnimationFrame(raf);draw();};
+  anims.crypto={start:()=>{step=0;playing=false;draw();},stop:()=>{playing=false;cancelAnimationFrame(raf);}};
+  window.addEventListener('resize',()=>{if(current==='crypto')draw();});
+})();
+
+/* ===================== PERF CROSSOVER ===================== */
+(function(){
+  const cv=document.getElementById('perfCv');let ctx,w,h;
+  const sl=document.getElementById('lossSlider'),lv=document.getElementById('lossVal');
+  const E={p2:document.getElementById('p2'),p3:document.getElementById('p3'),adv:document.getElementById('pAdv'),note:document.getElementById('perfNote')};
+  function setup(){const r=fit(cv);ctx=r.ctx;w=r.w;h=r.h;}
+  // model: H2 (single TCP, CUBIC) suffers super-linearly with loss; H3 per-stream degrades gently
+  function h2time(loss){return 8 + Math.pow(loss,2.05)*0.62;}      // seconds (toy model tuned to 12%→~113)
+  function h3time(loss){return 8 + Math.pow(loss,1.18)*0.95;}      // gentler
+  function draw(){
+    setup();ctx.clearRect(0,0,w,h);
+    const pad=40,gx=pad,gy=h-30,gw=w-pad-16,gh=h-30-16;
+    ctx.strokeStyle='#1d2a3a';ctx.beginPath();ctx.moveTo(gx,12);ctx.lineTo(gx,gy);ctx.lineTo(gx+gw,gy);ctx.stroke();
+    ctx.fillStyle='#5b7088';ctx.font='9px '+mono();ctx.textAlign='center';
+    ctx.fillText('packet loss % →',gx+gw/2,h-6);ctx.save();ctx.translate(11,h/2);ctx.rotate(-Math.PI/2);ctx.fillText('completion time',0,0);ctx.restore();ctx.textAlign='left';
+    const maxL=14, maxT=h2time(14)*1.05;
+    // grid
+    for(let i=1;i<=4;i++){const yy=12+(gy-12)*i/4;ctx.strokeStyle='#0f1a27';ctx.beginPath();ctx.moveTo(gx,yy);ctx.lineTo(gx+gw,yy);ctx.stroke();}
+    function curve(fn,col){ctx.strokeStyle=col;ctx.lineWidth=2.4;ctx.beginPath();
+      for(let l=0;l<=maxL;l+=0.25){const x=gx+gw*(l/maxL),y=12+gh*(1-fn(l)/maxT);l?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.stroke();ctx.lineWidth=1;}
+    curve(h2time,'#ffb454');curve(h3time,'#7ee787');
+    // current loss marker
+    const loss=+sl.value;const x=gx+gw*(loss/maxL);
+    ctx.strokeStyle='#36e0d4';ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(x,12);ctx.lineTo(x,gy);ctx.stroke();ctx.setLineDash([]);
+    [['#ffb454',h2time(loss)],['#7ee787',h3time(loss)]].forEach(([c,v])=>{const y=12+gh*(1-v/maxT);ctx.fillStyle=c;ctx.beginPath();ctx.arc(x,y,4,0,7);ctx.fill();});
+    // labels
+    ctx.fillStyle='#ffb454';ctx.font='10px '+mono();ctx.fillText('HTTP/2',gx+gw-54,12+gh*(1-h2time(maxL*0.92)/maxT));
+    ctx.fillStyle='#7ee787';ctx.fillText('HTTP/3',gx+gw-54,12+gh*(1-h3time(maxL*0.92)/maxT)+14);
+  }
+  function update(){
+    const loss=+sl.value;lv.textContent=loss+'%';
+    const a=h2time(loss),b=h3time(loss);
+    E.p2.textContent=a.toFixed(1)+'s';E.p3.textContent=b.toFixed(1)+'s';
+    const adv=((a-b)/a*100);
+    E.adv.textContent=(adv>=0?'+':'')+adv.toFixed(0)+'%';
+    E.adv.style.color=adv>5?'#7ee787':adv<-1?'#ff5a6a':'#8aa0b6';
+    if(loss<=1)E.note.textContent='Near-zero loss: the curves nearly touch — and on a real fast link HTTP/3 can actually be slower here because of its ~2× CPU per-packet cost. Protocol choice should be measured, not assumed.';
+    else if(loss<8)E.note.textContent='Moderate loss: HTTP/3 pulls ahead as TCP\'s single ordered stream starts stalling all multiplexed streams on each loss.';
+    else E.note.textContent='High loss (>8%): HTTP/3 wins decisively. Matches the measured 12%-loss result — 113.42 s (H2) vs 20.98 s (H3), an 81.5% improvement. This is the mobile/lossy-Wi-Fi regime where QUIC shines.';
+    draw();
+  }
+  sl.addEventListener('input',update);
+  anims.perf={start:update,stop:()=>{}};
+  window.addEventListener('resize',()=>{if(current==='perf')draw();});
+})();
+
+/* ===================== utils ===================== */
+function mono(){return 'ui-monospace,Menlo,Consolas,monospace';}
+function roundRect(ctx,x,y,w,h,r,fill,stroke){
+  if(w<2*r)r=w/2;if(h<2*r)r=h/2;
+  ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();
+  if(fill)ctx.fill();if(stroke)ctx.stroke();
+}
+
+/* boot */
+anims.intro.start();
+</script>
+</body>
+</html>

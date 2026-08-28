@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WebRTC, understood — from first principles to the wire</title>
+<meta name="description" content="A complete, layered explanation of how WebRTC works: skim the intuition or expand the deep dives. Interactive demos for NAT traversal, head-of-line blocking, adaptive bitrate, and SDP.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0c0f13; --bg-1:#11151b; --bg-2:#161c24; --bg-3:#1c242e;
+    --line:rgba(255,255,255,0.08); --line-2:rgba(255,255,255,0.14);
+    --tx:#e9e7e1; --tx-2:#9aa4af; --tx-3:#646f7b;
+    --teal:#3fd2bd; --teal-dim:rgba(63,210,189,0.14);
+    --green:#8fce6e; --green-dim:rgba(143,206,110,0.14);
+    --amber:#f2a44a; --amber-dim:rgba(242,164,74,0.14);
+    --red:#e0654f; --red-dim:rgba(224,101,79,0.14);
+    --blue:#7fb6ff; --blue-dim:rgba(127,182,255,0.12);
+    --font-display:'Fraunces',Georgia,'Times New Roman',serif;
+    --font-body:'Hanken Grotesk',-apple-system,system-ui,sans-serif;
+    --font-mono:'JetBrains Mono',ui-monospace,'SFMono-Regular',monospace;
+    --r:10px; --maxw:780px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--tx);font-family:var(--font-body);font-size:18px;line-height:1.72;
+    -webkit-font-smoothing:antialiased;
+    background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+    background-size:46px 46px;background-position:center top;}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:radial-gradient(circle at 50% -10%,rgba(63,210,189,0.10),transparent 55%),radial-gradient(circle at 92% 100%,rgba(242,164,74,0.06),transparent 45%);}
+  ::selection{background:var(--teal-dim);color:#fff}
+  #prog{position:fixed;top:0;left:0;height:2px;width:0;background:var(--teal);z-index:60;transition:width .08s linear}
+
+  nav{position:sticky;top:0;z-index:50;backdrop-filter:blur(12px);background:rgba(12,15,19,0.74);border-bottom:1px solid var(--line)}
+  .nav-in{max-width:1140px;margin:0 auto;display:flex;align-items:center;gap:24px;padding:13px 24px}
+  .brand{font-family:var(--font-mono);font-size:13px;letter-spacing:.05em;color:var(--tx);text-decoration:none;white-space:nowrap;display:flex;align-items:center;gap:8px}
+  .brand b{color:var(--teal);font-weight:500}
+  .nav-links{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;margin-left:auto}
+  .nav-links::-webkit-scrollbar{display:none}
+  .nav-links a{font-family:var(--font-mono);font-size:12px;color:var(--tx-2);text-decoration:none;padding:6px 9px;border-radius:6px;white-space:nowrap;transition:.2s}
+  .nav-links a:hover{color:var(--tx);background:var(--bg-2)}
+
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px;position:relative;z-index:1}
+  section{padding:60px 0;border-top:1px solid var(--line)}
+  header.hero{padding:92px 0 64px;position:relative;z-index:1}
+  .kicker{font-family:var(--font-mono);font-size:12.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--teal);margin-bottom:22px}
+  h1{font-family:var(--font-display);font-weight:500;font-size:clamp(40px,7vw,74px);line-height:1.03;letter-spacing:-0.015em;margin-bottom:24px}
+  h1 em{font-style:italic;color:var(--amber)}
+  .lede{font-size:clamp(19px,2.4vw,22px);color:var(--tx-2);max-width:640px}
+
+  h2{font-family:var(--font-display);font-weight:500;font-size:clamp(28px,4.4vw,40px);line-height:1.1;letter-spacing:-0.01em;margin-bottom:8px}
+  .sec-tag{font-family:var(--font-mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--tx-3);margin-bottom:14px;display:block}
+  h3{font-family:var(--font-body);font-weight:600;font-size:21px;margin:34px 0 6px}
+  p{margin:16px 0;color:#d6d4ce}
+  p.sub{color:var(--tx-2);margin-top:2px;margin-bottom:24px;font-size:19px}
+  strong{color:var(--tx);font-weight:600}
+  em{color:#e9e7e1}
+  code{font-family:var(--font-mono);font-size:.84em;background:var(--bg-2);border:1px solid var(--line);padding:1px 6px;border-radius:5px;color:var(--teal)}
+  a.inline{color:var(--teal);text-decoration:none;border-bottom:1px solid var(--teal-dim)}
+
+  /* tldr chip */
+  .tldr{display:flex;gap:12px;align-items:flex-start;background:var(--teal-dim);border:1px solid rgba(63,210,189,0.3);
+    border-radius:var(--r);padding:14px 18px;margin:0 0 26px;font-size:15.5px;color:var(--tx)}
+  .tldr b{color:var(--teal);font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;white-space:nowrap;padding-top:3px}
+
+  .key{border-left:3px solid var(--amber);background:linear-gradient(90deg,var(--amber-dim),transparent);padding:18px 22px;margin:26px 0;border-radius:0 var(--r) var(--r) 0}
+  .key .k-lab{font-family:var(--font-mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--amber);margin-bottom:6px}
+  .key p{margin:0;color:var(--tx)}
+
+  /* analogy */
+  .analogy{background:var(--bg-1);border:1px dashed var(--line-2);border-radius:var(--r);padding:16px 20px;margin:24px 0}
+  .analogy .a-lab{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--blue);margin-bottom:6px}
+  .analogy p{margin:0;color:var(--tx-2);font-size:16px}
+
+  /* expandable deep dive */
+  details.dd{border:1px solid var(--line);border-radius:var(--r);margin:22px 0;background:var(--bg-1);overflow:hidden}
+  details.dd[open]{border-color:var(--line-2)}
+  details.dd summary{list-style:none;cursor:pointer;padding:14px 18px;display:flex;align-items:center;gap:10px;
+    font-family:var(--font-mono);font-size:13px;letter-spacing:.04em;color:var(--teal);user-select:none}
+  details.dd summary::-webkit-details-marker{display:none}
+  details.dd summary .chev{transition:transform .2s;color:var(--tx-3)}
+  details.dd[open] summary .chev{transform:rotate(90deg)}
+  details.dd summary:hover{background:var(--bg-2)}
+  .dd-body{padding:4px 20px 18px;border-top:1px solid var(--line)}
+  .dd-body p:first-child{margin-top:14px}
+  .dd-body p{font-size:16px}
+
+  /* generic cards grid */
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:28px 0}
+  .card{background:var(--bg-1);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+  .card .num{font-family:var(--font-mono);font-size:12px;color:var(--teal);margin-bottom:8px}
+  .card h4{font-size:16px;font-weight:600;margin-bottom:4px}
+  .card p{font-size:14.5px;color:var(--tx-2);margin:0;line-height:1.55}
+  .card .spawn{font-family:var(--font-mono);font-size:11.5px;color:var(--amber);margin-top:10px;display:block}
+
+  /* start-here paths */
+  .paths{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:24px 0}
+  .pth{border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;background:var(--bg-1)}
+  .pth .pi{font-family:var(--font-mono);font-size:12px;margin-bottom:6px}
+  .pth.skim .pi{color:var(--teal)} .pth.deep .pi{color:var(--amber)}
+  .pth h4{font-size:17px;margin-bottom:4px}
+  .pth p{margin:0;font-size:14.5px;color:var(--tx-2)}
+
+  /* code blocks */
+  pre{background:#0a0d11;border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;overflow-x:auto;margin:18px 0;
+    font-family:var(--font-mono);font-size:13px;line-height:1.65;color:#cdd6e0}
+  pre .cm{color:var(--tx-3)} pre .kw{color:var(--amber)} pre .fn{color:var(--teal)} pre .st{color:var(--green)} pre .var{color:var(--blue)}
+
+  /* demo shell */
+  .demo{background:var(--bg-1);border:1px solid var(--line-2);border-radius:14px;padding:22px;margin:22px 0}
+  .demo-head{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:18px}
+  .btn{font-family:var(--font-body);font-size:14px;font-weight:500;border-radius:8px;cursor:pointer;border:1px solid var(--line-2);
+    background:var(--bg-3);color:var(--tx);padding:9px 16px;height:38px;display:inline-flex;align-items:center;gap:7px;transition:.18s}
+  .btn:hover{background:var(--bg-2);border-color:var(--teal)}
+  .btn.primary{background:var(--teal);color:#06231f;border-color:var(--teal);font-weight:600}
+  .btn.primary:hover{filter:brightness(1.08)}
+  .btn:disabled{opacity:.45;cursor:default}
+  .demo-cap{font-size:14.5px;color:var(--tx-2);margin-top:16px;line-height:1.55;min-height:1.2em}
+
+  /* HOL lanes */
+  .lane{margin:14px 0}
+  .lane-label{font-family:var(--font-mono);font-size:12.5px;color:var(--tx-2);margin-bottom:8px;display:flex;justify-content:space-between}
+  .lane-label .tag{font-size:11px}
+  .lane-track{display:flex;gap:8px;flex-wrap:wrap;min-height:46px;align-items:center}
+  .pk{width:44px;height:38px;border-radius:8px;border:1px solid var(--line-2);background:var(--bg-3);display:flex;align-items:center;justify-content:center;
+    font-family:var(--font-mono);font-size:14px;color:var(--tx-3);opacity:.32;transform:scale(.9);transition:.35s}
+  .pk.in{opacity:1;transform:scale(1);border-color:var(--teal);color:var(--teal);background:var(--teal-dim)}
+  .pk.buf{opacity:.6;border-color:var(--amber);color:var(--amber);background:transparent;border-style:dashed}
+  .pk.lost{opacity:.5;border-color:var(--red);color:var(--red);border-style:dashed;text-decoration:line-through}
+  .pk.wait{opacity:1;border-color:var(--amber);color:var(--amber)}
+  .lane-status{font-family:var(--font-mono);font-size:12px;margin-top:8px;min-height:1.1em;color:var(--tx-3)}
+
+  .rv{opacity:0;transform:translateY(16px);transition:opacity .7s ease,transform .7s ease}
+  .rv.in{opacity:1;transform:none}
+
+  @media (max-width:620px){
+    body{font-size:16.5px;background-size:34px 34px}
+    .paths{grid-template-columns:1fr}
+    section{padding:46px 0}
+    .demo{padding:16px}
+  }
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;scroll-behavior:auto!important}.rv{opacity:1;transform:none}}
+
+  /* ICE simulator */
+  .sim-controls{display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px;margin-bottom:18px}
+  .ctl{display:flex;flex-direction:column;gap:6px}
+  .ctl label{font-family:var(--font-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--tx-3)}
+  .demo select{font-family:var(--font-body);font-size:14px;background:var(--bg-3);color:var(--tx);border:1px solid var(--line-2);border-radius:8px;padding:8px 12px;min-width:150px;cursor:pointer}
+  .chk{display:flex;align-items:center;gap:9px;font-size:14px;color:var(--tx-2);cursor:pointer;height:38px}
+  .chk input{width:17px;height:17px;accent-color:var(--amber);cursor:pointer}
+  .legend{display:flex;flex-wrap:wrap;gap:18px;margin:14px 0 18px}
+  .lg{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--tx-2);font-family:var(--font-mono)}
+  .sw{width:16px;height:3px;border-radius:2px;display:inline-block}
+  .ice-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 15px;border:1px solid var(--line);border-radius:9px;margin-bottom:8px;background:var(--bg-2)}
+  .ice-row .lab{font-size:14.5px} .ice-row .lab .hint{color:var(--tx-3);font-size:12.5px;font-family:var(--font-mono)}
+  .ice-row .rt{display:flex;align-items:center;gap:12px}
+  .sel{font-family:var(--font-mono);font-size:11.5px;color:var(--teal);font-weight:500}
+  .stt{font-family:var(--font-mono);font-size:12.5px;color:var(--tx-3);min-width:64px;text-align:right}
+  .verdict{padding:16px 18px;border-radius:11px;background:var(--bg-2);border:1px solid var(--line);font-size:15px;line-height:1.6;color:var(--tx-2);margin-top:6px}
+  .verdict b{color:var(--tx)} .verdict i{color:var(--amber);font-style:normal}
+  .verdict.ok{border-color:var(--teal);background:var(--teal-dim)} .verdict.warn{border-color:var(--amber);background:var(--amber-dim)}
+  @keyframes flow{to{stroke-dashoffset:-24}} @keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}} @keyframes dash{to{stroke-dashoffset:-18}}
+  .active-path{stroke-dasharray:6 6;animation:flow 1s linear infinite} .pulsing{animation:pulse 1s ease-in-out infinite}
+  .pkt{stroke-dasharray:3 14;animation:dash 1.1s linear infinite}
+
+  /* sliders / playground */
+  .play{display:grid;grid-template-columns:1fr;gap:18px}
+  .sl{display:flex;flex-direction:column;gap:6px}
+  .sl .row{display:flex;justify-content:space-between;align-items:baseline}
+  .sl label{font-family:var(--font-mono);font-size:12px;color:var(--tx-2)}
+  .sl .val{font-family:var(--font-mono);font-size:13px;color:var(--teal)}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:2px;background:var(--bg-3);outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--teal);cursor:pointer;border:2px solid var(--bg)}
+  input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--teal);cursor:pointer;border:2px solid var(--bg)}
+  .readout{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:6px}
+  .ro{background:var(--bg-2);border-radius:9px;padding:14px;text-align:center}
+  .ro .l{font-family:var(--font-mono);font-size:11px;color:var(--tx-3);text-transform:uppercase;letter-spacing:.08em}
+  .ro .v{font-family:var(--font-display);font-size:26px;color:var(--tx);margin-top:4px}
+  .ro .v.teal{color:var(--teal)} .ro .v.amber{color:var(--amber)} .ro .v.red{color:var(--red)}
+  .qbar{height:10px;border-radius:6px;background:var(--bg-3);overflow:hidden;margin-top:14px}
+  .qbar>span{display:block;height:100%;background:var(--teal);width:50%;transition:.3s;border-radius:6px}
+
+  /* SDP explorer */
+  .sdp{display:grid;grid-template-columns:1.1fr 1fr;gap:16px}
+  .sdp-code{background:#0a0d11;border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;font-family:var(--font-mono);font-size:12.5px;line-height:1.85;overflow-x:auto}
+  .sdp-line{display:block;color:var(--tx-2);white-space:pre;border-radius:4px;padding:0 4px;margin:0 -4px}
+  .sdp-line.click{cursor:pointer} .sdp-line.click:hover{background:var(--bg-2);color:var(--tx)}
+  .sdp-line.active{background:var(--teal-dim);color:var(--tx)}
+  .sdp-line .hl{color:var(--teal)} .sdp-line .hl2{color:var(--amber)}
+  .sdp-explain{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;font-size:14.5px;line-height:1.6;color:var(--tx-2);align-self:start}
+  .sdp-explain b{color:var(--tx);font-family:var(--font-mono);font-size:13px}
+
+  /* state machine */
+  .states{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
+  .st-chip{font-family:var(--font-mono);font-size:13px;padding:9px 14px;border-radius:8px;border:1px solid var(--line-2);background:var(--bg-2);color:var(--tx-2);cursor:pointer;transition:.18s}
+  .st-chip:hover{border-color:var(--teal);color:var(--tx)} .st-chip.active{background:var(--teal-dim);border-color:var(--teal);color:var(--teal)}
+  .st-explain{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;font-size:14.5px;line-height:1.6;color:var(--tx-2)}
+
+  /* protocol stack */
+  .stack{display:flex;flex-direction:column;gap:8px;margin:28px 0}
+  .layer{border:1px solid var(--line);border-radius:var(--r);padding:14px 18px;background:var(--bg-1);display:flex;justify-content:space-between;align-items:baseline;gap:14px;flex-wrap:wrap;transition:.2s}
+  .layer:hover{border-color:var(--line-2);background:var(--bg-2)}
+  .layer .ln{font-family:var(--font-mono);font-weight:500;font-size:15px} .layer .ld{color:var(--tx-2);font-size:14px}
+  .layer.split{display:grid;grid-template-columns:1fr 1fr;gap:8px;background:transparent;border:none;padding:0}
+  .layer.split>div{border:1px solid var(--line);border-radius:var(--r);padding:14px 18px;background:var(--bg-1)}
+  .l-teal .ln{color:var(--teal)} .l-amber .ln{color:var(--amber)} .l-blue .ln{color:var(--blue)} .l-green .ln{color:var(--green)} .l-gray .ln{color:var(--tx-2)}
+
+  /* timeline */
+  .timeline{margin:28px 0;position:relative;padding-left:30px}
+  .timeline::before{content:"";position:absolute;left:7px;top:6px;bottom:6px;width:2px;background:var(--line-2)}
+  .tl{position:relative;padding:0 0 22px 0}
+  .tl::before{content:"";position:absolute;left:-30px;top:4px;width:16px;height:16px;border-radius:50%;background:var(--bg);border:2px solid var(--teal)}
+  .tl:last-child{padding-bottom:0}
+  .tl .ts{font-family:var(--font-mono);font-size:12px;color:var(--teal)} .tl h4{font-size:17px;font-weight:600;margin:2px 0 3px} .tl p{margin:0;font-size:15px;color:var(--tx-2);line-height:1.55}
+
+  /* feedback loop */
+  .loop{display:grid;grid-template-columns:1fr 1fr;margin:26px 0;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+  .loop .node{padding:20px;text-align:center} .loop .node.l{border-right:1px solid var(--line);background:var(--teal-dim)} .loop .node.r{background:var(--blue-dim)}
+  .loop .node .nt{font-family:var(--font-mono);font-size:14px;margin-bottom:6px} .loop .node.l .nt{color:var(--teal)} .loop .node.r .nt{color:var(--blue)}
+  .loop .node .nd{font-size:13.5px;color:var(--tx-2)}
+  .loop .frow{grid-column:1/3;border-top:1px solid var(--line);padding:11px 18px;text-align:center;font-family:var(--font-mono);font-size:12.5px;color:var(--tx-2)}
+  .loop .frow.fwd{color:var(--teal)} .loop .frow.back{color:var(--amber)}
+
+  /* table */
+  .tbl{width:100%;border-collapse:collapse;margin:22px 0;font-size:14.5px}
+  .tbl th,.tbl td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  .tbl th{font-family:var(--font-mono);font-size:12px;color:var(--tx-3);text-transform:uppercase;letter-spacing:.06em;font-weight:400}
+  .tbl td:first-child{font-family:var(--font-mono);color:var(--teal);font-size:13px;white-space:nowrap}
+  .tbl td{color:var(--tx-2)}
+
+  /* jitter */
+  .jit{display:flex;flex-direction:column;gap:10px;margin:24px 0}
+  .jit .jrow{display:flex;align-items:center;gap:12px}
+  .jit .jlab{font-family:var(--font-mono);font-size:12px;color:var(--tx-2);width:96px;flex-shrink:0}
+  .jit .jtrack{flex:1;height:34px;border-radius:8px;background:var(--bg-2);position:relative;overflow:hidden}
+  .jdot{position:absolute;top:7px;width:20px;height:20px;border-radius:6px;background:var(--teal-dim);border:1px solid var(--teal);
+    display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:11px;color:var(--teal)}
+  @keyframes drift{from{left:-24px}to{left:100%}}
+
+  /* glossary */
+  .gloss{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin:26px 0}
+  .gl{background:var(--bg-1);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+  .gl dt{font-family:var(--font-mono);font-size:13px;color:var(--teal);margin-bottom:3px}
+  .gl dd{font-size:14px;color:var(--tx-2);line-height:1.5}
+
+  footer{border-top:1px solid var(--line);padding:46px 0 70px;color:var(--tx-3);font-size:14px}
+  footer .wrap{max-width:var(--maxw)} footer a{color:var(--tx-2);text-decoration:none;border-bottom:1px solid var(--line)} footer code{color:var(--amber)}
+
+  @media (max-width:620px){.sdp{grid-template-columns:1fr}.readout{grid-template-columns:1fr}.loop{grid-template-columns:1fr}.loop .node.l{border-right:none;border-bottom:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<div id="prog"></div>
+<nav><div class="nav-in">
+  <a class="brand" href="#top"><span>◆</span> <span>web<b>rtc</b> · understood</span></a>
+  <div class="nav-links">
+    <a href="#start">start</a><a href="#problem">problem</a><a href="#transport">transport</a><a href="#nat">nat</a>
+    <a href="#sim">ice sim</a><a href="#signaling">signaling</a><a href="#sdp">sdp</a><a href="#security">security</a>
+    <a href="#codecs">codecs</a><a href="#media">media</a><a href="#loss">loss</a><a href="#congestion">congestion</a>
+    <a href="#data">data</a><a href="#states">states</a><a href="#api">code</a><a href="#stack">stack</a>
+    <a href="#lifecycle">lifecycle</a><a href="#scale">scale</a><a href="#glossary">glossary</a>
+  </div>
+</div></nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <div class="kicker rv">Skim the intuition · expand for the wire-level depth</div>
+    <h1 class="rv">WebRTC, <em>actually</em> understood.</h1>
+    <p class="lede rv">Two devices sending real-time audio, video and data directly to each other, across a hostile internet, fully encrypted, inside a browser. Read the plain-language version top to bottom — then open any “under the hood” panel to go as deep as you want.</p>
+  </div>
+</header>
+
+<section id="start">
+  <div class="wrap">
+    <span class="sec-tag rv">00 — how to read this</span>
+    <h2 class="rv">Two ways through</h2>
+    <p class="sub rv">The page is built in two layers. Use whichever depth you need — or both, on a second pass.</p>
+    <div class="paths rv">
+      <div class="pth skim"><div class="pi">◷ the 15-minute path</div><h4>Read the prose, play the demos</h4><p>Every section opens with plain language and a one-line takeaway. The four interactive demos make the hard parts click. Skip the grey panels.</p></div>
+      <div class="pth deep"><div class="pi">⌥ the deep path</div><h4>Open every “under the hood”</h4><p>Expandable panels hold the wire-level detail: header layouts, ICE priority math, SDP lines, codec internals, real API code. This is the principal-engineer version.</p></div>
+    </div>
+    <p class="rv">One sentence to anchor everything: <strong>WebRTC gives you nothing for free and re-solves everything plain UDP threw away — but only as much as live media actually needs, and no more.</strong> Hold that, and each piece below becomes the obvious answer to a problem you can predict.</p>
+  </div>
+</section>
+
+<section id="problem">
+  <div class="wrap">
+    <span class="sec-tag rv">01 — why it's hard</span>
+    <h2 class="rv">You cannot just open a socket</h2>
+    <div class="tldr rv"><b>TL;DR</b><span>Connecting two browsers fails for four independent reasons at once. Each reason is the seed of a whole WebRTC subsystem.</span></div>
+    <p class="rv">Your first instinct is <code>socket.connect(ip, port)</code>. It dies instantly — and the four ways it dies are the map of everything that follows.</p>
+    <div class="cards rv">
+      <div class="card"><div class="num">force 1</div><h4>You can't find the peer</h4><p>You don't know their address, and even if you did, NAT makes it unreachable.</p><span class="spawn">→ ICE · STUN · TURN</span></div>
+      <div class="card"><div class="num">force 2</div><h4>You can't introduce them</h4><p>Two strangers behind NAT can't reach each other to even begin. Someone must broker it.</p><span class="spawn">→ signaling · SDP</span></div>
+      <div class="card"><div class="num">force 3</div><h4>TCP is the wrong pipe</h4><p>Reliable, ordered delivery is poison for live media. UDP is right but gives you nothing.</p><span class="spawn">→ DTLS · SRTP · SCTP</span></div>
+      <div class="card"><div class="num">force 4</div><h4>The network fights back</h4><p>Packets drop, bandwidth swings, paths jitter. You must adapt every second.</p><span class="spawn">→ RTP · RTCP · GCC</span></div>
+    </div>
+    <p class="rv">WebRTC isn't one protocol — it's a dozen older ones (mostly from the 2000s VoIP world) bolted together behind a browser API. The rest of this page takes the four forces in order of how fundamental they are.</p>
+  </div>
+</section>
+
+<section id="transport">
+  <div class="wrap">
+    <span class="sec-tag rv">02 — transport</span>
+    <h2 class="rv">Why UDP, not TCP</h2>
+    <div class="tldr rv"><b>TL;DR</b><span>For live media a late packet is worse than a lost one. TCP makes everything wait for a lost packet; UDP lets you skip it. WebRTC builds its own reliability on UDP — exactly as much as it needs.</span></div>
+    <p class="rv">TCP guarantees in-order, reliable delivery. To do that it has a receive buffer: if packet&nbsp;#3 is lost but #4, #5, #6 arrive, TCP refuses to hand them to your app until #3 is retransmitted. That's <strong>head-of-line blocking</strong>. For a download it's correct; for a live call it's a disaster — by the time the resent #3 arrives a round-trip later, the moment is gone. Press the button and watch the two transports diverge.</p>
+
+    <div class="demo rv">
+      <div class="demo-head"><button class="btn primary" id="hol-go">▶ Send 6 packets · #3 gets lost</button><button class="btn" id="hol-reset">↻</button></div>
+      <div class="lane">
+        <div class="lane-label"><span>TCP — reliable, ordered</span><span class="tag" style="color:var(--red)">waits for #3</span></div>
+        <div class="lane-track" id="tcp-track"></div>
+        <div class="lane-status" id="tcp-status">idle</div>
+      </div>
+      <div class="lane">
+        <div class="lane-label"><span>UDP — fire and forget</span><span class="tag" style="color:var(--teal)">skips #3</span></div>
+        <div class="lane-track" id="udp-track"></div>
+        <div class="lane-status" id="udp-status">idle</div>
+      </div>
+      <div class="demo-cap" id="hol-cap">TCP holds packets 4–6 hostage until the lost one is retransmitted. UDP plays everything that arrived and accepts a tiny glitch where #3 should be.</div>
+    </div>
+
+    <div class="key rv"><div class="k-lab">the central truth</div><p>For real-time media, <strong>freshness beats completeness</strong> — because a late packet also delays everything queued behind it.</p></div>
+    <p class="rv">So WebRTC builds on <strong>UDP</strong>: no ordering, no retransmission, no congestion control, no connection state. That blankness is the feature. WebRTC adds back precisely the reliability each stream needs — selective retransmission and FEC for video, full reliability for a file transfer — and nothing it doesn't.</p>
+
+    <details class="dd rv"><summary><span class="chev">▸</span> Under the hood — what UDP actually is, and the TCP costs beyond head-of-line</summary>
+      <div class="dd-body">
+        <p>UDP adds an 8-byte header to an IP packet: source port, destination port, length, checksum. That's the entire protocol — it's a thin demultiplexing shim so the OS knows which socket a datagram belongs to. No sequence numbers, no acknowledgements, no windows, no state machine.</p>
+        <p>TCP hurts live media in three ways, not one. <strong>Head-of-line blocking</strong> is the headline. But TCP's <strong>congestion control</strong> (slow-start, AIMD) is tuned for bulk throughput and reacts to a single loss by halving its window, which crushes a video bitrate. And TCP induces <strong>bufferbloat</strong>: it keeps the pipe full, so routers queue its bytes and add tens to hundreds of milliseconds of standing latency. Media wants the opposite — keep queues empty, keep delay low, tolerate a little loss.</p>
+        <p>When UDP is completely blocked, WebRTC falls back to TCP — usually tunnelled through a TURN server on port 443 with TLS, so it looks like ordinary HTTPS to a firewall. It's the unhappy path: you accept TCP's latency penalties because the alternative is no connection at all.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section id="nat">
+  <div class="wrap">
+    <span class="sec-tag rv">03 — connectivity</span>
+    <h2 class="rv">NAT, and the four flavors that decide your fate</h2>
+    <div class="tldr rv"><b>TL;DR</b><span>Your device shares one public IP via NAT and never learns its own public address. STUN teaches it. TURN relays when STUN can't. ICE tries all of them and keeps what works.</span></div>
+    <p class="rv">IPv4 ran out of addresses, so <strong>NAT</strong> lets a whole home share one public IP. Your router rewrites your private <code>192.168.1.5:50000</code> to <code>1.2.3.4:62000</code> on the way out and reverses it on replies. This breaks peer-to-peer three ways: you never learn your own public mapping, your private address is meaningless on the internet, and the router drops any inbound packet that doesn't match a connection you started.</p>
+    <div class="analogy rv"><div class="a-lab">analogy</div><p>NAT is an office receptionist. Outsiders can't dial your desk directly; they reach the front desk, which routes calls it's expecting. The kind of receptionist you have — how strict they are about who's allowed to call back — is your <em>NAT type</em>, and it decides whether a direct connection is even possible.</p></div>
+    <p class="rv">There are four classic types, increasingly strict about who may send to a mapping:</p>
+    <table class="tbl rv">
+      <tr><th>NAT type</th><th>Who can send back to your mapping</th><th>Direct P2P?</th></tr>
+      <tr><td>full cone</td><td>anyone, once the mapping exists</td><td>easy</td></tr>
+      <tr><td>restricted cone</td><td>only IPs you've sent to</td><td>works (both punch)</td></tr>
+      <tr><td>port-restricted</td><td>only the exact IP:port you've sent to</td><td>works (both punch)</td></tr>
+      <tr><td>symmetric</td><td>a new mapping per destination — STUN's answer is wrong</td><td>fails → relay</td></tr>
+    </table>
+    <p class="rv">The villain is <strong>symmetric NAT</strong>: it hands out a different public port for every destination, so the address STUN reported (for the STUN server) isn't the one your peer will hit. That single behavior is why TURN relays must exist.</p>
+
+    <details class="dd rv"><summary><span class="chev">▸</span> Under the hood — the modern framing: mapping vs filtering behavior</summary>
+      <div class="dd-body">
+        <p>The classic four-type taxonomy (RFC&nbsp;3489) is convenient but imprecise. The modern model (RFC&nbsp;4787 / 5780) splits a NAT's behavior into two independent axes. <strong>Mapping behavior</strong>: does the NAT reuse the same external port for the same internal socket regardless of destination (endpoint-independent), or allocate a new one per destination (address-and-port-dependent — the “symmetric” case)? <strong>Filtering behavior</strong>: which external senders are allowed to reach an existing mapping (endpoint-independent, address-restricted, or address-and-port-restricted)?</p>
+        <p>Hole punching works whenever mappings are endpoint-independent, because the address STUN observes is the address the peer will use. It fails when mapping is address-dependent, because the prediction is wrong. Carrier-grade NAT (CGNAT) used by mobile carriers is frequently address-dependent, which is why mobile-to-mobile calls relay more often than you'd hope.</p>
+      </div>
+    </details>
+
+    <h3 class="rv">STUN, TURN, ICE — in one breath</h3>
+    <p class="rv"><strong>STUN</strong> is a public server that replies “I see you at 1.2.3.4:62000,” teaching you your public mapping (your <em>server-reflexive candidate</em>) and punching a hole at the same time. <strong>TURN</strong> is a public relay both peers reach outbound; it shovels packets between them when direct fails — always works, but adds a hop and costs bandwidth. <strong>ICE</strong> is the orchestrator: it gathers every candidate (host, reflexive, relay), exchanges them, fires connectivity checks across every pair, and nominates the highest-priority pair that actually works.</p>
+
+    <details class="dd rv"><summary><span class="chev">▸</span> Under the hood — candidate priority math, agent roles, trickle, and ICE restart</summary>
+      <div class="dd-body">
+        <p><strong>Candidate types</strong>, best to worst: <em>host</em> (your local interface address), <em>server-reflexive / srflx</em> (your public mapping via STUN), <em>peer-reflexive / prflx</em> (discovered mid-check when a packet arrives from an unexpected address), and <em>relay</em> (via TURN). Priority is computed so type dominates:</p>
+        <pre><span class="cm">// RFC 8445 priority</span>
+priority = (2^24)*<span class="var">typePref</span> + (2^8)*<span class="var">localPref</span> + (256 - <span class="var">componentID</span>)
+<span class="cm">// typePref: host=126, prflx=110, srflx=100, relay=0</span></pre>
+        <p><strong>Roles.</strong> One agent is <em>controlling</em> (usually the offerer), the other <em>controlled</em>. Both run checks, but the controlling agent decides which succeeding pair to <em>nominate</em> as the final path. Connectivity checks are STUN Binding requests carried over each candidate pair, authenticated with the <code>ice-ufrag</code>/<code>ice-pwd</code> from the SDP.</p>
+        <p><strong>Trickle ICE</strong> sends candidates as they're discovered instead of waiting to gather them all, so checks start in parallel and connection time drops from seconds to a few hundred milliseconds. <strong>ICE restart</strong> generates fresh credentials and re-gathers when the path breaks (you switch from Wi-Fi to cellular), migrating the call without dropping it. <strong>ICE-lite</strong> is a stripped mode for servers with public IPs (like SFUs) that only respond to checks rather than gathering their own.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section id="sim">
+  <div class="wrap">
+    <span class="sec-tag rv">04 — interactive</span>
+    <h2 class="rv">Run ICE yourself</h2>
+    <p class="sub rv">Set each side's NAT, optionally block UDP, press connect. Watch ICE test host, then STUN-reflexive, then TURN-relay — and read why the winner won.</p>
+    <div class="demo rv">
+      <div class="sim-controls">
+        <div class="ctl"><label>Alice's NAT</label><select id="alice"><option value="open">Public (no NAT)</option><option value="cone" selected>Cone NAT</option><option value="symmetric">Symmetric NAT</option></select></div>
+        <div class="ctl"><label>Bob's NAT</label><select id="bob"><option value="open">Public (no NAT)</option><option value="cone" selected>Cone NAT</option><option value="symmetric">Symmetric NAT</option></select></div>
+        <label class="chk"><input type="checkbox" id="udp"> UDP blocked</label>
+        <button class="btn primary" id="go">▶ Connect</button>
+        <button class="btn" id="reset">↻</button>
+      </div>
+      <svg width="100%" viewBox="0 0 760 410" role="img" aria-label="Alice and Bob behind NAT routers with STUN and TURN servers and three candidate paths">
+        <path id="path-host" d="M170 326 C 310 404 440 404 590 326" fill="none" stroke="#646f7b" stroke-width="1.5" stroke-dasharray="4 5" opacity="0.18"/>
+        <path id="path-srflx" d="M250 302 C 340 214 420 214 510 302" fill="none" stroke="#646f7b" stroke-width="1.5" stroke-dasharray="4 5" opacity="0.18"/>
+        <path id="path-relay" d="M250 302 L600 80 M600 80 L510 302" fill="none" stroke="#646f7b" stroke-width="1.5" stroke-dasharray="4 5" opacity="0.18"/>
+        <g id="stun"><rect x="80" y="32" width="190" height="50" rx="9" fill="rgba(242,164,74,0.10)" stroke="#f2a44a" stroke-width="1"/>
+          <text x="175" y="54" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="14" fill="#f2a44a">STUN server</text>
+          <text x="175" y="71" text-anchor="middle" font-family="Hanken Grotesk,sans-serif" font-size="12.5" fill="#9aa4af">address discovery</text></g>
+        <g id="turn"><rect x="490" y="32" width="190" height="50" rx="9" fill="rgba(224,101,79,0.10)" stroke="#e0654f" stroke-width="1"/>
+          <text x="585" y="54" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="14" fill="#e0654f">TURN server</text>
+          <text x="585" y="71" text-anchor="middle" font-family="Hanken Grotesk,sans-serif" font-size="12.5" fill="#9aa4af">media relay</text></g>
+        <rect x="44" y="252" width="270" height="110" rx="14" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.12)"/>
+        <text x="64" y="278" font-family="Fraunces,serif" font-size="16" fill="#e9e7e1">Alice</text>
+        <text id="aliceNat" x="64" y="297" font-family="JetBrains Mono,monospace" font-size="12" fill="#9aa4af">Cone NAT</text>
+        <rect x="64" y="304" width="92" height="46" rx="8" fill="rgba(63,210,189,0.08)" stroke="rgba(63,210,189,0.5)"/>
+        <text x="110" y="331" text-anchor="middle" font-family="Hanken Grotesk,sans-serif" font-size="13" fill="#cfe9e4">laptop</text>
+        <rect x="186" y="304" width="106" height="46" rx="8" fill="rgba(127,182,255,0.07)" stroke="rgba(127,182,255,0.42)"/>
+        <text x="239" y="331" text-anchor="middle" font-family="Hanken Grotesk,sans-serif" font-size="13" fill="#cfe9e4">NAT router</text>
+        <rect x="446" y="252" width="270" height="110" rx="14" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.12)"/>
+        <text x="466" y="278" font-family="Fraunces,serif" font-size="16" fill="#e9e7e1">Bob</text>
+        <text id="bobNat" x="466" y="297" font-family="JetBrains Mono,monospace" font-size="12" fill="#9aa4af">Cone NAT</text>
+        <rect x="466" y="304" width="106" height="46" rx="8" fill="rgba(127,182,255,0.07)" stroke="rgba(127,182,255,0.42)"/>
+        <text x="519" y="331" text-anchor="middle" font-family="Hanken Grotesk,sans-serif" font-size="13" fill="#cfe9e4">NAT router</text>
+        <rect x="588" y="304" width="92" height="46" rx="8" fill="rgba(63,210,189,0.08)" stroke="rgba(63,210,189,0.5)"/>
+        <text x="634" y="331" text-anchor="middle" font-family="Hanken Grotesk,sans-serif" font-size="13" fill="#cfe9e4">laptop</text>
+      </svg>
+      <div class="legend">
+        <span class="lg"><span class="sw" style="background:#8fce6e"></span>host (direct)</span>
+        <span class="lg"><span class="sw" style="background:#3fd2bd"></span>STUN reflexive (direct P2P)</span>
+        <span class="lg"><span class="sw" style="background:#f2a44a"></span>TURN relay (fallback)</span>
+      </div>
+      <div class="ice-row" data-k="host"><span class="lab">1&nbsp;&nbsp;host candidate <span class="hint">· local address</span></span><span class="rt"><span class="sel" id="sel-host"></span><span class="stt" id="st-host">—</span></span></div>
+      <div class="ice-row" data-k="srflx"><span class="lab">2&nbsp;&nbsp;server-reflexive <span class="hint">· via STUN</span></span><span class="rt"><span class="sel" id="sel-srflx"></span><span class="stt" id="st-srflx">—</span></span></div>
+      <div class="ice-row" data-k="relay"><span class="lab">3&nbsp;&nbsp;relay candidate <span class="hint">· via TURN</span></span><span class="rt"><span class="sel" id="sel-relay"></span><span class="stt" id="st-relay">—</span></span></div>
+      <div class="verdict" id="verdict">Pick NAT types and press connect.</div>
+    </div>
+    <p class="rv">Four runs worth trying: <strong>Public + Public</strong> → host wins (lowest latency). <strong>Cone + Cone</strong> → reflexive wins (direct P2P, the happy case). <strong>One side Symmetric</strong> → collapses to relay (one is enough). <strong>Cone + Cone, UDP blocked</strong> → relay over TCP/443. Two different failures, same fallback — that's the robustness ICE buys.</p>
+  </div>
+</section>
+
+<section id="signaling">
+  <div class="wrap">
+    <span class="sec-tag rv">05 — signaling</span>
+    <h2 class="rv">The hole left in the spec on purpose</h2>
+    <div class="tldr rv"><b>TL;DR</b><span>WebRTC refuses to define how peers exchange setup info. You move a blob of text between them however you like; WebRTC handles everything after it arrives.</span></div>
+    <p class="rv">If two peers can't reach each other yet, how do they swap setup info? Through <strong>signaling</strong> — and WebRTC deliberately doesn't specify it. Every app already has a way to push data to clients (a WebSocket, HTTP, a chat backend), so mandating one (like SIP) would be dead weight. The rule: <em>you</em> get this text from A to B by any means — WebSocket, QR code, copy-paste — and WebRTC takes over from there.</p>
+    <div class="analogy rv"><div class="a-lab">analogy</div><p>Signaling is mailing someone your phone number and a list of languages you speak, <em>before</em> the call. Once you both have each other's details, you hang up the mail and talk directly. The post office (your server) never hears the conversation.</p></div>
+    <p class="rv">Two things travel over signaling: <strong>session descriptions</strong> (the Offer/Answer) and <strong>ICE candidates</strong>. Alice's offer says “here are my tracks, codecs, ICE credentials, and DTLS fingerprint”; Bob's answer is the intersection of what they both support. Both sides agree on everything <em>before</em> a media packet flows — a contract, written in SDP.</p>
+  </div>
+</section>
+
+<section id="sdp">
+  <div class="wrap">
+    <span class="sec-tag rv">06 — interactive</span>
+    <h2 class="rv">Read an actual SDP</h2>
+    <p class="sub rv">The Offer/Answer is written in SDP — a crufty 1990s telephony text format, kept only for interop with the huge installed base of VoIP gear. Click any highlighted line to see what it does.</p>
+    <div class="demo rv">
+      <div class="sdp">
+        <div class="sdp-code" id="sdp-code">
+<span class="sdp-line click" data-k="v">v=0</span>
+<span class="sdp-line click" data-k="o">o=- 4611734 2 IN IP4 127.0.0.1</span>
+<span class="sdp-line" >s=-</span>
+<span class="sdp-line" >t=0 0</span>
+<span class="sdp-line click" data-k="bundle">a=group:BUNDLE <span class="hl">0 1</span></span>
+<span class="sdp-line click" data-k="m">m=audio 9 UDP/TLS/RTP/SAVPF <span class="hl">111</span></span>
+<span class="sdp-line click" data-k="c">c=IN IP4 0.0.0.0</span>
+<span class="sdp-line click" data-k="mux">a=rtcp-mux</span>
+<span class="sdp-line click" data-k="ufrag">a=ice-ufrag:<span class="hl2">F7gI</span></span>
+<span class="sdp-line click" data-k="pwd">a=ice-pwd:<span class="hl2">x9c...kQ</span></span>
+<span class="sdp-line click" data-k="fp">a=fingerprint:sha-256 <span class="hl2">9D:A1:...:2F</span></span>
+<span class="sdp-line click" data-k="setup">a=setup:actpass</span>
+<span class="sdp-line click" data-k="mid">a=mid:0</span>
+<span class="sdp-line click" data-k="dir">a=sendrecv</span>
+<span class="sdp-line click" data-k="rtpmap">a=rtpmap:<span class="hl">111</span> opus/48000/2</span>
+<span class="sdp-line click" data-k="cand">a=candidate:1 1 udp 2122260223 <span class="hl">192.168.1.5</span> 50000 typ host</span>
+<span class="sdp-line" >m=video 9 UDP/TLS/RTP/SAVPF 96 ...</span>
+<span class="sdp-line click" data-k="rtcpfb">a=rtcp-fb:96 nack pli</span>
+        </div>
+        <div class="sdp-explain" id="sdp-explain"><b>click a line</b><br>Each highlighted line is one clause of the contract two peers sign before any media flows. Start with <code>m=audio</code>.</div>
+      </div>
+    </div>
+    <p class="rv">The shape that matters: a couple of boilerplate header lines, then one <code>m=</code> media block per track, each carrying its codecs (<code>rtpmap</code>), its direction, the shared ICE credentials and DTLS fingerprint, and the ICE candidates. You almost never hand-edit this — the browser generates it — but when you log a description, that wall of text <em>is</em> the negotiation made concrete.</p>
+  </div>
+</section>
+
+<section id="security">
+  <div class="wrap">
+    <span class="sec-tag rv">07 — security</span>
+    <h2 class="rv">DTLS-SRTP, and the fingerprint trick</h2>
+    <div class="tldr rv"><b>TL;DR</b><span>Encryption is mandatory. Peers agree keys directly with a DTLS handshake; the signaling server only ever sees a fingerprint, never the keys.</span></div>
+    <p class="rv">There is no unencrypted WebRTC media — by spec. The instant ICE picks a path, the peers run a <strong>DTLS</strong> handshake across it (DTLS is TLS rebuilt for unreliable datagrams). The keys it produces are exported to key <strong>SRTP</strong>, which encrypts every media packet. This pairing is <strong>DTLS-SRTP</strong>: DTLS does key agreement, SRTP does bulk encryption.</p>
+    <div class="key rv"><div class="k-lab">why not put keys in the SDP?</div><p>Because SDP passes through your signaling server, which could then decrypt the call. So DTLS exchanges keys directly between peers; the SDP carries only a <strong>fingerprint</strong> (a hash of each certificate). After the handshake, each side checks the peer's real certificate against that fingerprint. The signaling plane authenticates, the media plane encrypts, and the fingerprint binds the two — so the server brokers the introduction but can never listen in.</p></div>
+    <details class="dd rv"><summary><span class="chev">▸</span> Under the hood — handshake roles, forward secrecy, and SRTP profiles</summary>
+      <div class="dd-body">
+        <p>The SDP line <code>a=setup:actpass</code> negotiates DTLS roles: the offerer says it can be client or server, the answerer picks (<code>active</code> = it initiates the handshake as client, <code>passive</code> = server). Roles are independent of who made the call.</p>
+        <p>DTLS uses ephemeral (EC)DHE key exchange, giving <strong>perfect forward secrecy</strong>: recording the encrypted media and later stealing a long-term key still doesn't decrypt past sessions, because the session keys were ephemeral. The negotiated <code>SRTP protection profile</code> (e.g. <code>AES-128-GCM</code> or the older <code>AES-CM-HMAC-SHA1</code>) determines the cipher and authentication tag used per packet. Media isn't tunnelled <em>inside</em> DTLS — that would add per-packet overhead — DTLS only does the handshake, and SRTP encrypts datagrams directly using the exported keys.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section id="codecs">
+  <div class="wrap">
+    <span class="sec-tag rv">08 — codecs</span>
+    <h2 class="rv">What's actually inside the packets</h2>
+    <div class="tldr rv"><b>TL;DR</b><span>Opus encodes the audio, a video codec encodes the picture as one full keyframe plus tiny “what changed” deltas. Lose a delta's ancestor and the picture smears until a fresh keyframe arrives.</span></div>
+    <p class="rv">Before media can travel it must be compressed. Both peers list the codecs they support in the SDP and use the best one they share.</p>
+    <table class="tbl rv">
+      <tr><th>codec</th><th>role</th><th>why you'd use it</th></tr>
+      <tr><td>Opus</td><td>audio (default)</td><td>6–510 kbps, adapts live, superb quality and low latency; the universal choice</td></tr>
+      <tr><td>VP8</td><td>video baseline</td><td>royalty-free, supported everywhere — the safe default</td></tr>
+      <tr><td>VP9</td><td>video</td><td>better compression, supports scalable layers (SVC)</td></tr>
+      <tr><td>H.264</td><td>video</td><td>broad hardware encode/decode, interop with phones and legacy gear</td></tr>
+      <tr><td>AV1</td><td>video (newest)</td><td>best compression by far, at a higher CPU cost</td></tr>
+    </table>
+    <p class="rv">The crucial idea for understanding loss: video is mostly <strong>delta frames</strong>. A <strong>keyframe</strong> (I-frame) is a complete picture — large. Every frame after it is a <strong>delta</strong> (P-frame) encoding only what changed — tiny. That's the compression win, but it's also fragile: lose the packets for one frame and every delta built on it decodes into garbage, so the receiver must ask for a fresh keyframe to recover. That request is the RTCP <code>PLI</code> you'll meet next.</p>
+    <details class="dd rv"><summary><span class="chev">▸</span> Under the hood — why Opus dominates, and how SVC differs from simulcast</summary>
+      <div class="dd-body">
+        <p><strong>Opus</strong> is really two codecs fused (SILK for speech, CELT for music) with a controller that crossfades between them by content and bitrate. It does in-band FEC and packet-loss concealment, ships frames as short as 2.5–20&nbsp;ms for low latency, and changes bitrate per packet — so it degrades gracefully instead of cutting out.</p>
+        <p><strong>Simulcast</strong> means the sender encodes the same video several independent times at different resolutions and ships all of them; an SFU forwards whichever stream suits each receiver. <strong>SVC</strong> (scalable video coding, e.g. in VP9/AV1) encodes one stream in nested layers — a base layer plus enhancement layers — so the SFU can drop the top layers per receiver <em>without re-encoding</em>. SVC is more efficient and more robust (the base layer alone still decodes) but needs codec support; simulcast works with any codec at the cost of extra uplink.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section id="media">
+  <div class="wrap">
+    <span class="sec-tag rv">09 — media plane</span>
+    <h2 class="rv">RTP carries it; RTCP makes it adapt</h2>
+    <div class="tldr rv"><b>TL;DR</b><span>RTP tags every packet with a sequence number and timestamp so the receiver can detect loss and time playout. RTCP is the back-channel where the receiver reports trouble and the sender reacts.</span></div>
+    <p class="rv">Each <strong>RTP</strong> packet carries four things that matter: a <strong>sequence number</strong> (detect loss and reordering), a <strong>timestamp</strong> (playout timing, lip-sync, jitter buffer), an <strong>SSRC</strong> (which stream this is), and a <strong>payload type</strong> (which codec). RTP adds no reliability — it adds the metadata you need to handle unreliability on purpose.</p>
+    <p class="rv">Its sibling <strong>RTCP</strong> is what turns “sends video” into “sends video that survives a real network.” The receiver continuously reports loss, jitter and round-trip time, and sends targeted control messages back. The sender reacts in a closed loop:</p>
+    <div class="loop rv" aria-label="RTP flows to the receiver; RTCP feedback flows back; the sender adapts">
+      <div class="node l"><div class="nt">sender</div><div class="nd">encodes + adapts bitrate</div></div>
+      <div class="node r"><div class="nt">receiver</div><div class="nd">decodes + measures</div></div>
+      <div class="frow fwd">→ &nbsp;RTP media &nbsp;(seq, timestamp, SSRC)&nbsp; →</div>
+      <div class="frow back">← &nbsp;RTCP &nbsp;(loss, jitter, NACK, bandwidth)&nbsp; ←</div>
+      <div class="frow">↑ sender adapts: lower bitrate · resend · send keyframe</div>
+    </div>
+    <details class="dd rv"><summary><span class="chev">▸</span> Under the hood — the RTP header, and every RTCP message that matters</summary>
+      <div class="dd-body">
+        <pre><span class="cm">RTP header (12 bytes + extensions)</span>
+| V P X CC | M | PayloadType |   sequence number   |
+|              timestamp (sampling clock)           |
+|                SSRC (stream source)               |
+[ optional CSRC list, header extensions ]  payload...</pre>
+        <p><strong>RTCP message types</strong> you'll actually see: <em>Receiver/Sender Reports</em> (periodic loss %, jitter, last-timestamp for RTT); <em>NACK</em> (“I'm missing sequence numbers 1200–1203, resend”); <em>PLI</em> / <em>FIR</em> (“my decoder is broken, send a keyframe”); <em>REMB</em> (older receiver-estimated max bitrate) and <em>transport-cc</em> (newer per-packet arrival feedback that lets the <em>sender</em> estimate bandwidth). RTCP traffic is capped at roughly 5% of the media bandwidth so feedback never starves the media itself. With <code>a=rtcp-mux</code>, RTCP shares the single RTP port instead of using a second one — fewer NAT holes to punch.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section id="loss">
+  <div class="wrap">
+    <span class="sec-tag rv">10 — surviving loss</span>
+    <h2 class="rv">Three ways to beat packet loss</h2>
+    <div class="tldr rv"><b>TL;DR</b><span>Ask for a resend (NACK) when there's time, send redundant data ahead (FEC) when there isn't, and request a fresh keyframe (PLI) when the picture is already broken. A jitter buffer smooths the rest.</span></div>
+    <p class="rv">UDP loses packets; WebRTC has a toolbox, each tool a different point on the latency-versus-bandwidth tradeoff:</p>
+    <table class="tbl rv">
+      <tr><th>tool</th><th>how</th><th>cost</th></tr>
+      <tr><td>NACK + RTX</td><td>receiver asks for the exact lost packet; sender resends it</td><td>one round-trip — only worth it if RTT is small</td></tr>
+      <tr><td>FEC</td><td>send redundant repair data ahead of time so loss is reconstructed locally</td><td>extra bandwidth, but zero added latency</td></tr>
+      <tr><td>PLI / FIR</td><td>give up on the broken frame, request a brand-new keyframe</td><td>a bandwidth spike + a brief quality dip</td></tr>
+    </table>
+    <p class="rv">After recovery, packets still arrive at uneven intervals (network <strong>jitter</strong>). The <strong>jitter buffer</strong> holds them briefly, reorders them, and releases them on a steady clock — trading a little latency for smooth playback. Bigger buffer = smoother but laggier; smaller = snappier but glitchier. WebRTC sizes it adaptively.</p>
+    <div class="jit rv" aria-hidden="true">
+      <div class="jrow"><span class="jlab">arriving</span><div class="jtrack" id="jit-in"></div></div>
+      <div class="jrow"><span class="jlab">played out</span><div class="jtrack" id="jit-out"></div></div>
+    </div>
+    <p class="rv" style="font-size:14.5px;color:var(--tx-2)">Top: packets arriving at irregular times. Bottom: the same packets released on a steady beat after the buffer absorbs the jitter.</p>
+  </div>
+</section>
+
+<section id="congestion">
+  <div class="wrap">
+    <span class="sec-tag rv">11 — interactive</span>
+    <h2 class="rv">Adaptive bitrate, hands on</h2>
+    <p class="sub rv">With no TCP machinery, WebRTC estimates available bandwidth by watching whether packets arrive progressively later (a queue building) and reacts before loss happens. Drag the sliders and watch the encoder choose a target.</p>
+    <div class="demo rv">
+      <div class="play">
+        <div class="sl"><div class="row"><label>available bandwidth</label><span class="val" id="bw-val">3000 kbps</span></div><input type="range" id="bw" min="150" max="5000" step="50" value="3000"></div>
+        <div class="sl"><div class="row"><label>packet loss</label><span class="val" id="loss-val">1%</span></div><input type="range" id="loss" min="0" max="20" step="1" value="1"></div>
+      </div>
+      <div class="readout">
+        <div class="ro"><div class="l">target bitrate</div><div class="v teal" id="ro-bitrate">2900</div></div>
+        <div class="ro"><div class="l">resolution</div><div class="v" id="ro-res">1080p</div></div>
+        <div class="ro"><div class="l">frame rate</div><div class="v" id="ro-fps">30</div></div>
+      </div>
+      <div class="qbar"><span id="qbar-fill"></span></div>
+      <div class="demo-cap" id="cong-cap">The delay-based controller targets a bitrate just under the estimated capacity. Loss penalizes the estimate faster than bandwidth alone, because loss signals a pipe already overflowing.</div>
+    </div>
+    <p class="rv">This is why your face goes blocky for a second on a bad network and then sharpens — you're watching the control loop find a new target and the encoder follow it.</p>
+    <details class="dd rv"><summary><span class="chev">▸</span> Under the hood — Google Congestion Control, delay gradient vs loss</summary>
+      <div class="dd-body">
+        <p>GCC runs two controllers. A <strong>delay-based</strong> controller (at the receiver, or at the sender with transport-cc feedback) measures the <em>inter-group delay variation</em> — if packets sent close together arrive increasingly spread apart, a queue is forming, so it backs the estimate down before any loss occurs. A <strong>loss-based</strong> controller adjusts in parallel: under ~2% loss it nudges the rate up, above ~10% it cuts hard. The final send rate is the minimum of the two, so whichever signal is more pessimistic wins. The encoder then targets that rate by trading resolution, frame rate, and quantization.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section id="data">
+  <div class="wrap">
+    <span class="sec-tag rv">12 — data</span>
+    <h2 class="rv">The data channel rides the same wire</h2>
+    <div class="tldr rv"><b>TL;DR</b><span>Arbitrary data reuses the same encrypted connection over SCTP, which lets you dial reliability and ordering per channel — from TCP-like to UDP-like.</span></div>
+    <p class="rv">For non-media data — chat, game state, file transfer — WebRTC reuses the same ICE path and DTLS encryption, but runs <strong>SCTP</strong> inside. Why SCTP and not TCP or raw UDP? Because SCTP gives you a dial:</p>
+    <table class="tbl rv">
+      <tr><th>mode</th><th>behaves like</th><th>good for</th></tr>
+      <tr><td>reliable + ordered</td><td>TCP</td><td>file transfer, chat history</td></tr>
+      <tr><td>unreliable + unordered</td><td>UDP</td><td>fast game state where stale data is worthless</td></tr>
+      <tr><td>partially reliable</td><td>in between</td><td>“retransmit, but give up after 3 tries or 100 ms”</td></tr>
+    </table>
+    <p class="rv">It's also message-oriented (TCP is a raw byte stream you'd have to frame yourself) and avoids head-of-line blocking across independent streams. The same “exactly the reliability you need, no more” philosophy from the very first UDP decision — now handed to you, the app developer.</p>
+  </div>
+</section>
+
+<section id="states">
+  <div class="wrap">
+    <span class="sec-tag rv">13 — interactive</span>
+    <h2 class="rv">The connection's state machine</h2>
+    <p class="sub rv">An <code>RTCPeerConnection</code> exposes its overall health as <code>connectionState</code>. Knowing these is the difference between guessing and debugging. Click a state.</p>
+    <div class="demo rv">
+      <div class="states" id="states">
+        <span class="st-chip" data-k="new">new</span>
+        <span class="st-chip" data-k="connecting">connecting</span>
+        <span class="st-chip" data-k="connected">connected</span>
+        <span class="st-chip" data-k="disconnected">disconnected</span>
+        <span class="st-chip" data-k="failed">failed</span>
+        <span class="st-chip" data-k="closed">closed</span>
+      </div>
+      <div class="st-explain" id="st-explain">Click a state to see what it means and what usually causes it.</div>
+    </div>
+    <details class="dd rv"><summary><span class="chev">▸</span> Under the hood — the four separate state machines</summary>
+      <div class="dd-body">
+        <p><code>connectionState</code> is an aggregate. Underneath it are three others you can watch independently. <code>signalingState</code> tracks the offer/answer dance (<em>stable → have-local-offer → stable</em>). <code>iceGatheringState</code> tracks candidate discovery (<em>new → gathering → complete</em>). <code>iceConnectionState</code> tracks the ICE checks (<em>new → checking → connected → completed</em>, or <em>disconnected/failed</em>). A <em>disconnected</em> ICE state is often transient — a few lost checks — and may recover on its own or via ICE restart; <em>failed</em> means no candidate pair worked at all and you need fresh candidates.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section id="api">
+  <div class="wrap">
+    <span class="sec-tag rv">14 — in code</span>
+    <h2 class="rv">The whole thing, in ~20 lines</h2>
+    <div class="tldr rv"><b>TL;DR</b><span>The browser API hides almost everything. You create a peer connection, add tracks, shuttle the offer/answer and candidates through your own signaling, and the engine does ICE, DTLS, RTP for you.</span></div>
+    <p class="rv">Everything on this page reduces to a small, legible API. Here's a complete caller side, annotated:</p>
+    <pre><span class="cm">// 1. the engine. iceServers tell ICE where STUN/TURN live.</span>
+<span class="kw">const</span> <span class="var">pc</span> = <span class="kw">new</span> <span class="fn">RTCPeerConnection</span>({
+  iceServers: [
+    { urls: <span class="st">'stun:stun.l.google.com:19302'</span> },
+    { urls: <span class="st">'turn:turn.example.com'</span>, username: <span class="st">'u'</span>, credential: <span class="st">'p'</span> }
+  ]
+});
+
+<span class="cm">// 2. capture camera + mic, attach each track to the connection</span>
+<span class="kw">const</span> <span class="var">stream</span> = <span class="kw">await</span> navigator.mediaDevices.<span class="fn">getUserMedia</span>({ audio:<span class="kw">true</span>, video:<span class="kw">true</span> });
+<span class="var">stream</span>.<span class="fn">getTracks</span>().<span class="fn">forEach</span>(t =&gt; <span class="var">pc</span>.<span class="fn">addTrack</span>(t, <span class="var">stream</span>));
+
+<span class="cm">// 3. trickle our ICE candidates to the peer as they're found</span>
+<span class="var">pc</span>.onicecandidate = e =&gt; { <span class="kw">if</span> (e.candidate) signaling.<span class="fn">send</span>({ candidate: e.candidate }); };
+
+<span class="cm">// 4. when remote media arrives, show it</span>
+<span class="var">pc</span>.ontrack = e =&gt; { remoteVideo.srcObject = e.streams[0]; };
+
+<span class="cm">// 5. make the offer, set it locally (this starts ICE), send it</span>
+<span class="kw">const</span> <span class="var">offer</span> = <span class="kw">await</span> <span class="var">pc</span>.<span class="fn">createOffer</span>();
+<span class="kw">await</span> <span class="var">pc</span>.<span class="fn">setLocalDescription</span>(<span class="var">offer</span>);
+signaling.<span class="fn">send</span>({ sdp: <span class="var">pc</span>.localDescription });
+
+<span class="cm">// 6. as signaling messages come back from the peer:</span>
+signaling.onmessage = <span class="kw">async</span> (m) =&gt; {
+  <span class="kw">if</span> (m.sdp)        <span class="kw">await</span> <span class="var">pc</span>.<span class="fn">setRemoteDescription</span>(m.sdp);   <span class="cm">// the answer</span>
+  <span class="kw">if</span> (m.candidate)  <span class="kw">await</span> <span class="var">pc</span>.<span class="fn">addIceCandidate</span>(m.candidate);  <span class="cm">// their candidates</span>
+};</pre>
+    <p class="rv">The answerer is the mirror image: on the incoming offer it calls <code>setRemoteDescription</code>, then <code>createAnswer</code> → <code>setLocalDescription</code> → send back. A data channel is two more lines: <code>const dc = pc.createDataChannel('chat')</code>, then <code>dc.onmessage</code> and <code>dc.send(...)</code>. Notice what you never write: NAT logic, key exchange, retransmission, bitrate control. That's all the engine.</p>
+  </div>
+</section>
+
+<section id="stack">
+  <div class="wrap">
+    <span class="sec-tag rv">15 — the whole picture</span>
+    <h2 class="rv">The full stack, bottom to top</h2>
+    <p class="sub rv">Read it upward. Each layer exists because the one below doesn't provide what's above it.</p>
+    <div class="stack rv">
+      <div class="layer l-gray"><span class="ln">application API</span><span class="ld">getUserMedia · RTCPeerConnection · RTCDataChannel</span></div>
+      <div class="layer split"><div class="l-teal"><span class="ln">RTP / RTCP</span><span class="ld">media framing + feedback</span></div><div class="l-blue"><span class="ln">SCTP</span><span class="ld">tunable reliability for data</span></div></div>
+      <div class="layer l-teal"><span class="ln">SRTP</span><span class="ld">encrypted media (keys from DTLS)</span></div>
+      <div class="layer l-amber"><span class="ln">DTLS</span><span class="ld">key exchange + fingerprint check</span></div>
+      <div class="layer l-amber"><span class="ln">ICE</span><span class="ld">STUN + TURN find a working path</span></div>
+      <div class="layer l-gray"><span class="ln">UDP / IP</span><span class="ld">preferred · TCP/443 only as fallback</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="lifecycle">
+  <div class="wrap">
+    <span class="sec-tag rv">16 — in motion</span>
+    <h2 class="rv">A call, start to finish</h2>
+    <p class="sub rv">The order is itself the lesson — you can't encrypt before you connect, connect before you negotiate, or negotiate before you signal.</p>
+    <div class="timeline rv">
+      <div class="tl"><div class="ts">step 1 · capture</div><h4>getUserMedia</h4><p>Permission granted; camera and mic become media tracks.</p></div>
+      <div class="tl"><div class="ts">step 2 · construct</div><h4>RTCPeerConnection + add tracks</h4><p>The engine that will run ICE, DTLS and RTP for the whole call.</p></div>
+      <div class="tl"><div class="ts">step 3 · negotiate</div><h4>offer / answer over signaling</h4><p>SDP exchanged; candidates trickle across the same channel as they're found.</p></div>
+      <div class="tl"><div class="ts">step 4 · connectivity</div><h4>ICE checks every candidate pair</h4><p>Converges on the best working path — host, reflexive, or relay.</p></div>
+      <div class="tl"><div class="ts">step 5 · secure</div><h4>DTLS handshake + fingerprint check</h4><p>Keys derived peer-to-peer; identity verified against signaling.</p></div>
+      <div class="tl"><div class="ts">step 6 · flow</div><h4>SRTP media + SCTP data</h4><p>Encrypted media and data now travel directly between peers.</p></div>
+      <div class="tl"><div class="ts">step 7 · forever</div><h4>RTCP feedback + congestion control</h4><p>Continuously adapts bitrate, resends what's worth it, re-runs ICE if the network shifts.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="scale">
+  <div class="wrap">
+    <span class="sec-tag rv">17 — the honest caveat</span>
+    <h2 class="rv">Pure P2P only scales to small calls</h2>
+    <div class="tldr rv"><b>TL;DR</b><span>Group calls don't mesh — a server called an SFU sits in the middle and forwards streams. It still speaks WebRTC, so everything here still applies.</span></div>
+    <p class="rv">In a true mesh each person uploads a separate stream to everyone else — N×(N−1) streams — and a laptop's uplink dies around four or five people. So real products use a <strong>Selective Forwarding Unit (SFU)</strong>: each client uploads one stream, and the SFU forwards the right streams (and the right simulcast/SVC layers) to each receiver.</p>
+    <div class="key rv"><div class="k-lab">the realization</div><p>The SFU still speaks WebRTC. To each client it looks exactly like a peer — doing ICE, DTLS, SRTP, RTCP. Everything on this page is still the substrate; the SFU is just a very well-connected, very smart peer in a datacenter. (An older design, the MCU, decodes and re-mixes everyone into one stream — simple clients, brutal server cost, rarely used now.)</p></div>
+    <p class="rv">And the sentence that ties it all together, now earned: <strong>WebRTC gives you nothing for free and re-solves everything UDP threw away — but only as much as live media actually needs, and no more.</strong></p>
+  </div>
+</section>
+
+<section id="glossary">
+  <div class="wrap">
+    <span class="sec-tag rv">18 — reference</span>
+    <h2 class="rv">Every acronym, in one place</h2>
+    <p class="sub rv">The vocabulary that makes the rest readable.</p>
+    <dl class="gloss rv">
+      <div class="gl"><dt>NAT</dt><dd>Network Address Translation — many devices sharing one public IP.</dd></div>
+      <div class="gl"><dt>ICE</dt><dd>The algorithm that gathers, tests, and picks a working network path.</dd></div>
+      <div class="gl"><dt>STUN</dt><dd>A server that tells you your own public address and punches a hole.</dd></div>
+      <div class="gl"><dt>TURN</dt><dd>A relay that forwards media when a direct path is impossible.</dd></div>
+      <div class="gl"><dt>candidate</dt><dd>A possible address to reach you: host, srflx (via STUN), prflx, or relay (via TURN).</dd></div>
+      <div class="gl"><dt>SDP</dt><dd>Session Description Protocol — the text format describing the session.</dd></div>
+      <div class="gl"><dt>Offer / Answer</dt><dd>The two-step capability negotiation, a.k.a. JSEP in the browser.</dd></div>
+      <div class="gl"><dt>signaling</dt><dd>The app-chosen channel used to exchange SDP and candidates.</dd></div>
+      <div class="gl"><dt>DTLS</dt><dd>TLS for datagrams — does the peer-to-peer key exchange.</dd></div>
+      <div class="gl"><dt>SRTP</dt><dd>Secure RTP — encrypts every media packet with the DTLS keys.</dd></div>
+      <div class="gl"><dt>RTP</dt><dd>Real-time Transport Protocol — the media envelope (seq, timestamp, SSRC).</dd></div>
+      <div class="gl"><dt>RTCP</dt><dd>RTP's control/feedback channel: loss, jitter, NACK, bandwidth.</dd></div>
+      <div class="gl"><dt>SSRC</dt><dd>A numeric ID identifying one media stream source.</dd></div>
+      <div class="gl"><dt>NACK / RTX</dt><dd>“Resend this lost packet” and the retransmission that follows.</dd></div>
+      <div class="gl"><dt>PLI / FIR</dt><dd>“My picture is broken — send a fresh keyframe.”</dd></div>
+      <div class="gl"><dt>FEC</dt><dd>Forward Error Correction — redundant data so loss needs no resend.</dd></div>
+      <div class="gl"><dt>GCC</dt><dd>Google Congestion Control — estimates bandwidth from delay + loss.</dd></div>
+      <div class="gl"><dt>transport-cc</dt><dd>Per-packet arrival feedback that powers modern bandwidth estimation.</dd></div>
+      <div class="gl"><dt>SCTP</dt><dd>The data-channel transport with tunable reliability and ordering.</dd></div>
+      <div class="gl"><dt>jitter buffer</dt><dd>Holds packets briefly to smooth uneven arrival into steady playout.</dd></div>
+      <div class="gl"><dt>keyframe</dt><dd>A full picture frame; later delta frames encode only what changed.</dd></div>
+      <div class="gl"><dt>simulcast / SVC</dt><dd>Two ways to offer multiple qualities so an SFU can forward the right one.</dd></div>
+      <div class="gl"><dt>SFU / MCU</dt><dd>Servers for group calls: forward streams (SFU) vs re-mix them (MCU).</dd></div>
+      <div class="gl"><dt>BUNDLE / rtcp-mux</dt><dd>Tricks to run all media and control over one transport/port.</dd></div>
+    </dl>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>One self-contained file. To host it: drag <code>index.html</code> onto <a href="https://app.netlify.com/drop" target="_blank" rel="noopener">Netlify Drop</a> for an instant URL, drop it in a <a href="https://pages.github.com" target="_blank" rel="noopener">GitHub Pages</a> repo (it serves at the root automatically), put it in any S3 bucket, or just open it in a browser. No build step; the demos run offline and fonts degrade gracefully.</p>
+    <p style="margin-top:10px;color:var(--tx-3)">WebRTC, understood · skim the intuition, expand for the wire.</p>
+  </div>
+</footer>
+
+<script>
+/* progress + reveal */
+(function(){
+  var prog=document.getElementById('prog');
+  function onScroll(){var h=document.documentElement,max=h.scrollHeight-h.clientHeight;prog.style.width=(max>0?h.scrollTop/max*100:0)+'%';}
+  document.addEventListener('scroll',onScroll,{passive:true});onScroll();
+  if('IntersectionObserver' in window){
+    var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{threshold:0.1,rootMargin:'0px 0px -6% 0px'});
+    document.querySelectorAll('.rv').forEach(function(el,i){if(el.closest('.hero')){el.style.transitionDelay=(i*0.08)+'s';el.classList.add('in');}else io.observe(el);});
+  } else {document.querySelectorAll('.rv').forEach(function(el){el.classList.add('in');});}
+})();
+
+/* ICE simulator */
+(function(){
+  var labels={open:'Public (no NAT)',cone:'Cone NAT',symmetric:'Symmetric NAT'};
+  var alice=document.getElementById('alice'),bob=document.getElementById('bob'),udp=document.getElementById('udp');
+  var go=document.getElementById('go'),resetBtn=document.getElementById('reset');
+  var sleep=function(ms){return new Promise(function(r){setTimeout(r,ms)})};
+  function evaluate(){var a=alice.value,b=bob.value,u=udp.checked;var hostOk=!u&&a==='open'&&b==='open';var srflxOk=!u&&a!=='symmetric'&&b!=='symmetric';var winner='relay';if(srflxOk)winner='srflx';if(hostOk)winner='host';return{hostOk:hostOk,srflxOk:srflxOk,winner:winner,udp:u};}
+  function setRow(k,st){var el=document.getElementById('st-'+k);var m={pending:['—','var(--tx-3)'],testing:['testing…','var(--amber)'],ok:['reachable','var(--teal)'],fail:['blocked','var(--red)']};el.textContent=m[st][0];el.style.color=m[st][1];document.getElementById('sel-'+k).textContent='';}
+  function styPath(id,color,reachable,isWinner){var p=document.getElementById(id);p.classList.remove('active-path');if(isWinner){p.setAttribute('stroke',color);p.setAttribute('stroke-width','3');p.setAttribute('opacity','1');p.classList.add('active-path');}else if(reachable){p.setAttribute('stroke',color);p.setAttribute('stroke-width','1.5');p.setAttribute('opacity','0.35');}else{p.setAttribute('stroke','#646f7b');p.setAttribute('stroke-width','1.5');p.setAttribute('opacity','0.16');}}
+  function resetVisuals(){['host','srflx','relay'].forEach(function(k){setRow(k,'pending');});styPath('path-host','#8fce6e',false,false);styPath('path-srflx','#3fd2bd',false,false);styPath('path-relay','#f2a44a',false,false);}
+  function syncLabels(){document.getElementById('aliceNat').textContent=labels[alice.value];document.getElementById('bobNat').textContent=labels[bob.value];}
+  function verdict(r){var v=document.getElementById('verdict'),t,cls='';if(r.winner==='host'){t='<b>Direct host-to-host.</b> Both peers are publicly reachable, so ICE uses local addresses directly — lowest latency possible (~5–30 ms).';cls='ok';}else if(r.winner==='srflx'){t='<b>Direct peer-to-peer via STUN.</b> Each side learned its public mapping and the NATs cooperated, so hole-punching succeeded. No relay needed (~20–80 ms).';cls='ok';}else{if(r.udp){t='<b>Forced onto TURN (over TCP/443).</b> UDP is blocked, so host and STUN candidates can’t be used — they’re UDP. The relay tunnels media like ordinary HTTPS. Always works; adds a hop (+40–150 ms) and bandwidth cost.';}else{t='<b>Forced onto the TURN relay.</b> A symmetric NAT gives a <i>different</i> public mapping per destination, so the address STUN reported doesn’t match the one used toward the peer — direct fails. ICE relays through TURN.';}cls='warn';}v.className='verdict '+cls;v.innerHTML=t;}
+  var running=false;
+  async function run(){if(running)return;running=true;go.disabled=true;alice.disabled=bob.disabled=udp.disabled=true;resetVisuals();var v=document.getElementById('verdict');v.className='verdict';v.textContent='Gathering candidates: host, STUN reflexive, TURN relay…';document.getElementById('stun').classList.add('pulsing');document.getElementById('turn').classList.add('pulsing');await sleep(800);document.getElementById('stun').classList.remove('pulsing');document.getElementById('turn').classList.remove('pulsing');var r=evaluate();setRow('host','testing');await sleep(450);setRow('host',r.hostOk?'ok':'fail');await sleep(240);setRow('srflx','testing');await sleep(450);setRow('srflx',r.srflxOk?'ok':'fail');await sleep(240);setRow('relay','testing');await sleep(450);setRow('relay','ok');await sleep(240);styPath('path-host','#8fce6e',r.hostOk,r.winner==='host');styPath('path-srflx','#3fd2bd',r.srflxOk,r.winner==='srflx');styPath('path-relay','#f2a44a',true,r.winner==='relay');document.getElementById('sel-'+r.winner).textContent='selected ✓';verdict(r);go.disabled=false;alice.disabled=bob.disabled=udp.disabled=false;running=false;}
+  function softReset(){if(running)return;syncLabels();resetVisuals();var v=document.getElementById('verdict');v.className='verdict';v.textContent='Pick NAT types and press connect.';}
+  alice.addEventListener('change',softReset);bob.addEventListener('change',softReset);udp.addEventListener('change',softReset);go.addEventListener('click',run);resetBtn.addEventListener('click',softReset);syncLabels();
+})();
+
+/* head-of-line blocking */
+(function(){
+  var timers=[],running=false;
+  function clearTimers(){timers.forEach(clearTimeout);timers=[];}
+  function later(fn,ms){timers.push(setTimeout(fn,ms));}
+  function build(){var t=document.getElementById('tcp-track'),u=document.getElementById('udp-track');t.innerHTML='';u.innerHTML='';for(var i=1;i<=6;i++){['tcp','udp'].forEach(function(lane){var s=document.createElement('span');s.className='pk';s.id='pk-'+lane+'-'+i;s.textContent=i;(lane==='tcp'?t:u).appendChild(s);});}document.getElementById('tcp-status').textContent='idle';document.getElementById('udp-status').textContent='idle';}
+  function setPk(lane,i,cls,txt){var el=document.getElementById('pk-'+lane+'-'+i);el.className='pk '+cls;if(txt!==undefined)el.textContent=txt;}
+  function run(){if(running)return;running=true;clearTimers();build();var b=document.getElementById('hol-go');b.disabled=true;var us=document.getElementById('udp-status'),ts=document.getElementById('tcp-status');us.textContent='receiving…';ts.textContent='receiving…';
+    later(function(){setPk('udp',1,'in');},300);later(function(){setPk('udp',2,'in');},600);later(function(){setPk('udp',3,'lost');us.textContent='packet 3 dropped — kept right on going';},900);later(function(){setPk('udp',4,'in');},1200);later(function(){setPk('udp',5,'in');},1500);later(function(){setPk('udp',6,'in');us.textContent='done · 5 of 6 played · ~0 ms added delay · tiny glitch';},1800);
+    later(function(){setPk('tcp',1,'in');},300);later(function(){setPk('tcp',2,'in');},600);later(function(){setPk('tcp',3,'wait','?');ts.textContent='#3 lost in transit — must wait to retransmit';},900);later(function(){setPk('tcp',4,'buf');},1050);later(function(){setPk('tcp',5,'buf');},1200);later(function(){setPk('tcp',6,'buf');ts.textContent='4,5,6 arrived but are BUFFERED — blocked behind #3';},1350);later(function(){ts.textContent='retransmitting #3…';},2100);later(function(){setPk('tcp',3,'in','3');},2700);later(function(){setPk('tcp',4,'in');},2820);later(function(){setPk('tcp',5,'in');},2940);later(function(){setPk('tcp',6,'in');ts.textContent='done · all 6 played · stalled ~1.8 s — everything waited';b.disabled=false;running=false;},3060);}
+  function reset(){if(running)return;clearTimers();build();}
+  document.getElementById('hol-go').addEventListener('click',run);document.getElementById('hol-reset').addEventListener('click',reset);build();
+})();
+
+/* congestion playground */
+(function(){
+  var bw=document.getElementById('bw'),loss=document.getElementById('loss');
+  function up(){var b=+bw.value,l=+loss.value;document.getElementById('bw-val').textContent=b+' kbps';document.getElementById('loss-val').textContent=l+'%';
+    var penalty=Math.min(l*0.04,0.85);var target=Math.max(80,Math.min(Math.round(b*(1-penalty)),b));
+    var res,fps;if(target>=2200){res='1080p';fps=30;}else if(target>=1100){res='720p';fps=30;}else if(target>=550){res='540p';fps=30;}else if(target>=300){res='360p';fps=24;}else if(target>=150){res='180p';fps=15;}else{res='audio';fps=0;}
+    document.getElementById('ro-bitrate').textContent=target;document.getElementById('ro-res').textContent=res;document.getElementById('ro-fps').textContent=(fps===0?'—':fps);
+    var bv=document.getElementById('ro-bitrate');bv.className='v '+(target>=1100?'teal':target>=300?'amber':'red');
+    var fill=document.getElementById('qbar-fill');fill.style.width=Math.max(4,Math.min(100,Math.round(target/2500*100)))+'%';fill.style.background=(target>=1100?'var(--teal)':target>=300?'var(--amber)':'var(--red)');
+    var cap=document.getElementById('cong-cap');if(l>=10)cap.textContent='High loss: the loss-based controller cuts hard — the pipe is already overflowing, so adding bitrate would only make things worse.';else if(l>=3)cap.textContent='Moderate loss pulls the estimate down faster than bandwidth alone, because loss means a queue somewhere is spilling over.';else cap.textContent='Low loss: the delay-based controller targets a bitrate just under capacity, leaving headroom so router queues stay empty.';}
+  bw.addEventListener('input',up);loss.addEventListener('input',up);up();
+})();
+
+/* SDP explorer */
+(function(){
+  var ex={v:['v= · version','Protocol version, always 0 — pure boilerplate from the old format.'],
+  o:['o= · origin','Session origin: username placeholder, session id, version, and a dummy address. WebRTC ignores this address — real ones arrive as ICE candidates.'],
+  bundle:['a=group:BUNDLE','Run every media section (audio=0, video=1…) over ONE transport and port. Without it, each track needs its own ICE+DTLS and far more NAT holes.'],
+  m:['m= · media line','One per track: media type (audio), a dummy port (9), the profile (UDP/TLS/RTP/SAVPF = SRTP-over-DTLS with feedback), then the payload-type numbers offered (111).'],
+  c:['c= · connection','Connection address — 0.0.0.0, because the real candidates come from ICE, not from here.'],
+  mux:['a=rtcp-mux','Carry RTCP on the same port as RTP instead of a separate one — one less hole to punch.'],
+  ufrag:['a=ice-ufrag','Half the ICE credentials. Connectivity-check STUN packets are authenticated with ufrag+pwd, so only the intended peer can pass checks.'],
+  pwd:['a=ice-pwd','The ICE password paired with the ufrag. Changing both is how an ICE restart works.'],
+  fp:['a=fingerprint','A SHA-256 hash of this peer’s DTLS certificate. After the handshake the other side checks the real cert against it — binding encryption to the signaled identity. The keys themselves never appear here.'],
+  setup:['a=setup:actpass','Negotiates the DTLS role: offerer can be client or server; answerer chooses active (initiates) or passive.'],
+  mid:['a=mid:0','The media id — how BUNDLE refers to this section.'],
+  dir:['a=sendrecv','Direction: this peer will both send and receive. Others: sendonly, recvonly, inactive.'],
+  rtpmap:['a=rtpmap','Maps payload type 111 to a concrete codec: opus, 48000 Hz, 2 channels. Codec negotiation lives here.'],
+  cand:['a=candidate','One ICE candidate: a host address (192.168.1.5:50000) to try. More arrive via trickle. typ host = a local interface; you’d also see typ srflx and typ relay.'],
+  rtcpfb:['a=rtcp-fb:96 nack pli','Feedback this peer supports for payload 96 (video): NACK (resends) and PLI (keyframe request). This is how the RTCP recovery tools get switched on.']};
+  document.getElementById('sdp-code').addEventListener('click',function(e){var line=e.target.closest('.sdp-line');if(!line||!line.dataset.k)return;document.querySelectorAll('.sdp-line.active').forEach(function(l){l.classList.remove('active');});line.classList.add('active');var d=ex[line.dataset.k];if(!d)return;document.getElementById('sdp-explain').innerHTML='<b>'+d[0]+'</b><br>'+d[1];});
+})();
+
+/* connection states */
+(function(){
+  var ex={new:['new','The connection exists but nothing has started — no ICE, no transport yet.'],
+  connecting:['connecting','ICE is checking candidate pairs and DTLS is handshaking. At least one transport is still negotiating.'],
+  connected:['connected','A working path is selected, DTLS is up, media and data flow. The state you want.'],
+  disconnected:['disconnected','Checks stopped responding — often a transient blip (brief loss, a network hiccup). May recover on its own; otherwise an ICE restart can rescue it.'],
+  failed:['failed','No candidate pair worked, or the transport gave up. You need new candidates (ICE restart) or a fresh connection.'],
+  closed:['closed','Closed and finished. Terminal.']};
+  document.getElementById('states').addEventListener('click',function(e){var c=e.target.closest('.st-chip');if(!c)return;document.querySelectorAll('.st-chip.active').forEach(function(x){x.classList.remove('active');});c.classList.add('active');var d=ex[c.dataset.k];document.getElementById('st-explain').innerHTML='<b style="color:var(--teal);font-family:var(--font-mono);font-size:13px">'+d[0]+'</b><br>'+d[1];});
+})();
+
+/* jitter illustration */
+(function(){
+  if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  var tin=document.getElementById('jit-in'),tout=document.getElementById('jit-out');if(!tin||!tout)return;
+  function dot(track,label){var d=document.createElement('span');d.className='jdot';d.textContent=label;d.style.animation='drift 2.6s linear forwards';track.appendChild(d);setTimeout(function(){d.remove();},2700);}
+  var n1=0;function arrive(){n1=n1%9+1;dot(tin,n1);setTimeout(arrive,260+Math.random()*760);}
+  var n2=0;setInterval(function(){n2=n2%9+1;dot(tout,n2);},520);
+  arrive();
+})();
+</script>
+</body>
+</html>

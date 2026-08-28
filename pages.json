@@ -62,6 +62,54 @@
         "go"
       ],
       "file": "pages/go-io.html"
+    },
+    {
+      "route": "/websockets-module-2",
+      "title": "WebSockets Module 2 — scale, reliability, operations",
+      "description": "Browser and server internals, cross-machine fan-out, reconnect storms, CSWSH, and what a connection actually costs.",
+      "type": "local",
+      "tags": [
+        "notes",
+        "systems",
+        "networking"
+      ],
+      "file": "pages/websockets-module-2.html"
+    },
+    {
+      "route": "/webrtc",
+      "title": "WebRTC, actually understood",
+      "description": "NAT traversal, ICE, signalling, SDP, DTLS-SRTP and congestion control — skim the intuition or open the wire-level panels.",
+      "type": "local",
+      "tags": [
+        "notes",
+        "systems",
+        "networking"
+      ],
+      "file": "pages/webrtc.html"
+    },
+    {
+      "route": "/raft",
+      "title": "Raft — the 2000-line algorithm",
+      "description": "Consensus from zero: leader election, log replication, the Figure 8 trap, and crash recovery, function by function.",
+      "type": "local",
+      "tags": [
+        "notes",
+        "systems",
+        "distributed"
+      ],
+      "file": "pages/raft.html"
+    },
+    {
+      "route": "/protocol-lab",
+      "title": "Protocol Lab — HTTP/2 and HTTP/3 visualized",
+      "description": "Head-of-line blocking, congestion control, handshake round trips, frame layouts and QUIC packets, all interactive.",
+      "type": "local",
+      "tags": [
+        "notes",
+        "systems",
+        "networking"
+      ],
+      "file": "pages/protocol-lab.html"
     }
   ]
 }

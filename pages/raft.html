@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAFT — The 2000-Line Algorithm</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,400&family=Fira+Code:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:    #0b0906;
+  --bg2:   #131109;
+  --bg3:   #1c1a12;
+  --bg4:   #252319;
+  --txt:   #e4ddd0;
+  --txt2:  #857e72;
+  --acc:   #e87512;
+  --acc2:  #f5a040;
+  --grn:   #58a87c;
+  --red:   #d95050;
+  --blu:   #6a9fc4;
+  --brd:   #2b2820;
+  --code:  #080706;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--txt);font-family:'Crimson Pro',Georgia,serif;font-size:18px;line-height:1.75;overflow-x:hidden}
+
+/* ── NAV ── */
+nav{position:fixed;top:0;left:0;right:0;z-index:200;height:50px;display:flex;align-items:center;padding:0 2rem;background:rgba(11,9,6,.93);backdrop-filter:blur(16px);border-bottom:1px solid var(--brd)}
+nav .brand{font-family:'Bebas Neue',sans-serif;font-size:1.35rem;color:var(--acc);letter-spacing:.05em;text-decoration:none}
+nav ul{display:flex;list-style:none;margin-left:auto;gap:0}
+nav ul a{display:block;padding:0 .9rem;font-family:'Fira Code',monospace;font-size:.72rem;color:var(--txt2);text-decoration:none;letter-spacing:.04em;transition:color .2s}
+nav ul a:hover{color:var(--acc)}
+@media(max-width:640px){nav ul{display:none}}
+
+/* ── HERO ── */
+#hero{position:relative;min-height:100vh;display:flex;flex-direction:column;justify-content:flex-end;padding:9rem 2rem 5rem;overflow:hidden}
+#hero-canvas{position:absolute;inset:0;width:100%;height:100%}
+.hero-inner{position:relative;z-index:2;max-width:900px;margin:0 auto;width:100%}
+h1{font-family:'Bebas Neue',sans-serif;font-size:clamp(3.5rem,11vw,8rem);line-height:.92;letter-spacing:.02em}
+h1 span{color:var(--acc)}
+.hero-sub{font-size:1.15rem;color:var(--txt2);font-style:italic;margin:1.25rem 0 2.5rem;max-width:54ch}
+.scroll-cue{font-family:'Fira Code',monospace;font-size:.72rem;color:var(--txt2);letter-spacing:.18em;text-transform:uppercase;display:flex;align-items:center;gap:.6rem}
+.scroll-cue::before{content:'';display:block;width:36px;height:1px;background:var(--txt2)}
+
+/* ── SECTIONS ── */
+.s{padding:5.5rem 2rem;max-width:900px;margin:0 auto}
+.s-full{padding:0;position:relative}
+.s-full .s-inner{max-width:900px;margin:0 auto;padding:5rem 2rem}
+
+/* ── TYPE ── */
+.tag{font-family:'Fira Code',monospace;font-size:.7rem;text-transform:uppercase;letter-spacing:.18em;color:var(--acc);display:block;margin-bottom:.7rem}
+h2{font-family:'Bebas Neue',sans-serif;font-size:clamp(2rem,5vw,3.2rem);line-height:1;letter-spacing:.02em;margin-bottom:1.25rem}
+h3{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.05em;color:var(--acc);margin:2.5rem 0 .8rem}
+p{margin-bottom:1.1rem;max-width:68ch}
+strong{color:var(--txt);font-weight:600}
+
+/* ── DIVIDER ── */
+hr{border:none;border-top:1px solid var(--brd);margin:0}
+
+/* ── STATS ── */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--brd);border:1px solid var(--brd);border-radius:8px;overflow:hidden;margin:2rem 0}
+.stat{background:var(--bg2);padding:1.5rem 1.25rem}
+.stat-num{font-family:'Bebas Neue',sans-serif;font-size:2.6rem;color:var(--acc);display:block;line-height:1.1}
+.stat-lab{font-family:'Fira Code',monospace;font-size:.68rem;color:var(--txt2);text-transform:uppercase;letter-spacing:.1em}
+@media(max-width:640px){.stats{grid-template-columns:1fr}}
+
+/* ── CODE BLOCKS ── */
+.code-block{background:var(--code);border:1px solid var(--brd);border-radius:8px;margin:1.75rem 0;overflow:hidden;font-size:0}
+.cb-header{display:flex;align-items:center;padding:.55rem 1rem;background:var(--bg3);border-bottom:1px solid var(--brd);gap:.6rem}
+.dots{display:flex;gap:5px}
+.dot{width:10px;height:10px;border-radius:50%}
+.dr{background:#e05656}.dy{background:#d4a040}.dg{background:#50b060}
+.cb-fname{font-family:'Fira Code',monospace;font-size:.72rem;color:var(--txt2);margin-left:auto}
+pre{padding:1.4rem 1.5rem;overflow-x:auto;font-family:'Fira Code',monospace;font-size:.82rem;line-height:1.7;color:#b8b0a4;tab-size:4;white-space:pre}
+/* Syntax */
+.kw{color:#e87512}
+.kw2{color:#d4a040}
+.cm{color:#4e4a42;font-style:italic}
+.st{color:#7ebb84}
+.fn{color:#b8d498}
+.tp{color:#80c4d8}
+.nm{color:#e8b870}
+.op{color:#786e60}
+
+/* ── CALLOUTS ── */
+.callout{background:var(--bg3);border-left:3px solid var(--acc);padding:1.1rem 1.4rem;border-radius:0 8px 8px 0;margin:1.5rem 0;font-size:.95rem}
+.callout.warn{border-color:var(--red)}
+.callout.ok{border-color:var(--grn)}
+.callout-title{font-family:'Fira Code',monospace;font-size:.68rem;text-transform:uppercase;letter-spacing:.12em;color:var(--acc);margin-bottom:.4rem}
+.callout.warn .callout-title{color:var(--red)}
+.callout.ok .callout-title{color:var(--grn)}
+.callout p{margin:0;max-width:none}
+
+/* ── ANIMATIONS ── */
+.anim-wrap{background:var(--bg2);border-top:1px solid var(--brd);border-bottom:1px solid var(--brd);padding:2.5rem 1.5rem;display:flex;flex-direction:column;align-items:center;gap:1.25rem}
+canvas{display:block;max-width:100%;border-radius:6px}
+.anim-caption{font-family:'Fira Code',monospace;font-size:.8rem;color:var(--acc2);text-align:center;min-height:2.4em;letter-spacing:.02em;max-width:60ch;line-height:1.5}
+.anim-controls{display:flex;gap:.6rem;align-items:center}
+.btn{font-family:'Fira Code',monospace;font-size:.75rem;padding:.45rem 1.1rem;background:var(--bg4);color:var(--txt);border:1px solid var(--brd);border-radius:4px;cursor:pointer;letter-spacing:.04em;transition:border-color .2s,color .2s}
+.btn:hover{border-color:var(--acc);color:var(--acc)}
+.btn.active{border-color:var(--acc);color:var(--acc)}
+.phase-label{font-family:'Fira Code',monospace;font-size:.7rem;color:var(--txt2);letter-spacing:.06em}
+
+/* ── PROGRESS BAR ── */
+.anim-progress{width:100%;max-width:560px;height:2px;background:var(--brd);border-radius:1px;overflow:hidden}
+.anim-progress-fill{height:100%;background:var(--acc);border-radius:1px;transition:width .1s linear;width:0%}
+
+/* ── INLINE MONO ── */
+code{font-family:'Fira Code',monospace;font-size:.8em;color:var(--acc2);background:var(--bg3);padding:.1em .3em;border-radius:3px}
+
+/* ── RULE TABLE ── */
+.rule-table{width:100%;border-collapse:collapse;margin:1.5rem 0;font-size:.92rem}
+.rule-table th{font-family:'Fira Code',monospace;font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:var(--txt2);border-bottom:1px solid var(--brd);padding:.5rem .75rem;text-align:left;font-weight:400}
+.rule-table td{padding:.65rem .75rem;border-bottom:1px solid var(--brd);vertical-align:top;max-width:0}
+.rule-table tr:last-child td{border-bottom:none}
+.rule-table .mono{font-family:'Fira Code',monospace;font-size:.78rem;color:var(--acc2)}
+
+/* ── REVEAL ── */
+.reveal{opacity:0;transform:translateY(18px);transition:opacity .5s,transform .5s}
+.reveal.vis{opacity:1;transform:none}
+
+/* ── FOOTER ── */
+footer{padding:3rem 2rem;border-top:1px solid var(--brd);max-width:900px;margin:0 auto;display:flex;justify-content:space-between;flex-wrap:wrap;gap:.75rem;font-family:'Fira Code',monospace;font-size:.72rem;color:var(--txt2)}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="brand" href="#hero">RAFT</a>
+  <ul>
+    <li><a href="#the-state">State</a></li>
+    <li><a href="#election">Election</a></li>
+    <li><a href="#replication">Replication</a></li>
+    <li><a href="#safety">Safety</a></li>
+    <li><a href="#persistence">Persistence</a></li>
+  </ul>
+</nav>
+
+<!-- ── HERO ── -->
+<section id="hero">
+  <canvas id="hero-canvas"></canvas>
+  <div class="hero-inner">
+    <h1>RAFT<br><span>CONSENSUS</span></h1>
+    <p class="hero-sub">One algorithm. ~2000 lines of Go. Powers every distributed database you use. This is how it actually works — down to the function level.</p>
+    <div class="scroll-cue">scroll to understand</div>
+  </div>
+</section>
+<hr>
+
+<!-- ── PROBLEM ── -->
+<section class="s reveal" id="problem">
+  <span class="tag">The Problem</span>
+  <h2>Why Consensus Exists</h2>
+  <p>You have a key-value store. Your app writes <code>x = 5</code>. You replicate it to 3 servers for fault tolerance. Now Server 2 crashes mid-write and comes back online. Server 1 got the write. Server 3 didn't. What is <code>x</code>? Nobody agrees.</p>
+  <p>Raft solves this by ensuring all servers apply commands in the <strong>same order</strong>. It does this through a <em>replicated log</em>. Every command goes into the log first. Once a log entry is safely stored on a majority, it is <strong>committed</strong> and applied to the state machine. The result: identical state on every server, even across crashes.</p>
+  <div class="stats">
+    <div class="stat"><span class="stat-num">~500</span><span class="stat-lab">lines — bare election + replication</span></div>
+    <div class="stat"><span class="stat-num">~1200</span><span class="stat-lab">lines — with snapshots + persistence</span></div>
+    <div class="stat"><span class="stat-num">~2000</span><span class="stat-num" style="font-size:1rem;color:var(--txt2);margin-top:.2rem">lines — production-hardened</span></div>
+  </div>
+  <p>All that extra code after line 500 is error handling, batching, flow control, membership changes, and snapshotting. The <em>algorithm itself</em> is the first 500. Let's build it from zero.</p>
+</section>
+<hr>
+
+<!-- ── STATE ── -->
+<section class="s reveal" id="the-state">
+  <span class="tag">Section 01 — The Foundation</span>
+  <h2>The State Every Node Holds</h2>
+  <p>Every server in a Raft cluster runs the exact same binary. There is no special "leader binary" — just one program, and the leader role is a runtime value in this struct. Understand every field here and you're 70% done.</p>
+
+  <div class="code-block">
+    <div class="cb-header"><div class="dots"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div></div><span class="cb-fname">raft.go</span></div>
+    <pre><span class="cm">// LogEntry is one record in the replicated log.</span>
+<span class="kw">type</span> <span class="tp">LogEntry</span> <span class="kw">struct</span> {
+    <span class="tp">Term</span>    <span class="kw2">int</span>         <span class="cm">// which leader term created this entry</span>
+    <span class="tp">Command</span> <span class="kw2">interface</span>{} <span class="cm">// opaque command for the state machine</span>
+}
+
+<span class="cm">// Raft is one node. Every node in the cluster runs this same struct.</span>
+<span class="kw">type</span> <span class="tp">Raft</span> <span class="kw">struct</span> {
+    mu    <span class="tp">sync.Mutex</span>
+    peers []*<span class="tp">labrpc.ClientEnd</span> <span class="cm">// RPC handles to all peers (including self)</span>
+    me    <span class="kw2">int</span>               <span class="cm">// our own index in peers[]</span>
+
+    <span class="cm">// ─── PERSISTENT state ─────────────────────────────────────────────────
+    // These three fields MUST be written to disk before replying to any RPC.
+    // If we crash and restart without them, we could vote twice in one term
+    // or lose committed entries — both catastrophic.</span>
+    currentTerm <span class="kw2">int</span>        <span class="cm">// latest term seen (starts 0, only increases)</span>
+    votedFor    <span class="kw2">int</span>        <span class="cm">// peer we voted for this term (-1 = nobody)</span>
+    log         []<span class="tp">LogEntry</span> <span class="cm">// the log; log[0] is a sentinel; real entries at 1+</span>
+
+    <span class="cm">// ─── VOLATILE state on ALL servers ───────────────────────────────────</span>
+    commitIndex <span class="kw2">int</span> <span class="cm">// highest index known to be committed (safe on majority)</span>
+    lastApplied <span class="kw2">int</span> <span class="cm">// highest index applied to the state machine</span>
+
+    <span class="cm">// ─── VOLATILE state on LEADERS only (reset after every election) ─────</span>
+    nextIndex  []<span class="kw2">int</span> <span class="cm">// for each peer: next log index to send them</span>
+    matchIndex []<span class="kw2">int</span> <span class="cm">// for each peer: highest index confirmed on that peer</span>
+
+    <span class="cm">// ─── Housekeeping ────────────────────────────────────────────────────</span>
+    role          <span class="tp">Role</span>
+    electionTimer <span class="tp">time.Time</span> <span class="cm">// last valid contact from leader or granted vote</span>
+    applyCh       <span class="kw2">chan</span> <span class="tp">ApplyMsg</span> <span class="cm">// committed entries go here for the app layer</span>
+}
+
+<span class="kw">type</span> <span class="tp">Role</span> <span class="kw2">int</span>
+<span class="kw">const</span> (
+    <span class="tp">Follower</span>  <span class="tp">Role</span> = <span class="kw">iota</span>
+    <span class="tp">Candidate</span>
+    <span class="tp">Leader</span>
+)</pre>
+  </div>
+
+  <div class="callout">
+    <div class="callout-title">Key insight — commitIndex vs lastApplied</div>
+    <p><code>commitIndex</code> = "safe on a majority, will never be lost." <code>lastApplied</code> = "actually executed on this machine's state machine." Commitment is a distributed agreement; applying is a local, lazy operation. They're always <code>lastApplied ≤ commitIndex</code>.</p>
+  </div>
+
+  <div class="callout warn">
+    <div class="callout-title">Why persist currentTerm, votedFor, log — and nothing else?</div>
+    <p>These are the only things you can't reconstruct after a crash. <code>commitIndex</code> and <code>lastApplied</code> can be rebuilt from the persisted log on restart. <code>nextIndex</code> and <code>matchIndex</code> are leader-only guesses that reset after every election anyway.</p>
+  </div>
+</section>
+<hr>
+
+<!-- ── ELECTION ── -->
+<section class="s reveal" id="election">
+  <span class="tag">Section 02 — Leader Election</span>
+  <h2>How a Leader Is Born</h2>
+  <p>Every follower has an election timer. If it doesn't hear from a leader before that timer fires, it assumes the leader is dead and stands for election. The timer is <strong>randomized</strong> (150–300 ms) — this is what prevents all nodes timing out simultaneously and splitting votes forever.</p>
+</section>
+
+<!-- Election Animation -->
+<div class="anim-wrap">
+  <canvas id="election-canvas" width="560" height="340"></canvas>
+  <div class="anim-progress"><div class="anim-progress-fill" id="el-progress"></div></div>
+  <div class="anim-caption" id="el-caption">Press Play to watch a leader election unfold.</div>
+  <div class="anim-controls">
+    <button class="btn" id="el-play">▶ play</button>
+    <button class="btn" id="el-reset">↺ restart</button>
+    <span class="phase-label" id="el-phase"></span>
+  </div>
+</div>
+
+<section class="s reveal">
+  <h3>startElection() — line by line</h3>
+  <p>When the election timer fires, the node calls <code>startElection()</code> while holding the mutex. The four mutations at the top are an atomic unit that must survive to disk before sending any RPC.</p>
+
+  <div class="code-block">
+    <div class="cb-header"><div class="dots"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div></div><span class="cb-fname">election.go</span></div>
+    <pre><span class="cm">// Called under rf.mu. Increments term, votes for self, fires RPCs.</span>
+<span class="kw">func</span> (<span class="nm">rf</span> *<span class="tp">Raft</span>) <span class="fn">startElection</span>() {
+    rf.currentTerm++          <span class="cm">// enter a new term — we're claiming a new era</span>
+    rf.role = <span class="tp">Candidate</span>
+    rf.votedFor = rf.me       <span class="cm">// vote for ourselves</span>
+    rf.<span class="fn">resetElectionTimer</span>()
+    rf.<span class="fn">persist</span>()             <span class="cm">// ← MUST hit disk before sending any RPC</span>
+                              <span class="cm">//   Without this, a crash here could lose our vote</span>
+    term         := rf.currentTerm
+    lastLogIndex := <span class="fn">len</span>(rf.log) - <span class="nm">1</span>
+    lastLogTerm  := rf.log[lastLogIndex].<span class="tp">Term</span>
+    votes        := <span class="nm">1</span>         <span class="cm">// counting our own vote</span>
+
+    <span class="kw">for</span> peer := <span class="kw">range</span> rf.peers {
+        <span class="kw">if</span> peer == rf.me { <span class="kw">continue</span> }
+        <span class="kw">go func</span>(peer <span class="kw2">int</span>) {   <span class="cm">// send RPCs in parallel — never block the main loop</span>
+            args := <span class="tp">RequestVoteArgs</span>{
+                <span class="tp">Term</span>:         term,
+                <span class="tp">CandidateId</span>:  rf.me,
+                <span class="tp">LastLogIndex</span>: lastLogIndex,
+                <span class="tp">LastLogTerm</span>:  lastLogTerm,
+            }
+            <span class="kw">var</span> reply <span class="tp">RequestVoteReply</span>
+            <span class="kw">if</span> !rf.<span class="fn">sendRequestVote</span>(peer, &amp;args, &amp;reply) {
+                <span class="kw">return</span> <span class="cm">// RPC lost/peer down — drop it, move on</span>
+            }
+            rf.mu.<span class="fn">Lock</span>()
+            <span class="kw">defer</span> rf.mu.<span class="fn">Unlock</span>()
+
+            <span class="cm">// Rule A: if we see a higher term, step down immediately</span>
+            <span class="kw">if</span> reply.<span class="tp">Term</span> &gt; rf.currentTerm {
+                rf.<span class="fn">becomeFollower</span>(reply.<span class="tp">Term</span>)
+                <span class="kw">return</span>
+            }
+            <span class="cm">// Rule B: stale-reply guard — replies can arrive after we moved on</span>
+            <span class="kw">if</span> rf.role != <span class="tp">Candidate</span> || rf.currentTerm != term {
+                <span class="kw">return</span>
+            }
+            <span class="kw">if</span> reply.<span class="tp">VoteGranted</span> {
+                votes++
+                <span class="kw">if</span> votes &gt; <span class="fn">len</span>(rf.peers)/<span class="nm">2</span> { <span class="cm">// strict majority</span>
+                    rf.<span class="fn">becomeLeader</span>()
+                }
+            }
+        }(peer)
+    }
+}</pre>
+  </div>
+
+  <h3>RequestVote handler — the up-to-date check</h3>
+  <p>The receiver is where Raft's main safety guarantee lives. A server will only vote for a candidate whose log is <em>at least as up-to-date</em> as its own. This single check is why a new leader always has every committed entry.</p>
+
+  <div class="code-block">
+    <div class="cb-header"><div class="dots"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div></div><span class="cb-fname">election.go</span></div>
+    <pre><span class="kw">func</span> (<span class="nm">rf</span> *<span class="tp">Raft</span>) <span class="fn">RequestVote</span>(args *<span class="tp">RequestVoteArgs</span>, reply *<span class="tp">RequestVoteReply</span>) {
+    rf.mu.<span class="fn">Lock</span>()
+    <span class="kw">defer</span> rf.mu.<span class="fn">Unlock</span>()
+    <span class="kw">defer</span> rf.<span class="fn">persist</span>() <span class="cm">// votedFor may change — persist before returning</span>
+
+    reply.<span class="tp">Term</span> = rf.currentTerm
+
+    <span class="cm">// Rule 1: reject stale candidates</span>
+    <span class="kw">if</span> args.<span class="tp">Term</span> &lt; rf.currentTerm {
+        reply.<span class="tp">VoteGranted</span> = <span class="kw2">false</span>
+        <span class="kw">return</span>
+    }
+    <span class="cm">// Rule 2: candidate is in a newer term → step down, adopt it</span>
+    <span class="kw">if</span> args.<span class="tp">Term</span> &gt; rf.currentTerm {
+        rf.<span class="fn">becomeFollower</span>(args.<span class="tp">Term</span>) <span class="cm">// also clears votedFor for the new term</span>
+    }
+    reply.<span class="tp">Term</span> = rf.currentTerm
+
+    <span class="cm">// Rule 3: THE ELECTION RESTRICTION — up-to-date check
+    // Compare last entries: higher term wins; tie → longer log wins.
+    // A candidate missing committed entries WILL be rejected here.</span>
+    myLast     := <span class="fn">len</span>(rf.log) - <span class="nm">1</span>
+    myLastTerm := rf.log[myLast].<span class="tp">Term</span>
+    logOK := args.<span class="tp">LastLogTerm</span> &gt; myLastTerm ||
+        (args.<span class="tp">LastLogTerm</span> == myLastTerm &amp;&amp;
+            args.<span class="tp">LastLogIndex</span> &gt;= myLast)
+
+    <span class="cm">// Rule 4: one vote per term — votedFor must be empty or already this candidate</span>
+    <span class="kw">if</span> (rf.votedFor == -<span class="nm">1</span> || rf.votedFor == args.<span class="tp">CandidateId</span>) &amp;&amp; logOK {
+        rf.votedFor = args.<span class="tp">CandidateId</span>
+        rf.<span class="fn">resetElectionTimer</span>() <span class="cm">// valid candidate contact — reset our timer</span>
+        reply.<span class="tp">VoteGranted</span> = <span class="kw2">true</span>
+    } <span class="kw">else</span> {
+        reply.<span class="tp">VoteGranted</span> = <span class="kw2">false</span>
+    }
+}</pre>
+  </div>
+
+  <div class="callout ok">
+    <div class="callout-title">Election Restriction — why it guarantees safety</div>
+    <p>A committed entry is on a majority of servers. To win, a candidate needs a majority of votes. Those two majorities must overlap in at least one server. That server has the committed entry and will refuse to vote for any candidate missing it. So every elected leader is guaranteed to already have every committed entry — no transfer needed.</p>
+  </div>
+</section>
+<hr>
+
+<!-- ── REPLICATION ── -->
+<section class="s reveal" id="replication">
+  <span class="tag">Section 03 — Log Replication</span>
+  <h2>How Commands Spread Across the Cluster</h2>
+  <p>Once a leader exists, clients send commands to it. The leader appends the command to its log and then replicates it to every follower via <code>AppendEntries</code> RPCs. When a strict majority has stored the entry, the leader commits it and applies it to the state machine.</p>
+</section>
+
+<!-- Replication Animation -->
+<div class="anim-wrap">
+  <canvas id="repl-canvas" width="560" height="360"></canvas>
+  <div class="anim-progress"><div class="anim-progress-fill" id="rp-progress"></div></div>
+  <div class="anim-caption" id="rp-caption">Press Play to watch log replication and commitment.</div>
+  <div class="anim-controls">
+    <button class="btn" id="rp-play">▶ play</button>
+    <button class="btn" id="rp-reset">↺ restart</button>
+    <span class="phase-label" id="rp-phase"></span>
+  </div>
+</div>
+
+<section class="s reveal">
+  <h3>Leader sends AppendEntries</h3>
+
+  <div class="code-block">
+    <div class="cb-header"><div class="dots"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div></div><span class="cb-fname">replication.go</span></div>
+    <pre><span class="cm">// broadcastAppendEntries runs on the leader. When entries is empty it's a heartbeat.</span>
+<span class="kw">func</span> (<span class="nm">rf</span> *<span class="tp">Raft</span>) <span class="fn">broadcastAppendEntries</span>() {
+    <span class="kw">for</span> peer := <span class="kw">range</span> rf.peers {
+        <span class="kw">if</span> peer == rf.me { <span class="kw">continue</span> }
+        <span class="kw">go func</span>(peer <span class="kw2">int</span>) {
+            rf.mu.<span class="fn">Lock</span>()
+            <span class="kw">if</span> rf.role != <span class="tp">Leader</span> { rf.mu.<span class="fn">Unlock</span>(); <span class="kw">return</span> }
+
+            ni       := rf.nextIndex[peer]       <span class="cm">// leader's guess of follower's position</span>
+            prevIdx  := ni - <span class="nm">1</span>
+            prevTerm := rf.log[prevIdx].<span class="tp">Term</span>
+            entries  := <span class="fn">make</span>([]<span class="tp">LogEntry</span>, <span class="fn">len</span>(rf.log[ni:]))
+            <span class="fn">copy</span>(entries, rf.log[ni:])          <span class="cm">// snapshot under the lock</span>
+            args := <span class="tp">AppendEntriesArgs</span>{
+                <span class="tp">Term</span>:         rf.currentTerm,
+                <span class="tp">LeaderId</span>:     rf.me,
+                <span class="tp">PrevLogIndex</span>: prevIdx,   <span class="cm">// junction point for consistency check</span>
+                <span class="tp">PrevLogTerm</span>:  prevTerm,
+                <span class="tp">Entries</span>:      entries,
+                <span class="tp">LeaderCommit</span>: rf.commitIndex,
+            }
+            rf.mu.<span class="fn">Unlock</span>()
+
+            <span class="kw">var</span> reply <span class="tp">AppendEntriesReply</span>
+            <span class="kw">if</span> !rf.<span class="fn">sendAppendEntries</span>(peer, &amp;args, &amp;reply) { <span class="kw">return</span> }
+
+            rf.mu.<span class="fn">Lock</span>(); <span class="kw">defer</span> rf.mu.<span class="fn">Unlock</span>()
+            <span class="kw">if</span> reply.<span class="tp">Term</span> &gt; rf.currentTerm { rf.<span class="fn">becomeFollower</span>(reply.<span class="tp">Term</span>); <span class="kw">return</span> }
+            <span class="kw">if</span> rf.role != <span class="tp">Leader</span> { <span class="kw">return</span> } <span class="cm">// stale-reply guard</span>
+
+            <span class="kw">if</span> reply.<span class="tp">Success</span> {
+                newMatch := args.<span class="tp">PrevLogIndex</span> + <span class="fn">len</span>(args.<span class="tp">Entries</span>)
+                <span class="kw">if</span> newMatch &gt; rf.matchIndex[peer] {
+                    rf.matchIndex[peer] = newMatch
+                    rf.nextIndex[peer]  = newMatch + <span class="nm">1</span>
+                    rf.<span class="fn">maybeAdvanceCommit</span>() <span class="cm">// might be able to commit now</span>
+                }
+            } <span class="kw">else</span> {
+                <span class="cm">// Log inconsistency — back up and retry next heartbeat</span>
+                <span class="kw">if</span> rf.nextIndex[peer] &gt; <span class="nm">1</span> {
+                    rf.nextIndex[peer]--
+                }
+            }
+        }(peer)
+    }
+}</pre>
+  </div>
+
+  <h3>Follower receives AppendEntries — the consistency check</h3>
+
+  <div class="code-block">
+    <div class="cb-header"><div class="dots"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div></div><span class="cb-fname">replication.go</span></div>
+    <pre><span class="kw">func</span> (<span class="nm">rf</span> *<span class="tp">Raft</span>) <span class="fn">AppendEntries</span>(args *<span class="tp">AppendEntriesArgs</span>, reply *<span class="tp">AppendEntriesReply</span>) {
+    rf.mu.<span class="fn">Lock</span>(); <span class="kw">defer</span> rf.mu.<span class="fn">Unlock</span>()
+    <span class="kw">defer</span> rf.<span class="fn">persist</span>()
+    reply.<span class="tp">Term</span>    = rf.currentTerm
+    reply.<span class="tp">Success</span> = <span class="kw2">false</span>
+
+    <span class="cm">// Rule 1: reject stale leaders</span>
+    <span class="kw">if</span> args.<span class="tp">Term</span> &lt; rf.currentTerm { <span class="kw">return</span> }
+
+    <span class="cm">// Rule 2: valid leader contact — stay/become follower</span>
+    rf.<span class="fn">becomeFollower</span>(args.<span class="tp">Term</span>)
+    rf.<span class="fn">resetElectionTimer</span>()
+
+    <span class="cm">// Rule 3: LOG MATCHING CHECK
+    // Do I have an entry at prevLogIndex with the matching term?
+    // This is the inductive guarantee: if the junction matches, the entire
+    // prefix up to that point is identical on both leader and follower.</span>
+    <span class="kw">if</span> args.<span class="tp">PrevLogIndex</span> &gt;= <span class="fn">len</span>(rf.log) ||
+        rf.log[args.<span class="tp">PrevLogIndex</span>].<span class="tp">Term</span> != args.<span class="tp">PrevLogTerm</span> {
+        <span class="kw">return</span> <span class="cm">// mismatch: leader will decrement nextIndex and retry</span>
+    }
+
+    <span class="cm">// Rule 4: reconcile entries — only overwrite actual conflicts, not clean matches
+    // This matters for out-of-order/duplicate RPCs: a late heartbeat shouldn't
+    // truncate entries the follower already correctly received.</span>
+    <span class="kw">for</span> i, entry := <span class="kw">range</span> args.<span class="tp">Entries</span> {
+        idx := args.<span class="tp">PrevLogIndex</span> + <span class="nm">1</span> + i
+        <span class="kw">if</span> idx &lt; <span class="fn">len</span>(rf.log) {
+            <span class="kw">if</span> rf.log[idx].<span class="tp">Term</span> != entry.<span class="tp">Term</span> {     <span class="cm">// conflict found</span>
+                rf.log = rf.log[:idx]               <span class="cm">// truncate from here</span>
+                rf.log = <span class="fn">append</span>(rf.log, args.<span class="tp">Entries</span>[i:]...)
+                <span class="kw">break</span>
+            }
+        } <span class="kw">else</span> {
+            rf.log = <span class="fn">append</span>(rf.log, args.<span class="tp">Entries</span>[i:]...)
+            <span class="kw">break</span>
+        }
+    }
+
+    <span class="cm">// Rule 5: advance our commit index toward the leader's</span>
+    <span class="kw">if</span> args.<span class="tp">LeaderCommit</span> &gt; rf.commitIndex {
+        rf.commitIndex = <span class="fn">min</span>(args.<span class="tp">LeaderCommit</span>, <span class="fn">len</span>(rf.log)-<span class="nm">1</span>)
+        rf.<span class="fn">applyEntries</span>()
+    }
+    reply.<span class="tp">Success</span> = <span class="kw2">true</span>
+}</pre>
+  </div>
+</section>
+<hr>
+
+<!-- ── SAFETY ── -->
+<section class="s reveal" id="safety">
+  <span class="tag">Section 04 — The Safety Rules</span>
+  <h2>What Keeps It Correct</h2>
+  <p>Raft has two rules that most people miss on a first read. Miss either one and you can silently corrupt data in a way that looks fine for months.</p>
+
+  <h3>Rule 1 — The Figure 8 trap (commit only current-term entries)</h3>
+  <p>A leader may not commit an entry from a <em>previous</em> term just because it's now on a majority. It can only commit entries from its <strong>current term</strong> by counting replicas. Entries from older terms get committed as a side-effect, implicitly, via the Log Matching Property.</p>
+
+  <div class="code-block">
+    <div class="cb-header"><div class="dots"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div></div><span class="cb-fname">safety.go</span></div>
+    <pre><span class="kw">func</span> (<span class="nm">rf</span> *<span class="tp">Raft</span>) <span class="fn">maybeAdvanceCommit</span>() {
+    <span class="kw">for</span> N := <span class="fn">len</span>(rf.log) - <span class="nm">1</span>; N &gt; rf.commitIndex; N-- {
+
+        <span class="cm">// ★ THE CRITICAL RULE (Figure 8 in the paper):
+        //   Only count replicas for entries created in OUR term.
+        //   Without this, a replicated entry from term 4 looks safe but
+        //   a new leader in term 5 can legally overwrite it.
+        //   By requiring currentTerm, we ensure "safe" actually means safe.</span>
+        <span class="kw">if</span> rf.log[N].<span class="tp">Term</span> != rf.currentTerm {
+            <span class="kw">continue</span>
+        }
+
+        replicas := <span class="nm">1</span> <span class="cm">// count ourselves</span>
+        <span class="kw">for</span> peer := <span class="kw">range</span> rf.peers {
+            <span class="kw">if</span> peer != rf.me &amp;&amp; rf.matchIndex[peer] &gt;= N {
+                replicas++
+            }
+        }
+        <span class="kw">if</span> replicas &gt; <span class="fn">len</span>(rf.peers)/<span class="nm">2</span> {
+            rf.commitIndex = N
+            rf.<span class="fn">applyEntries</span>()
+            <span class="kw">break</span> <span class="cm">// all entries before N get committed implicitly (Log Matching)</span>
+        }
+    }
+}
+
+<span class="cm">// applyEntries sends committed-but-not-yet-applied entries to the app.</span>
+<span class="kw">func</span> (<span class="nm">rf</span> *<span class="tp">Raft</span>) <span class="fn">applyEntries</span>() {
+    <span class="kw">for</span> rf.lastApplied &lt; rf.commitIndex {
+        rf.lastApplied++
+        msg := <span class="tp">ApplyMsg</span>{
+            <span class="tp">CommandValid</span>: <span class="kw2">true</span>,
+            <span class="tp">Command</span>:      rf.log[rf.lastApplied].<span class="tp">Command</span>,
+            <span class="tp">CommandIndex</span>: rf.lastApplied,
+        }
+        <span class="cm">// Release the lock before sending to applyCh to avoid deadlock</span>
+        <span class="kw">go func</span>(m <span class="tp">ApplyMsg</span>) { rf.applyCh &lt;- m }(msg)
+    }
+}</pre>
+  </div>
+
+  <div class="callout warn">
+    <div class="callout-title">The Figure 8 scenario — what breaks without this rule</div>
+    <p>Leader A (term 2) replicates entry [term:2] on 3 servers, then crashes before committing. Leader B (term 3) wins with a different log tail. It could overwrite that entry even though 3 servers had it — because "on a majority" without <code>log[N].term == currentTerm</code> doesn't mean committed. The rule forces you to get a current-term entry onto a majority first, which implicitly locks in all prior entries.</p>
+  </div>
+
+  <h3>Rule 2 — Stale-reply guard (appears in every RPC handler)</h3>
+  <p>Goroutines send RPCs while not holding the lock. By the time a reply arrives, the world may have moved on — a new term started, we stopped being candidate. Every reply handler must check:</p>
+
+  <div class="code-block">
+    <div class="cb-header"><div class="dots"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div></div><span class="cb-fname">safety.go</span></div>
+    <pre><span class="cm">// Pattern that appears in EVERY RPC reply handler:</span>
+rf.mu.<span class="fn">Lock</span>(); <span class="kw">defer</span> rf.mu.<span class="fn">Unlock</span>()
+
+<span class="cm">// Step down if we're stale</span>
+<span class="kw">if</span> reply.<span class="tp">Term</span> &gt; rf.currentTerm {
+    rf.<span class="fn">becomeFollower</span>(reply.<span class="tp">Term</span>)
+    <span class="kw">return</span>
+}
+
+<span class="cm">// Ignore the reply if our state has changed since we sent the RPC.
+// A "yes" vote from term 5 that arrives when we're now in term 7 is useless.</span>
+<span class="kw">if</span> rf.role != expectedRole || rf.currentTerm != sentTerm {
+    <span class="kw">return</span>
+}</pre>
+  </div>
+
+  <h3>The five safety properties — how the code guarantees them</h3>
+  <table class="rule-table">
+    <thead><tr><th>Property</th><th>Enforced by</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Election Safety</strong> — at most one leader per term</td><td class="mono">votedFor + persist + majority requirement</td></tr>
+      <tr><td><strong>Leader Append-Only</strong> — leaders never overwrite their log</td><td class="mono">Only followers call log = log[:idx] (truncation)</td></tr>
+      <tr><td><strong>Log Matching</strong> — matching index+term → identical prefix</td><td class="mono">prevLogIndex/prevLogTerm check in AppendEntries</td></tr>
+      <tr><td><strong>Leader Completeness</strong> — leader has all committed entries</td><td class="mono">up-to-date check in RequestVote (Election Restriction)</td></tr>
+      <tr><td><strong>State Machine Safety</strong> — no two servers apply different commands at same index</td><td class="mono">All of the above together + ordered application</td></tr>
+    </tbody>
+  </table>
+</section>
+<hr>
+
+<!-- ── PERSISTENCE ── -->
+<section class="s reveal" id="persistence">
+  <span class="tag">Section 05 — Crash Recovery</span>
+  <h2>Surviving a Server Restart</h2>
+  <p>Three fields must be written to stable storage before replying to any RPC that touches them. If a server crashes with a stale <code>currentTerm</code> or <code>votedFor</code> on disk, it can vote twice in the same term — potentially electing two leaders. If it crashes with a truncated log, it permanently loses committed entries.</p>
+
+  <div class="code-block">
+    <div class="cb-header"><div class="dots"><div class="dot dr"></div><div class="dot dy"></div><div class="dot dg"></div></div><span class="cb-fname">persist.go</span></div>
+    <pre><span class="cm">// persist serializes the three critical fields and hands them to the persister.
+// This MUST be called (via defer) at the end of any handler that modifies
+// currentTerm, votedFor, or log.</span>
+<span class="kw">func</span> (<span class="nm">rf</span> *<span class="tp">Raft</span>) <span class="fn">persist</span>() {
+    w := <span class="kw">new</span>(<span class="tp">bytes.Buffer</span>)
+    e := labgob.<span class="fn">NewEncoder</span>(w)
+    e.<span class="fn">Encode</span>(rf.currentTerm)
+    e.<span class="fn">Encode</span>(rf.votedFor)
+    e.<span class="fn">Encode</span>(rf.log)
+    rf.persister.<span class="fn">SaveRaftState</span>(w.<span class="fn">Bytes</span>())
+}
+
+<span class="cm">// readPersist restores state from disk on startup after a crash.</span>
+<span class="kw">func</span> (<span class="nm">rf</span> *<span class="tp">Raft</span>) <span class="fn">readPersist</span>(data []<span class="kw2">byte</span>) {
+    <span class="kw">if</span> data == <span class="kw2">nil</span> || <span class="fn">len</span>(data) &lt; <span class="nm">1</span> { <span class="kw">return</span> }
+    r := <span class="tp">bytes</span>.<span class="fn">NewBuffer</span>(data)
+    d := labgob.<span class="fn">NewDecoder</span>(r)
+    <span class="kw">var</span> term     <span class="kw2">int</span>
+    <span class="kw">var</span> votedFor <span class="kw2">int</span>
+    <span class="kw">var</span> log      []<span class="tp">LogEntry</span>
+    <span class="kw">if</span> d.<span class="fn">Decode</span>(&amp;term)     != <span class="kw2">nil</span> ||
+       d.<span class="fn">Decode</span>(&amp;votedFor) != <span class="kw2">nil</span> ||
+       d.<span class="fn">Decode</span>(&amp;log)      != <span class="kw2">nil</span> {
+        <span class="fn">panic</span>(<span class="st">"persist: decode failed"</span>)
+    }
+    rf.currentTerm = term
+    rf.votedFor    = votedFor
+    rf.log         = log
+    <span class="cm">// commitIndex and lastApplied start at 0 — rebuilt by replaying the log</span>
+}
+
+<span class="cm">// The ticker drives everything. Followers check for election timeout.
+// Leaders send heartbeats. 10ms sleep gives us ~100 checks/sec granularity.</span>
+<span class="kw">func</span> (<span class="nm">rf</span> *<span class="tp">Raft</span>) <span class="fn">ticker</span>() {
+    <span class="kw">for</span> !rf.<span class="fn">killed</span>() {
+        <span class="tp">time</span>.<span class="fn">Sleep</span>(<span class="nm">10</span> * <span class="tp">time</span>.<span class="tp">Millisecond</span>)
+        rf.mu.<span class="fn">Lock</span>()
+        <span class="kw">switch</span> rf.role {
+        <span class="kw">case</span> <span class="tp">Follower</span>, <span class="tp">Candidate</span>:
+            timeout := <span class="nm">150</span> + rand.<span class="fn">Intn</span>(<span class="nm">150</span>) <span class="cm">// 150–300ms, randomized</span>
+            <span class="kw">if</span> <span class="tp">time</span>.<span class="fn">Since</span>(rf.electionTimer) &gt; <span class="tp">time</span>.<span class="fn">Duration</span>(timeout)*<span class="tp">time</span>.<span class="tp">Millisecond</span> {
+                rf.<span class="fn">startElection</span>()
+            }
+        <span class="kw">case</span> <span class="tp">Leader</span>:
+            rf.<span class="fn">broadcastAppendEntries</span>() <span class="cm">// sends heartbeats + any pending entries</span>
+        }
+        rf.mu.<span class="fn">Unlock</span>()
+    }
+}</pre>
+  </div>
+
+  <div class="callout ok">
+    <div class="callout-title">Where the 2000 lines come from</div>
+    <p>The code above covers the core algorithm. The remaining ~1500 lines in a real implementation are: <strong>log compaction / snapshots</strong> (so the log doesn't grow forever), <strong>membership changes</strong> (adding/removing servers safely via joint consensus), <strong>leader transfer</strong>, <strong>read linearizability</strong> (preventing stale reads without writing to the log), <strong>batch optimizations</strong>, and a full RPC transport layer. Same algorithm; hardened for reality.</p>
+  </div>
+</section>
+<hr>
+
+<!-- ── WHERE IT LIVES ── -->
+<section class="s reveal">
+  <span class="tag">Section 06 — Production</span>
+  <h2>Where This Code Runs</h2>
+  <p>Every system below uses Raft (or a close derivative) as its foundation. Your Go code above sits below everything else in the stack.</p>
+  <table class="rule-table">
+    <thead><tr><th>System</th><th>What Raft does for it</th><th>Language</th></tr></thead>
+    <tbody>
+      <tr><td><strong>etcd</strong></td><td>Replicates Kubernetes config, secrets, service discovery</td><td class="mono">Go (etcd/raft library)</td></tr>
+      <tr><td><strong>CockroachDB</strong></td><td>One Raft group per key range — global SQL, serializable</td><td class="mono">Go</td></tr>
+      <tr><td><strong>TiKV</strong></td><td>Multi-Raft for distributed key-value storage under TiDB</td><td class="mono">Rust</td></tr>
+      <tr><td><strong>Consul</strong></td><td>Service catalog and distributed locking</td><td class="mono">Go (hashicorp/raft)</td></tr>
+      <tr><td><strong>InfluxDB / Dqlite</strong></td><td>Clustered time-series and SQLite replication</td><td class="mono">Go / C</td></tr>
+    </tbody>
+  </table>
+  <p style="margin-top:1.5rem">The right way to learn Raft all the way through is to implement it yourself. The canonical path: <strong>MIT 6.5840 labs 3A → 3B → 3C → 3D</strong>. They hand you a Go skeleton and a brutal test suite that specifically catches the Figure 8 violation, stale-reply bugs, and persistence failures. Passing 3D with <code>-count 100</code> means you've actually understood Raft.</p>
+</section>
+
+<footer>
+  <span>RAFT DEEP DIVE — Based on the Ongaro &amp; Ousterhout 2014 paper</span>
+  <span>Go code follows MIT 6.5840 lab conventions</span>
+</footer>
+
+<script>
+/* ── SCROLL REVEAL ── */
+(function(){
+  var els = document.querySelectorAll('.reveal');
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('vis'); } });
+  }, {threshold:.12});
+  els.forEach(function(el){ io.observe(el); });
+})();
+
+/* ── HERO CANVAS ── */
+(function(){
+  var c = document.getElementById('hero-canvas');
+  if(!c) return;
+  var ctx = c.getContext('2d');
+  var W, H, nodes = [], pulses = [];
+
+  function resize(){
+    W = c.width  = c.offsetWidth;
+    H = c.height = c.offsetHeight;
+    buildNodes();
+  }
+
+  function buildNodes(){
+    nodes = [];
+    var cx = W*.5, cy = H*.5, r = Math.min(W,H)*.28;
+    for(var i=0;i<5;i++){
+      var a = (i/5)*Math.PI*2 - Math.PI/2;
+      nodes.push({
+        x: cx + r*Math.cos(a), y: cy + r*Math.sin(a),
+        id: i, isLeader: i===0
+      });
+    }
+  }
+
+  var lastPulse = 0;
+  function draw(t){
+    ctx.clearRect(0,0,W,H);
+    // Connecting lines
+    ctx.save();
+    ctx.strokeStyle = 'rgba(43,40,32,.6)';
+    ctx.lineWidth = 1;
+    for(var i=0;i<nodes.length;i++){
+      for(var j=i+1;j<nodes.length;j++){
+        ctx.beginPath();
+        ctx.moveTo(nodes[i].x, nodes[i].y);
+        ctx.lineTo(nodes[j].x, nodes[j].y);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+    // Pulses
+    if(t - lastPulse > 1400){ pulses.push({x:nodes[0].x,y:nodes[0].y,r:22,a:1}); lastPulse=t; }
+    for(var p=pulses.length-1;p>=0;p--){
+      var pl = pulses[p];
+      pl.r += 1.8; pl.a -= .018;
+      if(pl.a<=0){ pulses.splice(p,1); continue; }
+      ctx.save();
+      ctx.strokeStyle = 'rgba(232,117,18,'+pl.a+')';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.arc(pl.x,pl.y,pl.r,0,Math.PI*2);
+      ctx.stroke();
+      ctx.restore();
+    }
+    // Nodes
+    nodes.forEach(function(n){
+      var isL = n.isLeader;
+      // Glow for leader
+      if(isL){
+        var grd = ctx.createRadialGradient(n.x,n.y,10,n.x,n.y,38);
+        grd.addColorStop(0,'rgba(232,117,18,.25)');
+        grd.addColorStop(1,'rgba(232,117,18,0)');
+        ctx.fillStyle = grd;
+        ctx.beginPath(); ctx.arc(n.x,n.y,38,0,Math.PI*2); ctx.fill();
+      }
+      ctx.fillStyle   = isL ? '#3a1e05' : '#1a1810';
+      ctx.strokeStyle = isL ? '#e87512' : '#3a3628';
+      ctx.lineWidth   = isL ? 1.5 : 1;
+      ctx.beginPath(); ctx.arc(n.x,n.y,22,0,Math.PI*2);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle   = isL ? '#e87512' : '#6a6458';
+      ctx.font        = 'bold 12px Fira Code,monospace';
+      ctx.textAlign   = 'center'; ctx.textBaseline='middle';
+      ctx.fillText('S'+n.id, n.x, n.y);
+      ctx.fillStyle   = isL ? '#a04010' : '#3a342e';
+      ctx.font        = '10px Fira Code,monospace';
+      ctx.fillText(isL?'L':'F', n.x, n.y+14);
+    });
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('resize', resize);
+  resize();
+  requestAnimationFrame(draw);
+})();
+
+/* ── ELECTION ANIMATION ── */
+(function(){
+  var c = document.getElementById('election-canvas');
+  if(!c) return;
+  var ctx = c.getContext('2d');
+  var capEl  = document.getElementById('el-caption');
+  var progEl = document.getElementById('el-progress');
+  var phaseEl= document.getElementById('el-phase');
+  var btnPlay= document.getElementById('el-play');
+  var btnRst = document.getElementById('el-reset');
+
+  var W = c.width, H = c.height;
+  var cx = W*.5, cy = H*.5 - 10;
+  var R  = Math.min(W,H)*.31;
+
+  // Node positions — pentagon
+  var NP = Array.from({length:5}, function(_,i){
+    var a = (i/5)*Math.PI*2 - Math.PI/2;
+    return {x: cx+R*Math.cos(a), y: cy+R*Math.sin(a)};
+  });
+
+  // Timeline phases
+  var PHASES = [
+    {dur:2400, cap:'All nodes are Followers. Each has a randomized election timer.', phas:'followers'},
+    {dur:1400, cap:'S0\'s timer fires first. startElection(): currentTerm++, role=Candidate, votedFor=S0', phas:'timeout'},
+    {dur:1800, cap:'RequestVote{term:1, lastLogIndex:0} sent to S1, S2, S3, S4 in parallel goroutines.', phas:'requesting'},
+    {dur:1800, cap:'Receivers check: term OK, log equally up-to-date → VoteGranted=true, votedFor=S0', phas:'voting'},
+    {dur:1200, cap:'votes(3) > len(peers)/2 → becomeLeader(). nextIndex and matchIndex initialized.', phas:'elected'},
+    {dur:2400, cap:'Leader sends empty AppendEntries every 100ms. Followers reset electionTimer.', phas:'heartbeat'},
+  ];
+  var TOTAL = PHASES.reduce(function(s,p){return s+p.dur;},0);
+
+  var playing = false, startTime = 0, pausedAt = 0, raf = null;
+
+  function phaseAt(elapsed){
+    var t=0;
+    for(var i=0;i<PHASES.length;i++){
+      if(elapsed < t+PHASES[i].dur) return {idx:i, local:(elapsed-t)/PHASES[i].dur};
+      t += PHASES[i].dur;
+    }
+    return {idx:PHASES.length-1, local:1};
+  }
+
+  // Messages state
+  var msgs = [];
+
+  function lerp(a,b,t){return a+(b-a)*t;}
+  function easeOut(t){return 1-(1-t)*(1-t);}
+
+  function drawNode(i, role, term, alpha){
+    if(alpha===undefined) alpha=1;
+    var p = NP[i];
+    ctx.globalAlpha = alpha;
+    var isL = role==='L', isC = role==='C';
+    var fill   = isL?'#3a1e05': isC?'#2a1a04':'#161410';
+    var stroke = isL?'#e87512': isC?'#f0a040':'#2e2a22';
+    var lw     = (isL||isC)?1.8:1;
+    // Timer arc (follower mode)
+    if(role==='F'){
+      var arcT = ((Date.now()%2000)/2000);
+      var remaining = 1 - (i===0 ? Math.min(1,arcT*2.5) : Math.min(1,arcT*.8));
+      if(remaining>0){
+        ctx.strokeStyle='rgba(200,190,160,.18)';
+        ctx.lineWidth=3; ctx.beginPath();
+        ctx.arc(p.x,p.y,26,-Math.PI*.5,-Math.PI*.5+Math.PI*2*remaining);
+        ctx.stroke();
+      }
+    }
+    if(isL){
+      ctx.fillStyle='rgba(232,117,18,.12)'; ctx.beginPath();
+      ctx.arc(p.x,p.y,36,0,Math.PI*2); ctx.fill();
+    }
+    ctx.fillStyle=fill; ctx.strokeStyle=stroke; ctx.lineWidth=lw;
+    ctx.beginPath(); ctx.arc(p.x,p.y,22,0,Math.PI*2);
+    ctx.fill(); ctx.stroke();
+    var label = 'S'+i;
+    ctx.fillStyle = isL?'#e87512': isC?'#f0b060':'#6a6458';
+    ctx.font='bold 11px Fira Code,monospace';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(label,p.x,p.y-1);
+    ctx.fillStyle=isL?'#a04010':isC?'#c07030':'#3a3228';
+    ctx.font='9px Fira Code,monospace';
+    ctx.fillText(role==='C'?'cand':role==='L'?'leader':'follower',p.x,p.y+13);
+    ctx.font='9px Fira Code,monospace';
+    ctx.fillStyle='#5a5450';
+    ctx.fillText('t'+term,p.x,p.y-14);
+    ctx.globalAlpha=1;
+  }
+
+  function drawArrow(from,to,progress,col,returning){
+    var t = easeOut(Math.min(1,progress));
+    var sx=from.x, sy=from.y, ex=to.x, ey=to.y;
+    var cx2=(sx+ex)*.5+(ey-sy)*.15, cy2=(sy+ey)*.5+(sx-ex)*.15;
+    ctx.save();
+    ctx.strokeStyle=col||'#e87512'; ctx.lineWidth=1.4;
+    ctx.globalAlpha=.8;
+    // Draw path up to t
+    var steps=20; ctx.beginPath();
+    for(var s=0;s<=steps*t;s++){
+      var u=s/steps;
+      var bx=(1-u)*(1-u)*sx+2*(1-u)*u*cx2+u*u*ex;
+      var by=(1-u)*(1-u)*sy+2*(1-u)*u*cy2+u*u*ey;
+      if(s===0) ctx.moveTo(bx,by); else ctx.lineTo(bx,by);
+    }
+    ctx.stroke();
+    // Dot at head
+    if(t>0){
+      var ut=t; var u2=Math.max(0,t-.01);
+      var headX=(1-ut)*(1-ut)*sx+2*(1-ut)*ut*cx2+ut*ut*ex;
+      var headY=(1-ut)*(1-ut)*sy+2*(1-ut)*ut*cy2+ut*ut*ey;
+      ctx.fillStyle=col||'#e87512'; ctx.beginPath();
+      ctx.arc(headX,headY,3.5,0,Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawFrame(elapsed){
+    ctx.clearRect(0,0,W,H);
+    var ph = phaseAt(elapsed);
+    var idx=ph.idx, t=ph.local;
+    var p=PHASES[idx];
+    capEl.textContent = p.cap;
+    phaseEl.textContent = 'phase '+(idx+1)+'/'+PHASES.length;
+    progEl.style.width = Math.min(100,(elapsed/TOTAL*100)).toFixed(1)+'%';
+
+    // Draw connecting lines
+    ctx.strokeStyle='rgba(43,40,32,.5)'; ctx.lineWidth=1;
+    for(var a=0;a<5;a++){
+      for(var b=a+1;b<5;b++){
+        ctx.beginPath();ctx.moveTo(NP[a].x,NP[a].y);ctx.lineTo(NP[b].x,NP[b].y);ctx.stroke();
+      }
+    }
+
+    var term=idx>=1?1:0;
+    if(idx===0){
+      // All followers with timer arcs
+      for(var i=0;i<5;i++){
+        var baseArc = i===0 ? t*.9 : t*.4+Math.sin(i*1.3)*.05;
+        var p2=NP[i];
+        var arcRem = Math.max(0,1-baseArc);
+        ctx.strokeStyle='rgba(200,190,160,.22)'; ctx.lineWidth=3;
+        ctx.beginPath();
+        ctx.arc(p2.x,p2.y,26,-Math.PI*.5,-Math.PI*.5+Math.PI*2*arcRem);
+        ctx.stroke();
+        drawNode(i,'F',0);
+      }
+    } else if(idx===1){
+      // S0 becomes candidate
+      for(var i=1;i<5;i++) drawNode(i,'F',0);
+      var r2 = idx>=1?'C':'F';
+      drawNode(0, easeOut(t)>.3?'C':'F', t>.3?1:0);
+      // Flash ring
+      if(t<.5){
+        ctx.strokeStyle='rgba(240,160,60,'+((1-t*2)*0.7)+')';
+        ctx.lineWidth=2;
+        ctx.beginPath(); ctx.arc(NP[0].x,NP[0].y,22+t*20,0,Math.PI*2); ctx.stroke();
+      }
+    } else if(idx===2){
+      // Vote requests flying out
+      drawNode(0,'C',1);
+      for(var i=1;i<5;i++) drawNode(i,'F',0);
+      for(var i=1;i<5;i++) drawArrow(NP[0],NP[i],t);
+    } else if(idx===3){
+      // Votes returning
+      drawNode(0,'C',1);
+      for(var i=1;i<5;i++) drawNode(i,'F',1);
+      var voteCount=1;
+      for(var i=1;i<5;i++){
+        var delay = (i-1)*.18;
+        var prog = Math.max(0,(t-delay)/(1-delay));
+        drawArrow(NP[i],NP[0],prog,'#7ebb84');
+        if(prog>=1) voteCount++;
+      }
+      // Vote counter
+      ctx.fillStyle='#e87512'; ctx.font='bold 22px Fira Code,monospace';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(voteCount,NP[0].x, NP[0].y-42);
+      ctx.font='9px Fira Code,monospace'; ctx.fillStyle='#8a8478';
+      ctx.fillText('votes',NP[0].x, NP[0].y-30);
+    } else if(idx===4){
+      // Elected
+      drawNode(0,'L',1);
+      for(var i=1;i<5;i++) drawNode(i,'F',1);
+      var grd=ctx.createRadialGradient(NP[0].x,NP[0].y,20,NP[0].x,NP[0].y,60);
+      grd.addColorStop(0,'rgba(232,117,18,'+(.18*easeOut(t))+')');
+      grd.addColorStop(1,'rgba(232,117,18,0)');
+      ctx.fillStyle=grd;
+      ctx.beginPath(); ctx.arc(NP[0].x,NP[0].y,60,0,Math.PI*2); ctx.fill();
+    } else if(idx===5){
+      // Heartbeats
+      drawNode(0,'L',1);
+      for(var i=1;i<5;i++) drawNode(i,'F',1);
+      var hbT = t;
+      var numPulses=3;
+      for(var p3=0;p3<numPulses;p3++){
+        var pt = (hbT + p3/numPulses) % 1;
+        var pAlpha = 1-pt;
+        var pR = 22+pt*60;
+        if(pAlpha>.02){
+          ctx.strokeStyle='rgba(232,117,18,'+pAlpha*.5+')';
+          ctx.lineWidth=1.2;
+          ctx.beginPath(); ctx.arc(NP[0].x,NP[0].y,pR,0,Math.PI*2); ctx.stroke();
+        }
+      }
+      // Lines to followers
+      for(var i=1;i<5;i++){
+        ctx.strokeStyle='rgba(232,117,18,.12)';
+        ctx.lineWidth=1;
+        ctx.setLineDash([3,5]);
+        ctx.beginPath();ctx.moveTo(NP[0].x,NP[0].y);ctx.lineTo(NP[i].x,NP[i].y);ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+  }
+
+  function animate(){
+    if(!playing) return;
+    var now = performance.now();
+    var elapsed = pausedAt + (now - startTime);
+    if(elapsed >= TOTAL){ elapsed=TOTAL; playing=false; btnPlay.textContent='▶ play'; }
+    drawFrame(elapsed);
+    pausedAt = elapsed;
+    startTime = now;
+    if(playing) raf = requestAnimationFrame(animate);
+  }
+
+  btnPlay.onclick = function(){
+    if(playing){ playing=false; btnPlay.textContent='▶ play'; cancelAnimationFrame(raf); }
+    else {
+      if(pausedAt>=TOTAL) pausedAt=0;
+      playing=true; btnPlay.textContent='⏸ pause';
+      startTime=performance.now(); animate();
+    }
+  };
+  btnRst.onclick = function(){
+    playing=false; btnPlay.textContent='▶ play';
+    cancelAnimationFrame(raf);
+    pausedAt=0; drawFrame(0);
+    capEl.textContent='Press Play to watch a leader election unfold.';
+    progEl.style.width='0%'; phaseEl.textContent='';
+  };
+
+  // Initial static frame
+  drawFrame(0);
+})();
+
+/* ── LOG REPLICATION ANIMATION ── */
+(function(){
+  var c = document.getElementById('repl-canvas');
+  if(!c) return;
+  var ctx = c.getContext('2d');
+  var capEl  = document.getElementById('rp-caption');
+  var progEl = document.getElementById('rp-progress');
+  var phaseEl= document.getElementById('rp-phase');
+  var btnPlay= document.getElementById('rp-play');
+  var btnRst = document.getElementById('rp-reset');
+
+  var W=c.width, H=c.height;
+
+  // Node layout: leader top center, 4 followers below
+  var nodeR = 20;
+  var leader = {x:W*.5, y:70, id:0, role:'L'};
+  var followers = [1,2,3,4].map(function(i,idx){
+    return {x: W*(idx+1)/5, y:220, id:i, role:'F'};
+  });
+  var allNodes = [leader].concat(followers);
+
+  // Log box drawing
+  function drawLogBox(x,y,term,state){ // state: 'empty','uncommitted','committed'
+    var sz=28, r=4;
+    if(state==='committed'){ ctx.fillStyle='#1a3a2a'; ctx.strokeStyle='#58a87c'; }
+    else if(state==='uncommitted'){ ctx.fillStyle='#2a1a06'; ctx.strokeStyle='#e87512'; }
+    else { ctx.fillStyle='#181610'; ctx.strokeStyle='#2a2820'; }
+    ctx.lineWidth=1.2;
+    ctx.beginPath(); ctx.roundRect(x,y,sz,sz,r); ctx.fill(); ctx.stroke();
+    if(state!=='empty'){
+      ctx.fillStyle=state==='committed'?'#58a87c':'#e87512';
+      ctx.font='bold 10px Fira Code,monospace';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('t'+term, x+sz/2, y+sz/2);
+    }
+  }
+
+  function drawNodeCircle(n, term){
+    var isL=n.role==='L';
+    if(isL){
+      ctx.fillStyle='rgba(232,117,18,.1)';
+      ctx.beginPath(); ctx.arc(n.x,n.y,32,0,Math.PI*2); ctx.fill();
+    }
+    ctx.fillStyle=isL?'#3a1e05':'#161410';
+    ctx.strokeStyle=isL?'#e87512':'#2e2a22';
+    ctx.lineWidth=isL?1.8:1;
+    ctx.beginPath(); ctx.arc(n.x,n.y,nodeR,0,Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle=isL?'#e87512':'#6a6458';
+    ctx.font='bold 10px Fira Code,monospace';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('S'+n.id, n.x, n.y-1);
+    ctx.fillStyle=isL?'#a04010':'#3a3228';
+    ctx.font='8px Fira Code,monospace';
+    ctx.fillText(isL?'leader':'follower', n.x, n.y+12);
+  }
+
+  function drawLine(from,to,progress,col,dashed){
+    var t=Math.min(1,progress);
+    var tx=from.x+(to.x-from.x)*t, ty=from.y+(to.y-from.y)*t;
+    ctx.save();
+    ctx.strokeStyle=col||'#e87512'; ctx.lineWidth=1.3;
+    ctx.globalAlpha=.7;
+    if(dashed) ctx.setLineDash([4,6]);
+    ctx.beginPath(); ctx.moveTo(from.x,from.y); ctx.lineTo(tx,ty); ctx.stroke();
+    ctx.setLineDash([]);
+    if(t>0.02){
+      ctx.fillStyle=col||'#e87512'; ctx.globalAlpha=1;
+      ctx.beginPath(); ctx.arc(tx,ty,3,0,Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  var PHASES=[
+    {dur:1200, cap:'Leader S0 has one committed entry (x=3). Followers are in sync.'},
+    {dur:1400, cap:'Client sends command "x=5". Leader appends it locally — not yet committed.'},
+    {dur:1800, cap:'broadcastAppendEntries(): AppendEntries{prevLogIndex:1, entries:[t1]} sent to all followers.'},
+    {dur:1800, cap:'Log match check passes. Followers append entry (uncommitted, amber).'},
+    {dur:1600, cap:'maybeAdvanceCommit(): 3 of 5 have entry 2, log[2].term==currentTerm → commitIndex=2.'},
+    {dur:1600, cap:'Next AppendEntries carries leaderCommit=2. Followers advance commitIndex. applyEntries() called.'},
+  ];
+  var TOTAL=PHASES.reduce(function(s,p){return s+p.dur;},0);
+  var playing=false, startTime=0, pausedAt=0, raf=null;
+
+  function phaseAt(elapsed){
+    var t=0;
+    for(var i=0;i<PHASES.length;i++){
+      if(elapsed<t+PHASES[i].dur) return{idx:i,local:(elapsed-t)/PHASES[i].dur};
+      t+=PHASES[i].dur;
+    }
+    return{idx:PHASES.length-1,local:1};
+  }
+
+  function easeOut(t){return 1-(1-t)*(1-t);}
+
+  function drawFrame(elapsed){
+    ctx.clearRect(0,0,W,H);
+    var ph=phaseAt(elapsed);
+    var idx=ph.idx, t=ph.local;
+    capEl.textContent=PHASES[idx].cap;
+    phaseEl.textContent='phase '+(idx+1)+'/'+PHASES.length;
+    progEl.style.width=Math.min(100,(elapsed/TOTAL*100)).toFixed(1)+'%';
+
+    var logOffX=26, logGap=34;
+
+    // Draw connectors leader → followers
+    for(var f=0;f<followers.length;f++){
+      ctx.strokeStyle='rgba(43,40,32,.4)'; ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(leader.x,leader.y+nodeR);ctx.lineTo(followers[f].x,followers[f].y-nodeR);ctx.stroke();
+    }
+
+    // === Per-phase drawing ===
+    // Leader log state
+    var leaderEntry2 = idx>=1; // has entry 2
+    var leaderCommit = idx>=4 ? 2 : 1; // committed up to which index
+    var followerHas2 = idx>=3;
+    var followerCommit = idx>=5 ? 2 : 1;
+
+    // Leader log
+    drawLogBox(leader.x-logOffX, leader.y-44, 1, 'committed'); // entry 1
+    if(leaderEntry2){
+      var entry2state = leaderCommit>=2?'committed':'uncommitted';
+      drawLogBox(leader.x-logOffX+logGap, leader.y-44, 1, entry2state);
+    }
+    // commitIndex label
+    ctx.fillStyle='#4a4440'; ctx.font='8px Fira Code,monospace';
+    ctx.textAlign='left'; ctx.textBaseline='middle';
+    ctx.fillText('commit→'+leaderCommit, leader.x-logOffX, leader.y-54);
+
+    // Followers log
+    followers.forEach(function(f,fi){
+      drawLogBox(f.x-12, f.y-56, 1, 'committed'); // entry 1
+      if(followerHas2){
+        var fe2 = followerCommit>=2?'committed':'uncommitted';
+        drawLogBox(f.x-12+logGap, f.y-56, 1, fe2);
+      }
+    });
+
+    // AppendEntries arrows (phase 2)
+    if(idx===2){
+      followers.forEach(function(f){ drawLine(
+        {x:leader.x,y:leader.y+nodeR+2},{x:f.x,y:f.y-nodeR-2},easeOut(t)
+      );});
+    }
+
+    // Commit line sweep (phase 4)
+    if(idx===4){
+      var sweepProg=easeOut(t);
+      ctx.fillStyle='rgba(88,168,124,'+(.15*sweepProg)+')';
+      ctx.strokeStyle='rgba(88,168,124,'+(.5*sweepProg)+')';
+      ctx.lineWidth=1;
+      var ex=leader.x-logOffX+logGap, ey=leader.y-44;
+      ctx.beginPath(); ctx.roundRect(ex,ey,28,28,4);
+      ctx.fill(); ctx.stroke();
+    }
+
+    // leaderCommit arrows (phase 5)
+    if(idx===5){
+      followers.forEach(function(f){ drawLine(
+        {x:leader.x,y:leader.y+nodeR+2},{x:f.x,y:f.y-nodeR-2},easeOut(t),'#58a87c'
+      );});
+    }
+
+    // Draw nodes last (on top)
+    drawNodeCircle(leader, 1);
+    followers.forEach(function(f){ drawNodeCircle(f,1); });
+
+    // Client command arrow (phase 1)
+    if(idx===1){
+      ctx.save();
+      ctx.strokeStyle='rgba(240,180,80,'+(.7*t)+')';
+      ctx.lineWidth=1.5;
+      ctx.setLineDash([4,5]);
+      ctx.beginPath();
+      ctx.moveTo(leader.x-110, leader.y);
+      ctx.lineTo(leader.x-nodeR-4, leader.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle='rgba(240,180,80,'+t+')';
+      ctx.font='10px Fira Code,monospace';
+      ctx.textAlign='right'; ctx.textBaseline='middle';
+      ctx.fillText('"x=5"', leader.x-115, leader.y);
+      ctx.restore();
+    }
+
+    // State machine arrows (phase 5)
+    if(idx===5&&t>.5){
+      ctx.fillStyle='rgba(88,168,124,'+((t-.5)*2)+')';
+      ctx.font='9px Fira Code,monospace';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('→ state machine', leader.x, H-24);
+    }
+  }
+
+  function animate(){
+    if(!playing) return;
+    var now=performance.now();
+    var elapsed=pausedAt+(now-startTime);
+    if(elapsed>=TOTAL){elapsed=TOTAL;playing=false;btnPlay.textContent='▶ play';}
+    drawFrame(elapsed);
+    pausedAt=elapsed; startTime=now;
+    if(playing) raf=requestAnimationFrame(animate);
+  }
+
+  btnPlay.onclick=function(){
+    if(playing){playing=false;btnPlay.textContent='▶ play';cancelAnimationFrame(raf);}
+    else{
+      if(pausedAt>=TOTAL) pausedAt=0;
+      playing=true; btnPlay.textContent='⏸ pause';
+      startTime=performance.now(); animate();
+    }
+  };
+  btnRst.onclick=function(){
+    playing=false; btnPlay.textContent='▶ play';
+    cancelAnimationFrame(raf);
+    pausedAt=0; drawFrame(0);
+    capEl.textContent='Press Play to watch log replication and commitment.';
+    progEl.style.width='0%'; phaseEl.textContent='';
+  };
+
+  drawFrame(0);
+})();
+</script>
+</body>
+</html>
