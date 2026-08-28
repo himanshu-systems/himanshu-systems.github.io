@@ -50,6 +50,18 @@
         "networking"
       ],
       "file": "pages/websockets.html"
+    },
+    {
+      "route": "/go-io",
+      "title": "Go I/O, from syscalls to composition",
+      "description": "Every read and write primitive in Go, dissected: why the interfaces have the signatures they do, and how they compose.",
+      "type": "local",
+      "tags": [
+        "notes",
+        "systems",
+        "go"
+      ],
+      "file": "pages/go-io.html"
     }
   ]
 }

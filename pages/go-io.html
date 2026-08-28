@@ -1,0 +1,1598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Go I/O — Deep System</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --bg: #0a0c0f;
+    --surface: #111318;
+    --surface2: #181c23;
+    --surface3: #1e2330;
+    --border: #252b38;
+    --border2: #2e3848;
+    --green: #00ff88;
+    --green-dim: #00cc6a;
+    --amber: #ffb347;
+    --blue: #4db8ff;
+    --red: #ff6b6b;
+    --purple: #b48eff;
+    --cyan: #00e5ff;
+    --text: #e2e8f0;
+    --text-dim: #8892a4;
+    --text-faint: #4a5568;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Space Grotesk', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* HEADER */
+  .header {
+    padding: 40px 48px 32px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(0,255,136,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .header-tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--green);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .header h1 {
+    font-size: 36px;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.5px;
+  }
+  .header h1 span { color: var(--green); }
+  .header-sub {
+    margin-top: 10px;
+    color: var(--text-dim);
+    font-size: 15px;
+    font-weight: 400;
+  }
+
+  /* NAV */
+  .nav {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    padding: 0 48px;
+    background: var(--surface);
+    scrollbar-width: none;
+  }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav-btn {
+    padding: 14px 20px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-faint);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+  }
+  .nav-btn:hover { color: var(--text-dim); }
+  .nav-btn.active {
+    color: var(--green);
+    border-bottom-color: var(--green);
+  }
+
+  /* CONTENT */
+  .content {
+    padding: 40px 48px;
+    max-width: 1100px;
+  }
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* SECTION TITLE */
+  .sec-title {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    letter-spacing: -0.3px;
+  }
+  .sec-sub {
+    color: var(--text-dim);
+    font-size: 14px;
+    margin-bottom: 32px;
+    font-family: var(--mono);
+  }
+
+  /* CODE BLOCK */
+  .code {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--green);
+    border-radius: 6px;
+    padding: 20px 24px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.7;
+    overflow-x: auto;
+    margin: 16px 0;
+    position: relative;
+  }
+  .code .kw { color: var(--purple); }
+  .code .fn { color: var(--blue); }
+  .code .str { color: var(--amber); }
+  .code .cmt { color: var(--text-faint); font-style: italic; }
+  .code .ty { color: var(--cyan); }
+  .code .num { color: var(--red); }
+  .code .op { color: var(--green); }
+  .code-label {
+    position: absolute;
+    top: 10px; right: 14px;
+    font-size: 10px;
+    color: var(--text-faint);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* GRID */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin: 20px 0; }
+
+  /* CARD */
+  .card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    transition: border-color 0.2s;
+  }
+  .card:hover { border-color: var(--border2); }
+  .card-title {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--green);
+    margin-bottom: 8px;
+    font-weight: 700;
+  }
+  .card-text { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
+
+  /* CALLOUT */
+  .callout {
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 20px 0;
+    font-size: 13px;
+    line-height: 1.6;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .callout.warn { background: rgba(255,179,71,0.08); border: 1px solid rgba(255,179,71,0.2); }
+  .callout.info { background: rgba(77,184,255,0.08); border: 1px solid rgba(77,184,255,0.2); }
+  .callout.key { background: rgba(0,255,136,0.07); border: 1px solid rgba(0,255,136,0.2); }
+  .callout.danger { background: rgba(255,107,107,0.08); border: 1px solid rgba(255,107,107,0.2); }
+  .callout strong { color: var(--text); }
+
+  /* DIAGRAM */
+  .diagram { margin: 24px 0; }
+  .diagram svg { width: 100%; }
+
+  /* TABLE */
+  .tbl {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 13px;
+  }
+  .tbl th {
+    background: var(--surface3);
+    padding: 10px 16px;
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border2);
+  }
+  .tbl td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-dim);
+    vertical-align: top;
+    line-height: 1.5;
+  }
+  .tbl td:first-child { font-family: var(--mono); color: var(--green); font-size: 12px; }
+  .tbl tr:hover td { background: rgba(255,255,255,0.02); }
+
+  /* PILL */
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .pill-green { background: rgba(0,255,136,0.12); color: var(--green); }
+  .pill-amber { background: rgba(255,179,71,0.12); color: var(--amber); }
+  .pill-red { background: rgba(255,107,107,0.12); color: var(--red); }
+  .pill-blue { background: rgba(77,184,255,0.12); color: var(--blue); }
+  .pill-purple { background: rgba(180,142,255,0.12); color: var(--purple); }
+
+  h2 { font-size: 18px; font-weight: 600; margin: 28px 0 12px; color: var(--text); }
+  h3 { font-size: 15px; font-weight: 600; margin: 24px 0 10px; color: var(--amber); font-family: var(--mono); }
+  p { font-size: 14px; color: var(--text-dim); line-height: 1.7; margin: 10px 0; }
+  strong { color: var(--text); }
+  code { font-family: var(--mono); font-size: 12px; background: var(--surface3); padding: 2px 6px; border-radius: 3px; color: var(--cyan); }
+
+  /* PIPELINE BUILDER */
+  .pipeline-builder {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    margin: 24px 0;
+  }
+  .pipeline-stages {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 16px 0;
+    min-height: 80px;
+  }
+  .pipeline-stage {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-shrink: 0;
+  }
+  .stage-box {
+    background: var(--surface3);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 10px 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--green);
+    white-space: nowrap;
+  }
+  .stage-arrow {
+    color: var(--text-faint);
+    font-size: 18px;
+    padding: 0 8px;
+  }
+  .pipeline-add { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .add-btn {
+    padding: 6px 14px;
+    background: var(--surface3);
+    border: 1px solid var(--border2);
+    border-radius: 5px;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .add-btn:hover { border-color: var(--green); color: var(--green); background: rgba(0,255,136,0.07); }
+  .pipeline-info {
+    margin-top: 16px;
+    padding: 14px;
+    background: rgba(0,255,136,0.04);
+    border-radius: 6px;
+    border: 1px solid rgba(0,255,136,0.1);
+    font-size: 13px;
+    color: var(--text-dim);
+    min-height: 60px;
+  }
+  .clear-btn {
+    padding: 6px 14px;
+    background: rgba(255,107,107,0.1);
+    border: 1px solid rgba(255,107,107,0.2);
+    border-radius: 5px;
+    color: var(--red);
+    font-family: var(--mono);
+    font-size: 11px;
+    cursor: pointer;
+    margin-left: auto;
+    display: block;
+    margin-top: 8px;
+  }
+
+  /* SYSCALL VIZ */
+  .syscall-viz {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin: 20px 0;
+  }
+  .syscall-layer {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 16px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    position: relative;
+  }
+  .syscall-label {
+    font-family: var(--mono);
+    font-size: 12px;
+    min-width: 140px;
+    font-weight: 500;
+  }
+  .syscall-bar-track {
+    flex: 1;
+    height: 8px;
+    background: var(--surface3);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .syscall-bar {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 1s ease;
+  }
+  .syscall-count { font-family: var(--mono); font-size: 11px; color: var(--text-dim); min-width: 60px; text-align: right; }
+
+  /* MEMORY DIAGRAM */
+  .mem-diagram { display: flex; gap: 4px; align-items: stretch; margin: 16px 0; flex-wrap: wrap; }
+  .mem-cell {
+    padding: 10px 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    border-radius: 4px;
+    border: 1px solid var(--border2);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 48px;
+  }
+  .mem-val { color: var(--amber); font-weight: 700; }
+  .mem-idx { color: var(--text-faint); font-size: 9px; }
+
+  /* INTERACTIVE READ DEMO */
+  .demo-container {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 24px 0;
+  }
+  .demo-header {
+    padding: 12px 20px;
+    background: var(--surface3);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .demo-body { padding: 20px; }
+  .demo-row { display: flex; gap: 12px; align-items: center; margin: 8px 0; flex-wrap: wrap; }
+  .demo-lbl { font-family: var(--mono); font-size: 11px; color: var(--text-faint); min-width: 90px; }
+  .run-btn {
+    padding: 8px 20px;
+    background: rgba(0,255,136,0.1);
+    border: 1px solid var(--green);
+    border-radius: 5px;
+    color: var(--green);
+    font-family: var(--mono);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .run-btn:hover { background: rgba(0,255,136,0.2); }
+  .demo-output {
+    margin-top: 14px;
+    padding: 14px;
+    background: var(--bg);
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    min-height: 80px;
+    line-height: 1.6;
+  }
+
+  .divider { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+
+  /* KINGDOM MAP */
+  .kingdom-map { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 24px 0; }
+  .kingdom {
+    border-radius: 8px;
+    padding: 16px 14px;
+    border: 1px solid var(--border2);
+    text-align: center;
+    transition: all 0.2s;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+  .kingdom::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .kingdom:hover::before { opacity: 1; }
+  .kingdom-k1 { background: rgba(0,255,136,0.05); }
+  .kingdom-k1::before { background: radial-gradient(circle at 50% 0%, rgba(0,255,136,0.12), transparent 70%); }
+  .kingdom-k2 { background: rgba(77,184,255,0.05); }
+  .kingdom-k2::before { background: radial-gradient(circle at 50% 0%, rgba(77,184,255,0.12), transparent 70%); }
+  .kingdom-k3 { background: rgba(255,179,71,0.05); }
+  .kingdom-k3::before { background: radial-gradient(circle at 50% 0%, rgba(255,179,71,0.12), transparent 70%); }
+  .kingdom-k4 { background: rgba(180,142,255,0.05); }
+  .kingdom-k4::before { background: radial-gradient(circle at 50% 0%, rgba(180,142,255,0.12), transparent 70%); }
+  .kingdom-k5 { background: rgba(255,107,107,0.05); }
+  .kingdom-k5::before { background: radial-gradient(circle at 50% 0%, rgba(255,107,107,0.12), transparent 70%); }
+  .kingdom-icon { font-size: 24px; margin-bottom: 8px; }
+  .kingdom-name { font-family: var(--mono); font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+  .kingdom-k1 .kingdom-name { color: var(--green); }
+  .kingdom-k2 .kingdom-name { color: var(--blue); }
+  .kingdom-k3 .kingdom-name { color: var(--amber); }
+  .kingdom-k4 .kingdom-name { color: var(--purple); }
+  .kingdom-k5 .kingdom-name { color: var(--red); }
+  .kingdom-items { font-size: 11px; color: var(--text-faint); line-height: 1.5; }
+
+  /* FLOW ARROWS */
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin: 20px 0;
+    flex-wrap: wrap;
+  }
+  .flow-box {
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid;
+  }
+  .flow-arrow {
+    padding: 0 10px;
+    color: var(--text-faint);
+    font-size: 20px;
+  }
+  .flow-green { background: rgba(0,255,136,0.08); border-color: rgba(0,255,136,0.3); color: var(--green); }
+  .flow-blue { background: rgba(77,184,255,0.08); border-color: rgba(77,184,255,0.3); color: var(--blue); }
+  .flow-amber { background: rgba(255,179,71,0.08); border-color: rgba(255,179,71,0.3); color: var(--amber); }
+  .flow-purple { background: rgba(180,142,255,0.08); border-color: rgba(180,142,255,0.3); color: var(--purple); }
+  .flow-red { background: rgba(255,107,107,0.08); border-color: rgba(255,107,107,0.3); color: var(--red); }
+  .flow-label { font-size: 11px; color: var(--text-faint); }
+
+  /* SCROLL indicator */
+  .scroll-hint { font-family: var(--mono); font-size: 11px; color: var(--text-faint); margin-bottom: 20px; }
+
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+  .pulse { animation: pulse 2s ease-in-out infinite; }
+  @keyframes flow-anim { 0% { transform: translateX(-4px); opacity:0; } 100% { transform: translateX(0); opacity:1; } }
+  .flow-in { animation: flow-anim 0.3s ease forwards; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-tag">// systems deep dive</div>
+  <h1>Go <span>I/O System</span> — From Syscalls to Composition</h1>
+  <div class="header-sub">Every read and write primitive, internally dissected. Why it exists. When it's right. How it differs.</div>
+</div>
+
+<nav class="nav">
+  <button class="nav-btn active" onclick="show('overview')">01 · Overview</button>
+  <button class="nav-btn" onclick="show('interface-design')">02 · Interface Design</button>
+  <button class="nav-btn" onclick="show('raw-stream')">03 · Raw Stream</button>
+  <button class="nav-btn" onclick="show('buffered')">04 · Buffered I/O</button>
+  <button class="nav-btn" onclick="show('scanner')">05 · Scanner</button>
+  <button class="nav-btn" onclick="show('structured')">06 · Structured</button>
+  <button class="nav-btn" onclick="show('random-access')">07 · Random Access</button>
+  <button class="nav-btn" onclick="show('composition')">08 · Composition</button>
+  <button class="nav-btn" onclick="show('pipeline')">09 · Pipeline Builder</button>
+  <button class="nav-btn" onclick="show('compare')">10 · Decision Matrix</button>
+</nav>
+
+<!-- ═══════════════════ SECTION: OVERVIEW ═══════════════════ -->
+<div class="content">
+<div id="sec-overview" class="section active">
+  <div class="sec-title">The Mental Model — 5 Kingdoms</div>
+  <div class="sec-sub">// before memorizing 23 APIs, understand the 5 categories that contain them all</div>
+
+  <p>Go's I/O system looks large because it <em>is</em> large — but it is not random. Every API belongs to exactly one of five kingdoms. Once you internalize these kingdoms, you know instinctively which tool to reach for.</p>
+
+  <div class="kingdom-map">
+    <div class="kingdom kingdom-k1">
+      <div class="kingdom-icon">⚡</div>
+      <div class="kingdom-name">RAW STREAM</div>
+      <div class="kingdom-items">io.Reader<br>io.Writer<br>os.File<br>net.Conn</div>
+    </div>
+    <div class="kingdom kingdom-k2">
+      <div class="kingdom-icon">🗄️</div>
+      <div class="kingdom-name">BUFFERED</div>
+      <div class="kingdom-items">bufio.Reader<br>bufio.Writer<br>bufio.ReadWriter<br></div>
+    </div>
+    <div class="kingdom kingdom-k3">
+      <div class="kingdom-icon">🔍</div>
+      <div class="kingdom-name">TOKENIZED</div>
+      <div class="kingdom-items">bufio.Scanner<br>SplitFunc<br>ScanWords<br>ScanLines</div>
+    </div>
+    <div class="kingdom kingdom-k4">
+      <div class="kingdom-icon">📦</div>
+      <div class="kingdom-name">STRUCTURED</div>
+      <div class="kingdom-items">json.Decoder<br>csv.Reader<br>xml.Decoder<br>binary.Read</div>
+    </div>
+    <div class="kingdom kingdom-k5">
+      <div class="kingdom-icon">🎯</div>
+      <div class="kingdom-name">RANDOM ACCESS</div>
+      <div class="kingdom-items">ReadAt/WriteAt<br>Seek<br>mmap<br>bytes.Reader</div>
+    </div>
+  </div>
+
+  <h2>The Overarching Philosophy</h2>
+  <p>Go's I/O is not a framework. It is a <strong>composition system built on two tiny interfaces</strong>. The entire standard library, every third-party package that does I/O — all of it flows through these two shapes:</p>
+
+  <div class="flow">
+    <div class="flow-box flow-green">Source</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box flow-blue">io.Reader</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box flow-amber">Transform(s)</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box flow-purple">io.Writer</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box flow-red">Destination</div>
+  </div>
+
+  <p><strong>Sources</strong> that implement Reader: files, sockets, strings, byte slices, HTTP bodies, compressed streams, pipes.<br>
+  <strong>Destinations</strong> that implement Writer: files, sockets, HTTP responses, buffers, loggers, gzip compressors.<br>
+  <strong>Transforms</strong> wrap a Reader/Writer and modify data in-flight: buffering, compression, rate-limiting, hashing.</p>
+
+  <div class="callout key">
+    <div class="callout-icon">🔑</div>
+    <div><strong>The Golden Rule</strong>: In Go, you never invent a new I/O API. You compose existing Readers and Writers. This is why Go code for "read a gzip'd file over HTTP and stream to disk" is ~10 lines instead of 200.</div>
+  </div>
+
+  <h2>Full API Taxonomy</h2>
+  <table class="tbl">
+    <tr><th>API</th><th>Kingdom</th><th>What it does internally</th><th>When to use</th></tr>
+    <tr><td>io.Reader / io.Writer</td><td><span class="pill pill-green">Raw Stream</span></td><td>Pure interface. No impl. Just the contract.</td><td>Define function params; accept any source/dest</td></tr>
+    <tr><td>io.ReadAll</td><td><span class="pill pill-green">Raw Stream</span></td><td>Calls Read() in a loop, grows a []byte slice</td><td>Small payloads where you need all bytes at once</td></tr>
+    <tr><td>io.ReadFull</td><td><span class="pill pill-green">Raw Stream</span></td><td>Loops until exactly n bytes or error</td><td>Binary protocols with fixed-size frames</td></tr>
+    <tr><td>bufio.Reader</td><td><span class="pill pill-blue">Buffered</span></td><td>Internal 4KB buffer, batches kernel Read() calls</td><td>Line-by-line, Peek, any text with many small reads</td></tr>
+    <tr><td>bufio.Writer</td><td><span class="pill pill-blue">Buffered</span></td><td>Accumulates writes in 4KB buffer, flushes on full/Flush()</td><td>Many small writes to file or network</td></tr>
+    <tr><td>bufio.Scanner</td><td><span class="pill pill-amber">Tokenized</span></td><td>bufio.Reader under the hood + SplitFunc tokenizer</td><td>Line/word iteration over text input</td></tr>
+    <tr><td>json.Decoder</td><td><span class="pill pill-purple">Structured</span></td><td>Wraps io.Reader, parses tokens progressively</td><td>JSON streams, large JSON files</td></tr>
+    <tr><td>csv.Reader</td><td><span class="pill pill-purple">Structured</span></td><td>Wraps io.Reader, bufio internally</td><td>CSV files or streams</td></tr>
+    <tr><td>ReadAt / WriteAt</td><td><span class="pill pill-red">Random Access</span></td><td>pread64/pwrite64 syscall — positional, no cursor move</td><td>Databases, indexes, binary file formats</td></tr>
+    <tr><td>Seek + Read</td><td><span class="pill pill-red">Random Access</span></td><td>lseek() then read() — moves cursor</td><td>Sequential after random seek; not concurrent</td></tr>
+    <tr><td>io.Copy</td><td><span class="pill pill-green">Raw Stream</span></td><td>Calls WriteTo or ReadFrom if available (zero-copy path)</td><td>Pipe any Reader to any Writer efficiently</td></tr>
+    <tr><td>io.TeeReader</td><td><span class="pill pill-green">Raw Stream</span></td><td>Wraps reader; every Read() also writes to a Writer</td><td>Logging, hashing, debugging read streams</td></tr>
+    <tr><td>io.LimitReader</td><td><span class="pill pill-green">Raw Stream</span></td><td>Wraps reader; returns EOF after N bytes</td><td>Security caps, protocol frame sizing</td></tr>
+    <tr><td>io.MultiReader</td><td><span class="pill pill-green">Raw Stream</span></td><td>Sequence of readers, exhausts each in order</td><td>Concat virtual streams; HTTP multipart</td></tr>
+    <tr><td>io.Pipe</td><td><span class="pill pill-blue">Buffered</span></td><td>Synchronous rendezvous — no internal buffer, blocks</td><td>Goroutine-to-goroutine streaming</td></tr>
+    <tr><td>bytes.Buffer</td><td><span class="pill pill-green">Raw Stream</span></td><td>Growable []byte, implements Reader+Writer</td><td>In-memory accumulation, test fakes</td></tr>
+    <tr><td>strings.Builder</td><td><span class="pill pill-green">Raw Stream</span></td><td>Append-only []byte optimized for string output</td><td>Building strings without repeated allocation</td></tr>
+    <tr><td>strings.NewReader</td><td><span class="pill pill-green">Raw Stream</span></td><td>Wraps string as io.Reader; zero-copy, read-only cursor</td><td>Testing, passing string to code that expects Reader</td></tr>
+    <tr><td>bytes.NewReader</td><td><span class="pill pill-green">Raw Stream</span></td><td>Wraps []byte as io.Reader with Seek support</td><td>Random access over in-memory binary data</td></tr>
+    <tr><td>gzip.NewReader/Writer</td><td><span class="pill pill-amber">Tokenized</span></td><td>Decorator wrapping another Reader/Writer</td><td>Transparent compression in any pipeline</td></tr>
+  </table>
+
+</div>
+
+<!-- ═══════════════════ SECTION: INTERFACE DESIGN ═══════════════════ -->
+<div id="sec-interface-design" class="section">
+  <div class="sec-title">Why These Exact Signatures?</div>
+  <div class="sec-sub">// the most important question in Go I/O — derive it from first principles</div>
+
+  <h2>The Reader Signature</h2>
+
+  <div class="code">
+<span class="cmt">// Actual Go stdlib definition</span>
+<span class="kw">type</span> <span class="ty">Reader</span> <span class="kw">interface</span> {
+    <span class="fn">Read</span>(p []<span class="ty">byte</span>) (n <span class="ty">int</span>, err <span class="ty">error</span>)
+}
+
+<span class="cmt">// Alternative that Go deliberately REJECTED</span>
+<span class="cmt">// Read() []byte  ← why is this wrong?</span>
+  </div>
+
+  <p>This is not an arbitrary choice. Every element of the signature encodes a hard systems constraint. Let's derive each one.</p>
+
+  <h3>Why caller-owned buffer: Read(p []byte)?</h3>
+  <p>If Go had chosen <code>Read() []byte</code>, the implementation would have to allocate a new slice for every call. Consider what happens on a network socket serving 10,000 connections:</p>
+
+  <div class="code">
+<span class="cmt">// BAD: Read() []byte — what would happen internally</span>
+<span class="kw">func</span> (<span class="ty">conn</span>) <span class="fn">Read</span>() []<span class="ty">byte</span> {
+    buf := <span class="fn">make</span>([]<span class="ty">byte</span>, <span class="num">?</span>)  <span class="cmt">// HOW LARGE? Don't know yet.</span>
+    n, _ := syscall.<span class="fn">Read</span>(fd, buf)
+    <span class="kw">return</span> buf[:n]           <span class="cmt">// Allocation every call. GC pressure.</span>
+}
+
+<span class="cmt">// GOOD: Read(p []byte) — caller controls everything</span>
+<span class="kw">func</span> (<span class="ty">conn</span>) <span class="fn">Read</span>(p []<span class="ty">byte</span>) (<span class="ty">int</span>, <span class="ty">error</span>) {
+    n, err := syscall.<span class="fn">Read</span>(fd, p) <span class="cmt">// Direct into caller's buffer. Zero alloc.</span>
+    <span class="kw">return</span> n, err
+}
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">Read() []byte — Problems</div>
+      <div class="card-text">
+        • Allocates on every call → GC pressure<br>
+        • Implementation guesses buffer size<br>
+        • Caller can't reuse memory<br>
+        • Can't do zero-copy (e.g. scatter-gather I/O)<br>
+        • Ownership is ambiguous — who frees?
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Read(p []byte) — Properties</div>
+      <div class="card-text">
+        • Caller pre-allocates, reuses across calls<br>
+        • Caller controls read granularity (8B to 64KB)<br>
+        • Zero allocation hot path<br>
+        • Direct syscall mapping (read(2) takes fd + buf + len)<br>
+        • Ownership is explicit — caller owns p
+      </div>
+    </div>
+  </div>
+
+  <h3>Why return (n int, err error) instead of just ([]byte, error)?</h3>
+
+  <div class="callout warn">
+    <div class="callout-icon">⚠️</div>
+    <div><strong>Partial reads are not errors.</strong> This is the single hardest thing for beginners to internalize. When you call <code>Read(buf)</code> with a 4096-byte buffer on a TCP socket, you might get 1 byte back. That is not an error. That is how the kernel works. The n return value tells you how many bytes actually landed in your buffer.</div>
+  </div>
+
+  <div class="code">
+<span class="cmt">// Why n matters — partial read example on a socket</span>
+buf := <span class="fn">make</span>([]<span class="ty">byte</span>, <span class="num">4096</span>)
+
+n, err := conn.<span class="fn">Read</span>(buf)
+<span class="cmt">// n might be 1, 17, 4096, or anything in between.</span>
+<span class="cmt">// This is NOT a bug. TCP is a byte stream, not a message stream.</span>
+<span class="cmt">// err == nil + n == 0 can happen (non-blocking sockets)</span>
+<span class="cmt">// err == io.EOF means the other side closed the connection</span>
+
+<span class="cmt">// Correct: loop until you have what you need</span>
+<span class="kw">func</span> <span class="fn">readExactly</span>(r <span class="ty">io.Reader</span>, n <span class="ty">int</span>) ([]<span class="ty">byte</span>, <span class="ty">error</span>) {
+    buf := <span class="fn">make</span>([]<span class="ty">byte</span>, n)
+    _, err := <span class="ty">io</span>.<span class="fn">ReadFull</span>(r, buf) <span class="cmt">// handles the loop for you</span>
+    <span class="kw">return</span> buf, err
+}
+  </div>
+
+  <h3>Why (n int, err error) can both be non-zero simultaneously</h3>
+  <div class="code">
+n, err := r.<span class="fn">Read</span>(buf)
+<span class="cmt">// Case 1: n=10, err=nil     — read 10 bytes, more data exists</span>
+<span class="cmt">// Case 2: n=10, err=io.EOF  — read final 10 bytes, stream ended (VALID!)</span>
+<span class="cmt">// Case 3: n=0,  err=io.EOF  — stream already exhausted</span>
+<span class="cmt">// Case 4: n=0,  err=someErr — actual error, no data</span>
+<span class="cmt">// Case 5: n=5,  err=someErr — partial read before error (treat as data!)</span>
+
+<span class="cmt">// WRONG pattern (misses case 2):</span>
+<span class="kw">if</span> err != <span class="kw">nil</span> { <span class="kw">return</span> }
+<span class="fn">process</span>(buf[:n])
+
+<span class="cmt">// CORRECT pattern:</span>
+<span class="fn">process</span>(buf[:n])         <span class="cmt">// process first, even if err != nil</span>
+<span class="kw">if</span> err == <span class="ty">io</span>.EOF { <span class="kw">break</span> }
+<span class="kw">if</span> err != <span class="kw">nil</span> { <span class="kw">return</span> err }
+  </div>
+
+  <h2>The Writer Signature</h2>
+  <div class="code">
+<span class="kw">type</span> <span class="ty">Writer</span> <span class="kw">interface</span> {
+    <span class="fn">Write</span>(p []<span class="ty">byte</span>) (n <span class="ty">int</span>, err <span class="ty">error</span>)
+}
+  </div>
+
+  <h3>Why return n on Write?</h3>
+  <p>Partial writes happen in the kernel. You ask to write 4096 bytes to a socket, the kernel sends 2048 because its send buffer is full. This is called a <strong>short write</strong>. Without n, you'd never know it happened.</p>
+
+  <div class="code">
+<span class="cmt">// The io.Writer contract says: if n < len(p) AND err == nil, that's a BUG in the impl</span>
+<span class="cmt">// But YOU still need to check n when layering on raw syscalls</span>
+
+<span class="kw">func</span> <span class="fn">writeAll</span>(w <span class="ty">io.Writer</span>, data []<span class="ty">byte</span>) <span class="ty">error</span> {
+    <span class="kw">for</span> len(data) > <span class="num">0</span> {
+        n, err := w.<span class="fn">Write</span>(data)
+        data = data[n:]           <span class="cmt">// advance past what was written</span>
+        <span class="kw">if</span> err != <span class="kw">nil</span> { <span class="kw">return</span> err }
+    }
+    <span class="kw">return</span> <span class="kw">nil</span>
+}
+<span class="cmt">// This pattern is exactly what io.WriteString does internally</span>
+  </div>
+
+  <div class="callout key">
+    <div class="callout-icon">🔑</div>
+    <div><strong>The kernel model.</strong> Linux's <code>read(2)</code> syscall signature is <code>ssize_t read(int fd, void *buf, size_t count)</code>. Go's <code>Read(p []byte) (int, error)</code> is a direct thin mapping over this. Go chose to preserve syscall semantics rather than hide them. This is intentional — hiding them creates bugs.</div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════ SECTION: RAW STREAM ═══════════════════ -->
+<div id="sec-raw-stream" class="section">
+  <div class="sec-title">Raw Stream — The Foundation</div>
+  <div class="sec-sub">// io.Reader, io.Writer, io.ReadAll, io.Copy — the bedrock layer</div>
+
+  <h2>io.Reader — How Any Implementation Works</h2>
+  <p>When you call <code>f.Read(buf)</code> on an <code>os.File</code>, here is the exact call chain from your Go code to the kernel and back:</p>
+
+  <div class="flow">
+    <div class="flow-box flow-green">f.Read(buf)</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box flow-blue">file.go pread()</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box flow-amber">syscall.Syscall</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box flow-purple">SYS_READ (Linux)</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box flow-red">VFS → FS driver</div>
+  </div>
+
+  <p>The Go scheduler's interaction here is critical: when <code>SYS_READ</code> blocks (data not ready), the Go runtime parks the goroutine and runs another goroutine on the same OS thread. This is what makes Go I/O appear non-blocking at the user level while remaining blocking at the goroutine level.</p>
+
+  <div class="code">
+<span class="cmt">// os.File.Read — simplified internal path</span>
+<span class="kw">func</span> (f *<span class="ty">File</span>) <span class="fn">Read</span>(b []<span class="ty">byte</span>) (n <span class="ty">int</span>, err <span class="ty">error</span>) {
+    <span class="kw">if</span> err := f.checkValid(<span class="str">"read"</span>); err != <span class="kw">nil</span> { <span class="kw">return</span> <span class="num">0</span>, err }
+    <span class="kw">if</span> n, e := f.<span class="fn">read</span>(b); e != <span class="kw">nil</span> {
+        err = f.<span class="fn">wrapErr</span>(<span class="str">"read"</span>, e)
+    }
+    <span class="kw">return</span> n, err
+}
+<span class="cmt">// f.read() eventually calls poll.FD.Read() which calls</span>
+<span class="cmt">// syscall.Read(fd, p) — which is the raw SYS_READ syscall</span>
+  </div>
+
+  <h2>io.ReadAll — Internally</h2>
+  <div class="code">
+<span class="cmt">// Actual implementation from Go stdlib (simplified)</span>
+<span class="kw">func</span> <span class="fn">ReadAll</span>(r <span class="ty">Reader</span>) ([]<span class="ty">byte</span>, <span class="ty">error</span>) {
+    b := <span class="fn">make</span>([]<span class="ty">byte</span>, <span class="num">0</span>, <span class="num">512</span>) <span class="cmt">// start with 512 byte capacity</span>
+    <span class="kw">for</span> {
+        n, err := r.<span class="fn">Read</span>(b[len(b):cap(b)])
+        b = b[:len(b)+n]
+        <span class="kw">if</span> err != <span class="kw">nil</span> {
+            <span class="kw">if</span> err == EOF { err = <span class="kw">nil</span> }
+            <span class="kw">return</span> b, err
+        }
+        <span class="kw">if</span> len(b) == cap(b) {     <span class="cmt">// buffer is full, grow it (doubles)</span>
+            b = <span class="fn">append</span>(b, <span class="num">0</span>)[:len(b)]
+        }
+    }
+}
+<span class="cmt">// Key insight: it uses the slice trick b[len:cap] to avoid</span>
+<span class="cmt">// zeroing bytes. It reads directly into pre-allocated capacity.</span>
+  </div>
+
+  <div class="callout warn">
+    <div class="callout-icon">⚠️</div>
+    <div><strong>ReadAll danger zone.</strong> On an HTTP response body, ReadAll will happily consume 2GB into RAM. Always pair with <code>io.LimitReader</code> for untrusted inputs: <code>io.ReadAll(io.LimitReader(resp.Body, 10&lt;&lt;20))</code> — caps at 10MB.</div>
+  </div>
+
+  <h2>io.Copy — The Zero-Copy Fast Path</h2>
+  <p>This is where Go gets clever. <code>io.Copy</code> is not just a loop over Read/Write. It checks if the source or destination implements special interfaces that enable OS-level zero-copy:</p>
+
+  <div class="code">
+<span class="cmt">// io.Copy internal decision tree (simplified)</span>
+<span class="kw">func</span> <span class="fn">Copy</span>(dst <span class="ty">Writer</span>, src <span class="ty">Reader</span>) (<span class="ty">int64</span>, <span class="ty">error</span>) {
+    <span class="cmt">// Fast path 1: src implements WriteTo(dst) — e.g. *os.File</span>
+    <span class="kw">if</span> wt, ok := src.(<span class="ty">WriterTo</span>); ok {
+        <span class="kw">return</span> wt.<span class="fn">WriteTo</span>(dst)
+        <span class="cmt">// os.File.WriteTo can call sendfile(2) syscall!</span>
+        <span class="cmt">// Data NEVER leaves kernel space — zero copy to userspace</span>
+    }
+    <span class="cmt">// Fast path 2: dst implements ReadFrom(src) — e.g. *net.TCPConn</span>
+    <span class="kw">if</span> rt, ok := dst.(<span class="ty">ReaderFrom</span>); ok {
+        <span class="kw">return</span> rt.<span class="fn">ReadFrom</span>(src)
+    }
+    <span class="cmt">// Slow path: manual loop with 32KB buffer</span>
+    buf := <span class="fn">make</span>([]<span class="ty">byte</span>, <span class="num">32</span>*<span class="num">1024</span>)
+    <span class="kw">for</span> {
+        nr, er := src.<span class="fn">Read</span>(buf)
+        <span class="kw">if</span> nr > <span class="num">0</span> { dst.<span class="fn">Write</span>(buf[:nr]) }
+        <span class="kw">if</span> er == EOF || er != <span class="kw">nil</span> { <span class="kw">break</span> }
+    }
+}
+<span class="cmt">// sendfile(2): copies from file fd to socket fd INSIDE the kernel</span>
+<span class="cmt">// This is how nginx/caddy serve static files at ~40GB/s on modern hardware</span>
+  </div>
+
+  <div class="callout key">
+    <div class="callout-icon">🔑</div>
+    <div><strong>Zero-copy path.</strong> When you do <code>io.Copy(conn, file)</code> — file → TCP socket — Go can use the Linux <code>sendfile(2)</code> syscall. Data goes from disk buffer cache directly to the socket send buffer inside the kernel. Your Go code never touches the bytes. This is how HTTP file servers achieve near wire-speed.</div>
+  </div>
+
+  <h2>strings.NewReader vs bytes.NewReader — The Difference</h2>
+  <table class="tbl">
+    <tr><th>Property</th><th>strings.NewReader</th><th>bytes.NewReader</th></tr>
+    <tr><td>Input type</td><td>string (immutable)</td><td>[]byte (can be mutable)</td></tr>
+    <tr><td>Implements Seeker?</td><td>Yes</td><td>Yes</td></tr>
+    <tr><td>Allocation on create</td><td>Zero (wraps existing string)</td><td>Zero (wraps existing slice)</td></tr>
+    <tr><td>WriteTo fast path?</td><td>Yes</td><td>Yes</td></tr>
+    <tr><td>Can write to it?</td><td>No — immutable</td><td>No — use bytes.Buffer for R/W</td></tr>
+    <tr><td>Primary use case</td><td>Pass string to code expecting io.Reader in tests</td><td>Random-access reads on binary data in memory</td></tr>
+  </table>
+
+</div>
+
+<!-- ═══════════════════ SECTION: BUFFERED ═══════════════════ -->
+<div id="sec-buffered" class="section">
+  <div class="sec-title">Buffered I/O — Why Syscalls Are Expensive</div>
+  <div class="sec-sub">// bufio.Reader, bufio.Writer — batch kernel round-trips</div>
+
+  <h2>The Problem Buffering Solves</h2>
+  <p>Every <code>Read()</code> or <code>Write()</code> call on an unbuffered source (file, socket) is a syscall. Syscalls are expensive because they require a <strong>context switch</strong> from user space to kernel space and back:</p>
+
+  <div class="syscall-viz" id="syscall-viz">
+    <div style="font-family:var(--mono);font-size:11px;color:var(--text-faint);margin-bottom:8px;">SYSCALL COST VISUALIZATION — reading "Hello\nWorld\nFoo\n" character by character vs buffered</div>
+    <div class="syscall-layer" style="background:rgba(255,107,107,0.06)">
+      <div class="syscall-label" style="color:var(--red)">Unbuffered (18 reads)</div>
+      <div class="syscall-bar-track"><div class="syscall-bar" style="width:90%;background:var(--red)"></div></div>
+      <div class="syscall-count" style="color:var(--red)">18 syscalls</div>
+    </div>
+    <div class="syscall-layer" style="background:rgba(0,255,136,0.04)">
+      <div class="syscall-label" style="color:var(--green)">Buffered (1 read)</div>
+      <div class="syscall-bar-track"><div class="syscall-bar" style="width:6%;background:var(--green)"></div></div>
+      <div class="syscall-count" style="color:var(--green)">1 syscall</div>
+    </div>
+    <div style="font-family:var(--mono);font-size:10px;color:var(--text-faint);margin-top:6px;">Each syscall: ~100-300ns context switch overhead. At 100k calls/sec = 10-30ms wasted per second per goroutine.</div>
+  </div>
+
+  <h2>bufio.Reader — Internal State</h2>
+  <p>A <code>bufio.Reader</code> wraps any <code>io.Reader</code> and maintains an internal byte buffer (default 4096 bytes). It refills this buffer in large chunks, then serves your small reads from it without touching the kernel:</p>
+
+  <div class="code">
+<span class="cmt">// bufio.Reader internal structure (from bufio/bufio.go)</span>
+<span class="kw">type</span> <span class="ty">Reader</span> <span class="kw">struct</span> {
+    buf          []<span class="ty">byte</span>  <span class="cmt">// the internal buffer (default 4096 bytes)</span>
+    rd           <span class="ty">io.Reader</span> <span class="cmt">// the underlying reader (file, socket, etc)</span>
+    r, w         <span class="ty">int</span>    <span class="cmt">// r=read position, w=write position in buf</span>
+    err          <span class="ty">error</span>
+    lastByte     <span class="ty">int</span>    <span class="cmt">// for UnreadByte</span>
+    lastRuneSize <span class="ty">int</span>    <span class="cmt">// for UnreadRune</span>
+}
+<span class="cmt">// When buf[r:w] is empty, it calls rd.Read(buf) to refill.</span>
+<span class="cmt">// Your small Read() calls serve from buf[r:w] without syscalls.</span>
+  </div>
+
+  <div class="diagram">
+    <svg viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg" style="max-width:700px">
+      <defs>
+        <marker id="arr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <path d="M0,0 L8,3 L0,6 Z" fill="#4a5568"/>
+        </marker>
+        <marker id="arr-g" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <path d="M0,0 L8,3 L0,6 Z" fill="#00ff88"/>
+        </marker>
+      </defs>
+
+      <!-- Your Code -->
+      <rect x="10" y="70" width="120" height="60" rx="6" fill="#0f1a12" stroke="#00ff88" stroke-width="1.5"/>
+      <text x="70" y="97" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="#00ff88">Your Code</text>
+      <text x="70" y="114" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#4a5568">Read(1 byte)</text>
+
+      <!-- Arrow to bufio -->
+      <line x1="130" y1="100" x2="168" y2="100" stroke="#4a5568" stroke-width="1.5" marker-end="url(#arr)"/>
+      <text x="149" y="94" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#4a5568">ask</text>
+
+      <!-- bufio.Reader -->
+      <rect x="170" y="40" width="260" height="120" rx="6" fill="#111827" stroke="#2e3848" stroke-width="1"/>
+      <text x="300" y="60" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="#4db8ff">bufio.Reader</text>
+
+      <!-- Buffer cells -->
+      <g id="bufcells">
+        <rect x="180" y="70" width="22" height="32" rx="2" fill="#1e2330" stroke="#252b38"/>
+        <rect x="203" y="70" width="22" height="32" rx="2" fill="#1e2330" stroke="#252b38"/>
+        <rect x="226" y="70" width="22" height="32" rx="2" fill="#1e2330" stroke="#252b38"/>
+        <rect x="249" y="70" width="22" height="32" rx="2" fill="#1e2330" stroke="#252b38"/>
+        <rect x="272" y="70" width="22" height="32" rx="2" fill="#152a1e" stroke="#00ff88" stroke-width="1.5"/>
+        <rect x="295" y="70" width="22" height="32" rx="2" fill="#152a1e" stroke="#00ff88" stroke-width="1.5"/>
+        <rect x="318" y="70" width="22" height="32" rx="2" fill="#152a1e" stroke="#00ff88" stroke-width="1.5"/>
+        <rect x="341" y="70" width="22" height="32" rx="2" fill="#1e2330" stroke="#252b38"/>
+        <rect x="364" y="70" width="22" height="32" rx="2" fill="#1e2330" stroke="#252b38"/>
+        <rect x="387" y="70" width="22" height="32" rx="2" fill="#1e2330" stroke="#252b38"/>
+
+        <text x="191" y="91" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#4a5568">H</text>
+        <text x="214" y="91" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#4a5568">e</text>
+        <text x="237" y="91" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#4a5568">l</text>
+        <text x="260" y="91" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#4a5568">l</text>
+        <text x="283" y="91" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#00ff88">o</text>
+        <text x="306" y="91" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#00ff88">\n</text>
+        <text x="329" y="91" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#00ff88">W</text>
+        <text x="352" y="91" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#4a5568">o</text>
+        <text x="375" y="91" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#4a5568">r</text>
+        <text x="398" y="91" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#4a5568">…</text>
+
+        <!-- r pointer -->
+        <text x="283" y="115" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#00ff88">r</text>
+        <!-- w pointer -->
+        <text x="352" y="115" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#4db8ff">w</text>
+        <text x="260" y="115" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#4a5568">already read</text>
+      </g>
+      <text x="300" y="146" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#4a5568">4096-byte internal buffer (only buf[r:w] has unread data)</text>
+
+      <!-- Arrow to underlying reader -->
+      <line x1="430" y1="100" x2="468" y2="100" stroke="#4a5568" stroke-width="1.5" marker-end="url(#arr)"/>
+      <text x="449" y="94" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#4a5568">refill</text>
+
+      <!-- Underlying Reader -->
+      <rect x="470" y="70" width="120" height="60" rx="6" fill="#1a1024" stroke="#b48eff" stroke-width="1.5"/>
+      <text x="530" y="97" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="#b48eff">os.File</text>
+      <text x="530" y="114" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#4a5568">SYS_READ</text>
+
+      <!-- Arrow back (serve from buffer) -->
+      <path d="M 283,70 L 283,30 L 70,30 L 70,70" fill="none" stroke="#00ff88" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arr-g)"/>
+      <text x="170" y="24" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#00ff88">served from buffer — no syscall</text>
+    </svg>
+  </div>
+
+  <h2>bufio.Writer — Flush or Lose Data</h2>
+  <div class="code">
+<span class="cmt">// bufio.Writer internal structure</span>
+<span class="kw">type</span> <span class="ty">Writer</span> <span class="kw">struct</span> {
+    err <span class="ty">error</span>
+    buf []<span class="ty">byte</span>      <span class="cmt">// accumulates your writes</span>
+    n   <span class="ty">int</span>          <span class="cmt">// how many bytes are in buf</span>
+    wr  <span class="ty">io.Writer</span>   <span class="cmt">// underlying writer (file, socket)</span>
+}
+<span class="cmt">// When n == len(buf): auto-flushes (calls wr.Write(buf[:n]))</span>
+<span class="cmt">// You must call Flush() at the end to drain any partial buffer</span>
+<span class="cmt">// Classic bug: forget Flush() → last few KB silently lost</span>
+
+w := bufio.<span class="fn">NewWriter</span>(file)
+w.<span class="fn">WriteString</span>(<span class="str">"hello"</span>)
+w.<span class="fn">WriteString</span>(<span class="str">" world"</span>)
+<span class="cmt">// ← if you return here without Flush(), nothing is written to disk</span>
+<span class="kw">defer</span> w.<span class="fn">Flush</span>() <span class="cmt">// ALWAYS defer this immediately after NewWriter</span>
+  </div>
+
+  <h3>Special Powers of bufio.Reader (vs raw io.Reader)</h3>
+  <table class="tbl">
+    <tr><th>Method</th><th>What it does</th><th>Why it needs the buffer</th></tr>
+    <tr><td>Peek(n)</td><td>Look ahead n bytes without consuming</td><td>Buffer holds bytes you "peeked"; re-reads from same position</td></tr>
+    <tr><td>ReadString('\n')</td><td>Read until delimiter</td><td>Searches within buffered data; only does syscall when buffer runs dry</td></tr>
+    <tr><td>ReadBytes('\n')</td><td>Same, returns []byte</td><td>Same mechanism, avoids string conversion</td></tr>
+    <tr><td>ReadRune()</td><td>Read one full UTF-8 code point</td><td>UTF-8 chars are 1-4 bytes; needs to buffer to not split a rune</td></tr>
+    <tr><td>UnreadByte()</td><td>Push one byte back</td><td>Sets r-- in buffer; zero-cost "unget"</td></tr>
+    <tr><td>UnreadRune()</td><td>Push last rune back</td><td>Sets r -= lastRuneSize</td></tr>
+  </table>
+
+  <div class="callout info">
+    <div class="callout-icon">💡</div>
+    <div><strong>Peek internals.</strong> <code>Peek(n)</code> is how you implement protocol parsers without consuming bytes. It calls <code>fill()</code> if needed to ensure at least n bytes are in the buffer, then returns <code>buf[r:r+n]</code>. This slice is only valid until the next Read call — it's a window into the buffer, not a copy.</div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════ SECTION: SCANNER ═══════════════════ -->
+<div id="sec-scanner" class="section">
+  <div class="sec-title">bufio.Scanner — Tokenized Reading</div>
+  <div class="sec-sub">// the right tool for line-by-line and word-by-word iteration</div>
+
+  <h2>Internal Architecture</h2>
+  <p>Scanner is a thin layer on top of <code>bufio.Reader</code> logic. Internally it maintains a buffer and a <strong>SplitFunc</strong> — a function that looks at the current buffer contents and decides where one token ends.</p>
+
+  <div class="code">
+<span class="cmt">// The SplitFunc signature — the heart of Scanner</span>
+<span class="kw">type</span> <span class="ty">SplitFunc</span> <span class="kw">func</span>(
+    data  []<span class="ty">byte</span>,  <span class="cmt">// unprocessed data in the buffer</span>
+    atEOF <span class="ty">bool</span>,   <span class="cmt">// true when underlying reader is exhausted</span>
+) (
+    advance <span class="ty">int</span>,    <span class="cmt">// how many bytes to consume from data</span>
+    token   []<span class="ty">byte</span>, <span class="cmt">// the token to return (nil means "need more data")</span>
+    err     <span class="ty">error</span>,
+)
+
+<span class="cmt">// Built-in SplitFuncs:</span>
+<span class="cmt">// bufio.ScanLines  — splits on \n (strips trailing \r\n)</span>
+<span class="cmt">// bufio.ScanWords  — splits on whitespace</span>
+<span class="cmt">// bufio.ScanBytes  — one byte per token</span>
+<span class="cmt">// bufio.ScanRunes  — one UTF-8 rune per token</span>
+  </div>
+
+  <div class="code">
+<span class="cmt">// How Scanner.Scan() works internally (simplified)</span>
+<span class="kw">func</span> (s *<span class="ty">Scanner</span>) <span class="fn">Scan</span>() <span class="ty">bool</span> {
+    <span class="kw">for</span> {
+        <span class="cmt">// 1. Try to find a token in what we already have buffered</span>
+        advance, token, err := s.split(s.buf[s.start:s.end], s.done)
+        <span class="kw">if</span> token != <span class="kw">nil</span> {
+            s.token = token
+            s.start += advance
+            <span class="kw">return</span> <span class="kw">true</span>
+        }
+        <span class="cmt">// 2. No token yet — read more data from underlying reader</span>
+        n, err := s.r.<span class="fn">Read</span>(s.buf[s.end:])
+        s.end += n
+        <span class="cmt">// handle err, EOF, buffer growth...</span>
+    }
+}
+  </div>
+
+  <h2>Scanner vs bufio.Reader — When to Choose Which</h2>
+  <table class="tbl">
+    <tr><th>Situation</th><th>Use Scanner</th><th>Use bufio.Reader</th></tr>
+    <tr><td>Iterate over all lines</td><td>✅ Clean loop</td><td>Possible but more code</td></tr>
+    <tr><td>Line &gt; 64KB</td><td>❌ Default limit 64KB</td><td>✅ No limit, Peek available</td></tr>
+    <tr><td>Need to look ahead</td><td>❌ No Peek</td><td>✅ Peek(n) available</td></tr>
+    <tr><td>Binary data</td><td>❌ Token model misfits</td><td>✅ Raw Read() works</td></tr>
+    <tr><td>Custom delimiters</td><td>✅ Custom SplitFunc</td><td>ReadBytes(delim) works too</td></tr>
+    <tr><td>Stdin in a CLI tool</td><td>✅ Ergonomic</td><td>Verbose</td></tr>
+  </table>
+
+  <div class="callout danger">
+    <div class="callout-icon">🔴</div>
+    <div><strong>The 64KB token limit trap.</strong> Scanner has a default max token size of 64 * 1024 bytes. If you scan a log file with a line exceeding this, <code>Scan()</code> returns false and <code>Err()</code> returns <code>bufio.ErrTooLong</code>. Fix: call <code>scanner.Buffer(make([]byte, 1&lt;&lt;20), 1&lt;&lt;20)</code> to set a 1MB limit before the first Scan().</div>
+  </div>
+
+  <h2>Custom SplitFunc Example — CSV Field Tokenizer</h2>
+  <div class="code">
+<span class="cmt">// Custom split: extract comma-separated tokens</span>
+splitCSV := <span class="kw">func</span>(data []<span class="ty">byte</span>, atEOF <span class="ty">bool</span>) (<span class="ty">int</span>, []<span class="ty">byte</span>, <span class="ty">error</span>) {
+    <span class="kw">for</span> i, b := <span class="kw">range</span> data {
+        <span class="kw">if</span> b == <span class="str">','</span> {
+            <span class="kw">return</span> i + <span class="num">1</span>, data[:<span class="num">i</span>], <span class="kw">nil</span> <span class="cmt">// advance past comma, return field</span>
+        }
+    }
+    <span class="kw">if</span> atEOF && len(data) > <span class="num">0</span> {
+        <span class="kw">return</span> len(data), data, <span class="kw">nil</span>   <span class="cmt">// last field, no trailing comma</span>
+    }
+    <span class="kw">return</span> <span class="num">0</span>, <span class="kw">nil</span>, <span class="kw">nil</span>               <span class="cmt">// need more data</span>
+}
+
+scanner := bufio.<span class="fn">NewScanner</span>(r)
+scanner.<span class="fn">Split</span>(splitCSV)
+<span class="kw">for</span> scanner.<span class="fn">Scan</span>() {
+    fmt.<span class="fn">Println</span>(scanner.<span class="fn">Text</span>())
+}
+  </div>
+
+</div>
+
+<!-- ═══════════════════ SECTION: STRUCTURED ═══════════════════ -->
+<div id="sec-structured" class="section">
+  <div class="sec-title">Structured Readers/Writers</div>
+  <div class="sec-sub">// json.Decoder, csv.Reader, binary.Read — parsing over io.Reader</div>
+
+  <h2>The Pattern — Decoders Wrap io.Reader</h2>
+  <p>Structured decoders are not special. They are just code that calls <code>io.Reader.Read()</code> internally and interprets the bytes as a specific format. This is the decorator pattern applied to parsing.</p>
+
+  <div class="flow">
+    <div class="flow-box flow-red">os.File</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box flow-blue">bufio.Reader</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box flow-purple">json.Decoder</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box flow-green">your struct</div>
+  </div>
+
+  <h2>json.Decoder vs json.Unmarshal — Crucial Difference</h2>
+  <div class="code">
+<span class="cmt">// json.Unmarshal — reads ALL bytes first, then parses</span>
+data, _ := io.<span class="fn">ReadAll</span>(file)
+<span class="kw">var</span> v MyStruct
+json.<span class="fn">Unmarshal</span>(data, &v) <span class="cmt">// entire file must fit in RAM</span>
+
+<span class="cmt">// json.Decoder — streams, decodes token by token</span>
+dec := json.<span class="fn">NewDecoder</span>(file)
+<span class="kw">for</span> dec.<span class="fn">More</span>() {
+    <span class="kw">var</span> item Item
+    dec.<span class="fn">Decode</span>(&item) <span class="cmt">// reads ONLY what's needed for one item</span>
+    <span class="fn">process</span>(item)
+}
+<span class="cmt">// 100GB JSONL file? Decoder handles it. Unmarshal crashes.</span>
+  </div>
+
+  <h3>json.Decoder Internal State Machine</h3>
+  <p>Internally, <code>json.Decoder</code> maintains a scanner that reads one rune at a time from its buffered reader, building a state machine to identify JSON token boundaries (strings, numbers, objects, arrays). It only allocates when it needs to return a complete token.</p>
+
+  <h2>encoding/binary — For Protocol Buffers and Binary Formats</h2>
+  <div class="code">
+<span class="cmt">// binary.Read — reads exactly sizeof(v) bytes, interprets per endianness</span>
+<span class="kw">var</span> header <span class="kw">struct</span> {
+    Magic   [<span class="num">4</span>]<span class="ty">byte</span>
+    Version <span class="ty">uint16</span>
+    Length  <span class="ty">uint32</span>
+}
+err := binary.<span class="fn">Read</span>(r, binary.LittleEndian, &header)
+<span class="cmt">// Internally: calls io.ReadFull(r, buf[0:unsafe.Sizeof(header)])</span>
+<span class="cmt">// Then uses unsafe/reflect to fill each field respecting byte order</span>
+<span class="cmt">// This is how you parse TCP frames, file headers, ELF binaries</span>
+  </div>
+
+  <div class="callout info">
+    <div class="callout-icon">💡</div>
+    <div><strong>Prefer manual field reads for hot paths.</strong> <code>binary.Read</code> uses reflection, which allocates. For high-throughput binary parsing (e.g. in your WebSocket broadcast server), manually read fields with <code>io.ReadFull</code> and byte-slice indexing + <code>binary.LittleEndian.Uint32(buf[4:8])</code> — zero allocation, zero reflection.</div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════ SECTION: RANDOM ACCESS ═══════════════════ -->
+<div id="sec-random-access" class="section">
+  <div class="sec-title">Random Access — ReadAt, WriteAt, Seek</div>
+  <div class="sec-sub">// for binary formats, databases, and indexed access patterns</div>
+
+  <h2>The Fundamental Difference</h2>
+  <p>Sequential readers maintain a cursor that advances as you read. Random access lets you read from <em>any position at any time</em>. There are two approaches, with very different concurrency properties:</p>
+
+  <div class="code">
+<span class="cmt">// Approach 1: Seek + Read — moves the cursor, then reads</span>
+f.<span class="fn">Seek</span>(<span class="num">1024</span>, io.SeekStart) <span class="cmt">// set cursor to byte 1024</span>
+f.<span class="fn">Read</span>(buf)              <span class="cmt">// read from cursor position</span>
+<span class="cmt">// PROBLEM: Seek then Read is NOT atomic</span>
+<span class="cmt">// Concurrent goroutine can Seek to a different position between your calls</span>
+
+<span class="cmt">// Approach 2: ReadAt — single atomic operation, no cursor change</span>
+f.<span class="fn">ReadAt</span>(buf, <span class="num">1024</span>)  <span class="cmt">// read from offset 1024</span>
+<span class="cmt">// Internally: pread64(fd, buf, len, offset) — ONE syscall, cursor untouched</span>
+<span class="cmt">// Safe to call from multiple goroutines concurrently on the same *os.File</span>
+  </div>
+
+  <table class="tbl">
+    <tr><th>Property</th><th>Seek + Read</th><th>ReadAt</th></tr>
+    <tr><td>Syscalls per operation</td><td>2 (lseek + read)</td><td>1 (pread64)</td></tr>
+    <tr><td>Goroutine-safe on same file?</td><td>❌ Race condition</td><td>✅ Safe</td></tr>
+    <tr><td>Changes file cursor?</td><td>Yes</td><td>No</td></tr>
+    <tr><td>Use case</td><td>Sequential after one seek</td><td>Database, index, concurrent access</td></tr>
+    <tr><td>Interface</td><td>io.ReadSeeker</td><td>io.ReaderAt</td></tr>
+  </table>
+
+  <h2>Seek Whence Values — What They Mean</h2>
+  <div class="code">
+<span class="cmt">// Three seek modes map directly to Linux lseek() whence parameter</span>
+f.<span class="fn">Seek</span>(<span class="num">0</span>,   io.SeekStart)   <span class="cmt">// absolute: go to byte 0         (SEEK_SET)</span>
+f.<span class="fn">Seek</span>(<span class="num">100</span>, io.SeekCurrent)  <span class="cmt">// relative: advance 100 bytes    (SEEK_CUR)</span>
+f.<span class="fn">Seek</span>(<span class="num">0</span>,   io.SeekEnd)     <span class="cmt">// from end:  f.Seek(0, End) = EOF position</span>
+f.<span class="fn">Seek</span>(-<span class="num">8</span>,  io.SeekEnd)     <span class="cmt">// last 8 bytes of file           (SEEK_END)</span>
+
+<span class="cmt">// Get current position without moving cursor:</span>
+pos, _ := f.<span class="fn">Seek</span>(<span class="num">0</span>, io.SeekCurrent)
+
+<span class="cmt">// Get file size:</span>
+size, _ := f.<span class="fn">Seek</span>(<span class="num">0</span>, io.SeekEnd)
+f.<span class="fn">Seek</span>(<span class="num">0</span>, io.SeekStart) <span class="cmt">// reset to start afterward</span>
+  </div>
+
+  <h2>bytes.NewReader — Random Access on In-Memory Data</h2>
+  <div class="code">
+r := bytes.<span class="fn">NewReader</span>(data)
+<span class="cmt">// Implements: io.Reader, io.ReaderAt, io.Seeker, io.WriterTo</span>
+<span class="cmt">// Zero allocation — wraps your []byte directly</span>
+<span class="cmt">// Useful for: parsing binary file formats held in memory</span>
+<span class="cmt">// e.g., iterate over TLS record headers in a captured packet</span>
+
+r.<span class="fn">ReadAt</span>(buf, offset)   <span class="cmt">// random access, goroutine-safe</span>
+r.<span class="fn">Seek</span>(<span class="num">0</span>, io.SeekStart) <span class="cmt">// reset to beginning</span>
+  </div>
+
+</div>
+
+<!-- ═══════════════════ SECTION: COMPOSITION ═══════════════════ -->
+<div id="sec-composition" class="section">
+  <div class="sec-title">Composition — The Real Power of Go I/O</div>
+  <div class="sec-sub">// TeeReader, MultiReader, Pipe, LimitReader — building data pipelines</div>
+
+  <h2>io.TeeReader — Read While Duplicating</h2>
+  <div class="code">
+<span class="cmt">// TeeReader wraps a reader. Every byte read from it is ALSO written to w.</span>
+<span class="kw">func</span> <span class="fn">TeeReader</span>(r <span class="ty">Reader</span>, w <span class="ty">Writer</span>) <span class="ty">Reader</span> {
+    <span class="kw">return</span> &teeReader{r, w}
+}
+<span class="kw">func</span> (t *teeReader) <span class="fn">Read</span>(p []<span class="ty">byte</span>) (n <span class="ty">int</span>, err <span class="ty">error</span>) {
+    n, err = t.r.<span class="fn">Read</span>(p)
+    <span class="kw">if</span> n > <span class="num">0</span> { t.w.<span class="fn">Write</span>(p[:n]) } <span class="cmt">// mirror to w</span>
+    <span class="kw">return</span>
+}
+
+<span class="cmt">// Real use case: compute hash while processing HTTP body</span>
+h := sha256.<span class="fn">New</span>()
+tee := io.<span class="fn">TeeReader</span>(resp.Body, h) <span class="cmt">// every read also goes to hasher</span>
+json.<span class="fn">NewDecoder</span>(tee).<span class="fn">Decode</span>(&response)
+digest := h.<span class="fn">Sum</span>(<span class="kw">nil</span>) <span class="cmt">// hash of exactly what we read, computed in-flight</span>
+  </div>
+
+  <h2>io.MultiReader — Virtual Concatenation</h2>
+  <div class="code">
+<span class="cmt">// MultiReader presents multiple readers as one sequential stream</span>
+header := strings.<span class="fn">NewReader</span>(<span class="str">"--boundary\r\nContent-Type: text/plain\r\n\r\n"</span>)
+body   := file       <span class="cmt">// actual file data</span>
+footer := strings.<span class="fn">NewReader</span>(<span class="str">"\r\n--boundary--\r\n"</span>)
+
+combined := io.<span class="fn">MultiReader</span>(header, body, footer)
+<span class="cmt">// combined looks like one Reader. When header exhausts, body starts. No copying.</span>
+<span class="cmt">// This is exactly how HTTP multipart form uploads work.</span>
+http.<span class="fn">Post</span>(url, <span class="str">"multipart/form-data"</span>, combined)
+  </div>
+
+  <h2>io.MultiWriter — Fan-Out Writing</h2>
+  <div class="code">
+<span class="cmt">// Every Write() call is replicated to all writers</span>
+logFile, _ := os.<span class="fn">Create</span>(<span class="str">"app.log"</span>)
+w := io.<span class="fn">MultiWriter</span>(os.Stdout, logFile)
+
+log.<span class="fn">SetOutput</span>(w)  <span class="cmt">// now logs go to both stdout AND file simultaneously</span>
+<span class="cmt">// Internally: Write(p) calls each writer in sequence. First error stops.</span>
+  </div>
+
+  <h2>io.Pipe — Synchronous Goroutine Bridge</h2>
+  <p>Pipe is often misunderstood. Unlike <code>bytes.Buffer</code>, it has <strong>zero internal storage</strong>. A Write blocks until someone Reads. They rendezvous at the byte boundary.</p>
+
+  <div class="code">
+pr, pw := io.<span class="fn">Pipe</span>()
+
+<span class="cmt">// Writer goroutine</span>
+<span class="kw">go func</span>() {
+    json.<span class="fn">NewEncoder</span>(pw).<span class="fn">Encode</span>(largeStruct) <span class="cmt">// blocks until consumer reads</span>
+    pw.<span class="fn">Close</span>()
+}()
+
+<span class="cmt">// Reader goroutine (or main)</span>
+gzip.<span class="fn">NewReader</span>(pr)  <span class="cmt">// reads from the pipe, unblocking the encoder above</span>
+<span class="cmt">// No intermediate buffer! Data flows directly between goroutines.</span>
+<span class="cmt">// Memory: O(one Write call), not O(entire stream)</span>
+  </div>
+
+  <div class="callout key">
+    <div class="callout-icon">🔑</div>
+    <div><strong>Pipe vs bytes.Buffer.</strong> Use <code>io.Pipe</code> when you want streaming with zero buffering and goroutine synchronization. Use <code>bytes.Buffer</code> when you want to accumulate then read (single goroutine, or with external locking). Pipe is the right choice when producer and consumer run concurrently and you want backpressure — if the consumer is slow, the producer blocks automatically.</div>
+  </div>
+
+  <h2>io.LimitReader — Security Boundary</h2>
+  <div class="code">
+<span class="cmt">// LimitReader returns a Reader that reads at most n bytes</span>
+limited := io.<span class="fn">LimitReader</span>(resp.Body, <span class="num">10</span>&lt;&lt;<span class="num">20</span>) <span class="cmt">// 10MB cap</span>
+data, _ := io.<span class="fn">ReadAll</span>(limited)
+<span class="cmt">// Without this: malicious server sends ∞ bytes, ReadAll eats all RAM</span>
+
+<span class="cmt">// Internal: it's just a struct with a counter</span>
+<span class="kw">type</span> LimitedReader <span class="kw">struct</span> { R <span class="ty">Reader</span>; N <span class="ty">int64</span> }
+<span class="kw">func</span> (l *LimitedReader) <span class="fn">Read</span>(p []<span class="ty">byte</span>) (<span class="ty">int</span>, <span class="ty">error</span>) {
+    <span class="kw">if</span> l.N <= <span class="num">0</span> { <span class="kw">return</span> <span class="num">0</span>, EOF }
+    <span class="kw">if</span> int64(len(p)) > l.N { p = p[:l.N] }
+    n, err := l.R.<span class="fn">Read</span>(p)
+    l.N -= int64(n)
+    <span class="kw">return</span> n, err
+}
+  </div>
+
+  <h2>The Decorator Chain — How Composition Stacks</h2>
+  <div class="flow">
+    <div class="flow-box flow-red">http.Response.Body</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box flow-amber">LimitReader(10MB)</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box flow-blue">gzip.NewReader</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box flow-purple">bufio.Reader</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box flow-green">json.Decoder</div>
+  </div>
+
+  <div class="code">
+<span class="cmt">// Each layer wraps the previous — all through the same io.Reader interface</span>
+limited := io.<span class="fn">LimitReader</span>(resp.Body, <span class="num">10</span>&lt;&lt;<span class="num">20</span>)
+gz, _   := gzip.<span class="fn">NewReader</span>(limited)
+buf     := bufio.<span class="fn">NewReader</span>(gz)
+dec     := json.<span class="fn">NewDecoder</span>(buf)
+
+dec.<span class="fn">Decode</span>(&result)
+<span class="cmt">// Data flows: HTTP body → capped → decompressed → buffered → parsed</span>
+<span class="cmt">// Memory usage: O(json item size), not O(entire response)</span>
+<span class="cmt">// This is streaming all the way down</span>
+  </div>
+
+</div>
+
+<!-- ═══════════════════ SECTION: PIPELINE BUILDER ═══════════════════ -->
+<div id="sec-pipeline" class="section">
+  <div class="sec-title">Pipeline Builder — Interactive</div>
+  <div class="sec-sub">// build a reader or writer pipeline and see what it generates</div>
+
+  <h2>The Critical Question: Why gzip → buffer → conn, not buffer → gzip → conn?</h2>
+
+  <div class="callout warn">
+    <div class="callout-icon">🤔</div>
+    <div>This ordering question is the deepest test of pipeline intuition. The answer comes from understanding <em>what each layer sees</em> as its "upstream".</div>
+  </div>
+
+  <div class="grid2">
+    <div class="card" style="border-color:rgba(255,107,107,0.3)">
+      <div class="card-title" style="color:var(--red)">❌ WRONG: buffer → gzip → conn</div>
+      <div class="card-text">
+        Buffer accumulates uncompressed data → flushes a chunk → gzip compresses that chunk.<br><br>
+        Problem: <strong>gzip compresses small chunks separately</strong>. Each chunk is a separate deflate block. Compression ratio drops 30-50% because gzip's dictionary (back-reference table) resets between chunks. You lose the cross-chunk pattern matching that makes compression work.
+      </div>
+    </div>
+    <div class="card" style="border-color:rgba(0,255,136,0.3)">
+      <div class="card-title" style="color:var(--green)">✅ CORRECT: gzip → buffer → conn</div>
+      <div class="card-text">
+        Gzip sees the full uncompressed stream → produces compressed bytes → buffer accumulates those compressed bytes → one Write() to the network.<br><br>
+        Benefit: <strong>gzip maintains its dictionary across all your writes</strong>. Compression ratio is maximized. Buffer batches the small compressed outputs into one network syscall.
+      </div>
+    </div>
+  </div>
+
+  <div class="code">
+<span class="cmt">// CORRECT pipeline: data → gz → buf → conn</span>
+buf := bufio.<span class="fn">NewWriterSize</span>(conn, <span class="num">64</span>*<span class="num">1024</span>)
+gz  := gzip.<span class="fn">NewWriter</span>(buf)        <span class="cmt">// gz writes compressed bytes INTO buf</span>
+<span class="cmt">// buf absorbs gz's small compressed writes, sends one big network write</span>
+
+gz.<span class="fn">Write</span>(data)   <span class="cmt">// your uncompressed data goes in here</span>
+gz.<span class="fn">Close</span>()       <span class="cmt">// flushes gzip stream (writes final block to buf)</span>
+buf.<span class="fn">Flush</span>()      <span class="cmt">// flushes buf to conn (one network syscall)</span>
+
+<span class="cmt">// Rule of thumb: producers (data transformers) go CLOSER to the source.</span>
+<span class="cmt">// Consumers (batchers, senders) go CLOSER to the destination.</span>
+  </div>
+
+  <h2>Build Your Own Pipeline</h2>
+
+  <div class="pipeline-builder">
+    <div style="font-family:var(--mono);font-size:12px;color:var(--text-dim);margin-bottom:12px">// ADD stages to build a reader pipeline. They compose left-to-right (innermost → outermost).</div>
+    <div class="pipeline-stages" id="pipeline-stages">
+      <div style="font-family:var(--mono);font-size:12px;color:var(--text-faint);padding:20px">Click stages below to build your pipeline →</div>
+    </div>
+    <div class="pipeline-add" id="pipeline-btns">
+      <span style="font-family:var(--mono);font-size:11px;color:var(--text-faint);align-self:center">SOURCE:</span>
+      <button class="add-btn" onclick="addStage('os.Open(file)', 'file descriptor → SYS_READ → kernel VFS', 'source')">os.Open(file)</button>
+      <button class="add-btn" onclick="addStage('strings.NewReader', 'wraps string as zero-alloc cursor Reader', 'source')">strings.NewReader</button>
+      <button class="add-btn" onclick="addStage('http.Response.Body', 'network socket, partial reads expected', 'source')">http.Response.Body</button>
+      <button class="add-btn" onclick="addStage('io.Pipe reader', 'blocks until paired PipeWriter writes', 'source')">io.Pipe</button>
+    </div>
+    <div class="pipeline-add" id="pipeline-btns2">
+      <span style="font-family:var(--mono);font-size:11px;color:var(--text-faint);align-self:center">TRANSFORM:</span>
+      <button class="add-btn" onclick="addStage('io.LimitReader(n)', 'returns EOF after n bytes — security boundary', 'transform')">LimitReader</button>
+      <button class="add-btn" onclick="addStage('gzip.NewReader', 'decompresses on-the-fly; maintains deflate state', 'transform')">gzip.Reader</button>
+      <button class="add-btn" onclick="addStage('io.TeeReader(w)', 'mirrors every byte to writer w as it passes through', 'transform')">TeeReader</button>
+      <button class="add-btn" onclick="addStage('bufio.NewReader', 'buffers 4KB; serves small reads without syscalls', 'transform')">bufio.Reader</button>
+    </div>
+    <div class="pipeline-add">
+      <span style="font-family:var(--mono);font-size:11px;color:var(--text-faint);align-self:center">CONSUME:</span>
+      <button class="add-btn" onclick="addStage('json.NewDecoder', 'parses JSON tokens progressively; streaming safe', 'consume')">json.Decoder</button>
+      <button class="add-btn" onclick="addStage('bufio.NewScanner', 'tokenizes stream; calls SplitFunc on each pass', 'consume')">Scanner</button>
+      <button class="add-btn" onclick="addStage('io.ReadAll', 'loops Read() until EOF; returns all bytes as []byte', 'consume')">io.ReadAll</button>
+      <button class="add-btn" onclick="addStage('io.Copy(dst)', 'copies to writer; tries WriteTo/ReadFrom zero-copy first', 'consume')">io.Copy</button>
+    </div>
+    <button class="clear-btn" onclick="clearPipeline()">✕ Clear pipeline</button>
+    <div class="pipeline-info" id="pipeline-info">
+      <span style="color:var(--text-faint)">Your pipeline analysis will appear here as you add stages.</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════ SECTION: COMPARE ═══════════════════ -->
+<div id="sec-compare" class="section">
+  <div class="sec-title">Decision Matrix</div>
+  <div class="sec-sub">// the flowchart for picking the right I/O primitive every time</div>
+
+  <h2>Reading Decision Tree</h2>
+
+  <div class="code" style="border-left-color:var(--amber)">
+<span class="cmt">// Q1: Do you need ALL bytes at once?</span>
+<span class="cmt">//   YES → size &lt; 10MB? io.ReadAll(). Otherwise: stream it.</span>
+<span class="cmt">//   NO  → continue...</span>
+
+<span class="cmt">// Q2: Is the data structured (JSON/CSV/binary)?</span>
+<span class="cmt">//   YES → json.Decoder / csv.Reader / binary.Read</span>
+<span class="cmt">//   NO  → continue...</span>
+
+<span class="cmt">// Q3: Do you read line-by-line or by delimiter?</span>
+<span class="cmt">//   YES, simple → bufio.Scanner (clean, ergonomic)</span>
+<span class="cmt">//   YES, need Peek or lines &gt; 64KB → bufio.Reader.ReadString()</span>
+<span class="cmt">//   NO  → continue...</span>
+
+<span class="cmt">// Q4: Do you need random access (seek to position)?</span>
+<span class="cmt">//   YES, concurrent goroutines → ReadAt (pread64, safe)</span>
+<span class="cmt">//   YES, single goroutine → Seek + Read</span>
+<span class="cmt">//   NO  → io.Reader with raw Read() loop</span>
+  </div>
+
+  <h2>Writing Decision Tree</h2>
+  <div class="code" style="border-left-color:var(--purple)">
+<span class="cmt">// Q1: Many small writes to file or network?</span>
+<span class="cmt">//   YES → bufio.Writer (buffer then flush once)</span>
+
+<span class="cmt">// Q2: Building a string from parts?</span>
+<span class="cmt">//   YES → strings.Builder (not bytes.Buffer — avoids byte→string conversion)</span>
+
+<span class="cmt">// Q3: Need to write to multiple destinations?</span>
+<span class="cmt">//   YES → io.MultiWriter</span>
+
+<span class="cmt">// Q4: Writing binary at specific offsets?</span>
+<span class="cmt">//   YES, concurrent → WriteAt (pwrite64)</span>
+<span class="cmt">//   YES, sequential → Seek + Write</span>
+
+<span class="cmt">// Q5: Writing structured data?</span>
+<span class="cmt">//   JSON → json.NewEncoder(w).Encode(v)</span>
+<span class="cmt">//   CSV  → csv.NewWriter(w)</span>
+<span class="cmt">//   binary → binary.Write(w, order, v) OR manual slice indexing</span>
+  </div>
+
+  <h2>Full Cheat Sheet</h2>
+  <table class="tbl">
+    <tr><th>Need</th><th>Use This</th><th>Don't Use</th><th>Reason</th></tr>
+    <tr><td>Read small config/file</td><td>io.ReadAll</td><td>bufio.Scanner</td><td>ReadAll is simpler for full-file reads</td></tr>
+    <tr><td>Read large file line by line</td><td>bufio.Scanner</td><td>io.ReadAll</td><td>Scanner never holds more than one line</td></tr>
+    <tr><td>Parse JSON stream</td><td>json.NewDecoder</td><td>json.Unmarshal</td><td>Decoder streams, Unmarshal needs all bytes first</td></tr>
+    <tr><td>Write JSON to response</td><td>json.NewEncoder(w)</td><td>json.Marshal + Write</td><td>Encoder writes directly, no intermediate []byte</td></tr>
+    <tr><td>Many small writes</td><td>bufio.Writer + Flush</td><td>direct Write in loop</td><td>Batches syscalls dramatically</td></tr>
+    <tr><td>Test code that takes io.Reader</td><td>strings.NewReader</td><td>os.Open temp file</td><td>Zero allocation, no disk, no cleanup</td></tr>
+    <tr><td>Stream between goroutines</td><td>io.Pipe</td><td>bytes.Buffer + mutex</td><td>Pipe provides built-in backpressure</td></tr>
+    <tr><td>Copy file to HTTP response</td><td>io.Copy</td><td>ReadAll + Write</td><td>io.Copy uses sendfile zero-copy</td></tr>
+    <tr><td>Hash data while streaming</td><td>io.TeeReader + hash.Hash</td><td>hash after ReadAll</td><td>TeeReader hashes in-flight, no second pass</td></tr>
+    <tr><td>Cap untrusted input size</td><td>io.LimitReader</td><td>naked ReadAll</td><td>LimitReader is your OOM protection</td></tr>
+    <tr><td>Build a string piece by piece</td><td>strings.Builder</td><td>+ operator / fmt.Sprintf loop</td><td>Builder avoids O(n²) allocations from + concatenation</td></tr>
+    <tr><td>Concurrent reads at offsets</td><td>ReaderAt.ReadAt</td><td>Seek + Read</td><td>ReadAt is goroutine-safe, Seek+Read is not</td></tr>
+    <tr><td>Concat multiple sources</td><td>io.MultiReader</td><td>ReadAll + append</td><td>MultiReader is virtual — zero copy, zero alloc</td></tr>
+  </table>
+
+  <h2>The Four Most Common Mistakes</h2>
+  <div class="grid2">
+    <div class="card" style="border-color:rgba(255,107,107,0.3)">
+      <div class="card-title" style="color:var(--red)">1. Ignoring partial reads</div>
+      <div class="card-text">Calling <code>Read(buf)</code> once and assuming <code>buf</code> is fully populated. Use <code>io.ReadFull</code> or loop explicitly for binary protocols.</div>
+    </div>
+    <div class="card" style="border-color:rgba(255,107,107,0.3)">
+      <div class="card-title" style="color:var(--red)">2. Forgetting bufio.Writer.Flush()</div>
+      <div class="card-text">The last writes silently never reach disk or network. Always <code>defer w.Flush()</code> immediately after <code>bufio.NewWriter()</code>.</div>
+    </div>
+    <div class="card" style="border-color:rgba(255,107,107,0.3)">
+      <div class="card-title" style="color:var(--red)">3. ReadAll on large/infinite streams</div>
+      <div class="card-text">HTTP bodies, log tails, WebSocket frames — none should be ReadAll'd. Always combine with LimitReader or stream with Scanner/Decoder.</div>
+    </div>
+    <div class="card" style="border-color:rgba(255,107,107,0.3)">
+      <div class="card-title" style="color:var(--red)">4. Seek+Read in concurrent code</div>
+      <div class="card-text">Two goroutines doing Seek+Read on the same <code>*os.File</code> will race. Use <code>ReadAt</code> or open separate file descriptors.</div>
+    </div>
+  </div>
+
+</div>
+</div><!-- /content -->
+
+<script>
+// Navigation
+function show(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('sec-' + id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// Pipeline Builder
+const stages = [];
+const stageColors = { source: '#00ff88', transform: '#ffb347', consume: '#b48eff' };
+const stageColorsBg = { source: 'rgba(0,255,136,0.08)', transform: 'rgba(255,179,71,0.08)', consume: 'rgba(180,142,255,0.08)' };
+
+const pipelineInfo = {
+  'os.Open(file)': 'Source: os.File → SYS_READ syscall on each unbuffered Read().',
+  'strings.NewReader': 'Source: wraps a Go string as io.Reader. Zero allocation. Implements Seeker. Ideal for tests.',
+  'http.Response.Body': 'Source: net.TCPConn under the hood. Expect partial reads. Always close the body.',
+  'io.Pipe reader': 'Source: blocks until PipeWriter.Write() is called. Zero buffer — pure goroutine rendezvous.',
+  'io.LimitReader(n)': 'Guard: adds N-byte cap. Returns EOF after N bytes. Essential for untrusted HTTP/network sources.',
+  'gzip.NewReader': 'Transform: decompresses using DEFLATE. Maintains Huffman dictionary across calls. Wraps your reader.',
+  'io.TeeReader(w)': 'Mirror: every byte read is also written to w simultaneously. Use for hashing or logging streams.',
+  'bufio.NewReader': 'Buffer: batches kernel Read() calls into 4KB chunks. Enables Peek, ReadString, ReadRune.',
+  'json.NewDecoder': 'Consumer: parses JSON progressively token by token. Streaming-safe. Handles multi-object streams with .More().',
+  'bufio.NewScanner': 'Consumer: wraps reader with SplitFunc tokenization. Default splits on lines. 64KB token limit.',
+  'io.ReadAll': 'Consumer: loops Read() until EOF, returns []byte. All data in RAM. Use only on bounded sources.',
+  'io.Copy(dst)': 'Consumer: copies to destination Writer. Tries WriteTo/ReadFrom for zero-copy. Falls back to 32KB buffer loop.',
+};
+
+function addStage(name, desc, type) {
+  stages.push({ name, desc, type });
+  renderPipeline();
+}
+
+function clearPipeline() {
+  stages.length = 0;
+  renderPipeline();
+}
+
+function renderPipeline() {
+  const container = document.getElementById('pipeline-stages');
+  const info = document.getElementById('pipeline-info');
+
+  if (stages.length === 0) {
+    container.innerHTML = '<div style="font-family:var(--mono);font-size:12px;color:var(--text-faint);padding:20px">Click stages below to build your pipeline →</div>';
+    info.innerHTML = '<span style="color:var(--text-faint)">Your pipeline analysis will appear here as you add stages.</span>';
+    return;
+  }
+
+  let html = '';
+  stages.forEach((s, i) => {
+    html += `<div class="pipeline-stage flow-in">`;
+    if (i > 0) html += `<div class="stage-arrow">→</div>`;
+    html += `<div class="stage-box" style="color:${stageColors[s.type]};background:${stageColorsBg[s.type]};border-color:${stageColors[s.type]}33" title="${s.desc}">${s.name}</div>`;
+    html += `</div>`;
+  });
+  container.innerHTML = html;
+
+  // Generate info
+  let infoHtml = '';
+  // Check for issues
+  const names = stages.map(s => s.name);
+  const hasSource = stages.some(s => s.type === 'source');
+  const hasGzip = names.includes('gzip.NewReader');
+  const hasBufio = names.includes('bufio.NewReader');
+  const hasLimit = names.includes('io.LimitReader(n)');
+  const hasReadAll = names.includes('io.ReadAll');
+
+  infoHtml += `<span style="color:var(--green);font-family:var(--mono);font-size:11px">// Pipeline: ${stages.map(s=>s.name).join(' → ')}</span><br><br>`;
+
+  if (!hasSource) {
+    infoHtml += `<span style="color:var(--amber)">⚠ No source stage — add os.Open, http.Response.Body, or similar first.</span><br>`;
+  }
+
+  // Check gzip + bufio order
+  const gzIdx = names.indexOf('gzip.NewReader');
+  const bufIdx = names.indexOf('bufio.NewReader');
+  if (hasGzip && hasBufio) {
+    if (bufIdx < gzIdx) {
+      infoHtml += `<span style="color:var(--red)">✗ WRONG ORDER: bufio before gzip means gzip compresses small buffered chunks separately — poor compression ratio.<br>Correct order: gzip first (sees raw stream), then bufio (batches compressed output).</span><br><br>`;
+    } else {
+      infoHtml += `<span style="color:var(--green)">✓ Good ordering: bufio after gzip. Gzip sees the full raw stream → bufio batches compressed bytes → fewer syscalls.</span><br><br>`;
+    }
+  }
+
+  if (hasReadAll && !hasLimit) {
+    infoHtml += `<span style="color:var(--red)">✗ DANGER: io.ReadAll without LimitReader. Unbounded memory consumption on untrusted sources. Add io.LimitReader(n) before ReadAll.</span><br><br>`;
+  }
+
+  if (hasLimit && hasReadAll) {
+    const limitIdx = names.indexOf('io.LimitReader(n)');
+    const readAllIdx = names.indexOf('io.ReadAll');
+    if (limitIdx < readAllIdx) {
+      infoHtml += `<span style="color:var(--green)">✓ LimitReader before ReadAll — safe. Memory bounded.</span><br><br>`;
+    }
+  }
+
+  // Last stage description
+  const last = stages[stages.length - 1];
+  const desc = pipelineInfo[last.name] || last.desc;
+  infoHtml += `<span style="color:var(--text-dim);font-size:12px">Final stage: <span style="color:${stageColors[last.type]}">${last.name}</span> — ${desc}</span>`;
+
+  info.innerHTML = infoHtml;
+}
+</script>
+</body>
+</html>
