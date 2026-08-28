@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WebSocket @ Scale — Architecture Reference</title>
+<style>
+  :root {
+    --bg:       #0d0f14;
+    --surface:  #161922;
+    --border:   #252a35;
+    --accent:   #4af2a1;   /* green: healthy / data flow */
+    --warn:     #f2a14a;   /* orange: warnings / traps */
+    --danger:   #f2504a;   /* red: failure / dead path */
+    --blue:     #4a8ef2;   /* blue: K8s / infra */
+    --purple:   #9b4af2;   /* purple: Redis / broker */
+    --muted:    #5a6070;
+    --text:     #e0e4ee;
+    --text-dim: #8890a0;
+    --mono:     'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+    --sans:     'Inter', system-ui, sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── Layout ── */
+  .shell { max-width: 1400px; margin: 0 auto; padding: 0 24px 80px; }
+
+  /* ── Header ── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 32px 0 24px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .logo {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .15em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  header h1 {
+    font-size: clamp(22px, 3vw, 34px);
+    font-weight: 700;
+    letter-spacing: -.02em;
+    color: #fff;
+  }
+  .tagline {
+    color: var(--text-dim);
+    font-size: 14px;
+    margin-top: 4px;
+  }
+  .badge-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid;
+    letter-spacing: .08em;
+  }
+  .badge.go     { color: #79d4f7; border-color: #79d4f730; background: #79d4f710; }
+  .badge.redis  { color: var(--purple); border-color: #9b4af230; background: #9b4af210; }
+  .badge.ha     { color: var(--warn); border-color: #f2a14a30; background: #f2a14a10; }
+  .badge.k8s    { color: var(--blue); border-color: #4a8ef230; background: #4a8ef210; }
+
+  /* ── Tabs ── */
+  .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-top: 32px; }
+  .tab {
+    font-size: 13px;
+    font-weight: 500;
+    padding: 10px 20px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    color: var(--text-dim);
+    background: none;
+    transition: color .15s;
+    position: relative;
+    bottom: -1px;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active {
+    color: var(--accent);
+    border-color: var(--border);
+    background: var(--surface);
+    border-bottom-color: var(--surface);
+  }
+  .tab-pane { display: none; padding-top: 28px; }
+  .tab-pane.active { display: block; }
+
+  /* ── Architecture Diagram ── */
+  .arch-diagram {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px 24px;
+    font-family: var(--mono);
+    font-size: 13px;
+    overflow-x: auto;
+    position: relative;
+  }
+
+  .arch-layer {
+    margin-bottom: 28px;
+  }
+  .arch-layer-label {
+    font-size: 9px;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+    border-left: 2px solid var(--border);
+    padding-left: 8px;
+  }
+  .arch-boxes {
+    display: flex;
+    gap: 16px;
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+  .arch-box {
+    border: 1px solid;
+    border-radius: 8px;
+    padding: 14px 18px;
+    min-width: 160px;
+    flex: 1;
+    position: relative;
+    cursor: pointer;
+    transition: transform .12s, box-shadow .12s;
+  }
+  .arch-box:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px #0005;
+  }
+  .arch-box.client  { border-color: #ffffff20; background: #ffffff08; }
+  .arch-box.ha      { border-color: #f2a14a40; background: #f2a14a08; }
+  .arch-box.pod     { border-color: #4a8ef240; background: #4a8ef208; }
+  .arch-box.redis   { border-color: #9b4af240; background: #9b4af208; }
+  .arch-box.k8s-ctrl{ border-color: #4af2a140; background: #4af2a108; }
+
+  .arch-box-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    margin-bottom: 6px;
+  }
+  .arch-box.client  .arch-box-title { color: var(--text); }
+  .arch-box.ha      .arch-box-title { color: var(--warn); }
+  .arch-box.pod     .arch-box-title { color: var(--blue); }
+  .arch-box.redis   .arch-box-title { color: var(--purple); }
+  .arch-box.k8s-ctrl .arch-box-title { color: var(--accent); }
+
+  .arch-box-detail {
+    font-size: 10px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+
+  .arch-arrow {
+    text-align: center;
+    color: var(--muted);
+    font-size: 20px;
+    margin: -6px 0 -2px;
+    letter-spacing: 24px;
+  }
+  .arch-arrow.split { color: var(--blue); }
+
+  /* ── Flow lines (SVG overlay) ── */
+  .flow-legend {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .flow-item { display: flex; align-items: center; gap: 6px; }
+  .flow-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ── Problem/Solution cards ── */
+  .problem-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 16px;
+  }
+  .problem-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color .15s, transform .12s;
+  }
+  .problem-card:hover { border-color: #ffffff20; transform: translateY(-1px); }
+  .problem-card.expanded { border-color: var(--accent); }
+
+  .problem-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 18px 20px;
+  }
+  .problem-number {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border: 1px solid;
+  }
+  .problem-number.warn   { color: var(--warn);   border-color: #f2a14a40; background: #f2a14a10; }
+  .problem-number.danger { color: var(--danger);  border-color: #f2504a40; background: #f2504a10; }
+  .problem-number.blue   { color: var(--blue);    border-color: #4a8ef240; background: #4a8ef210; }
+  .problem-number.green  { color: var(--accent);  border-color: #4af2a140; background: #4af2a110; }
+
+  .problem-meta { flex: 1; }
+  .problem-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; }
+  .problem-subtitle { font-size: 12px; color: var(--text-dim); margin-top: 3px; }
+
+  .problem-chevron { color: var(--muted); transition: transform .2s; font-size: 12px; }
+  .problem-card.expanded .problem-chevron { transform: rotate(90deg); }
+
+  .problem-body {
+    display: none;
+    padding: 0 20px 20px;
+    border-top: 1px solid var(--border);
+  }
+  .problem-card.expanded .problem-body { display: block; }
+
+  .trap {
+    background: #f2504a0c;
+    border: 1px solid #f2504a25;
+    border-radius: 8px;
+    padding: 14px;
+    margin-top: 14px;
+    font-size: 12px;
+  }
+  .trap-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: .15em;
+    color: var(--danger);
+    margin-bottom: 8px;
+  }
+  .trap p { color: var(--text-dim); line-height: 1.6; }
+
+  .solution {
+    background: #4af2a10c;
+    border: 1px solid #4af2a125;
+    border-radius: 8px;
+    padding: 14px;
+    margin-top: 10px;
+    font-size: 12px;
+  }
+  .solution-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: .15em;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .solution p { color: var(--text-dim); line-height: 1.6; }
+
+  /* ── Code blocks ── */
+  pre {
+    background: #080a0f;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.7;
+    color: #c8d0e0;
+    margin-top: 12px;
+  }
+  .kw  { color: #7eb8f7; }
+  .str { color: #98d48a; }
+  .cmt { color: var(--muted); font-style: italic; }
+  .num { color: #f2a14a; }
+  .fn  { color: #d4a0f7; }
+
+  /* ── Checklist ── */
+  .checklist {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .check-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color .15s;
+  }
+  .check-item:hover { border-color: #ffffff20; }
+  .check-item.checked { border-color: #4af2a130; }
+  .check-box {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    border: 1.5px solid var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+    transition: background .15s, border-color .15s;
+    font-size: 10px;
+  }
+  .check-item.checked .check-box {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #0d0f14;
+  }
+  .check-text { flex: 1; }
+  .check-title { font-weight: 600; color: var(--text); }
+  .check-desc { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+  .check-tag {
+    font-family: var(--mono);
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-top: 4px;
+    display: inline-block;
+  }
+  .check-tag.critical { background: #f2504a15; color: var(--danger); }
+  .check-tag.config   { background: #f2a14a15; color: var(--warn); }
+  .check-tag.code     { background: #4a8ef215; color: var(--blue); }
+
+  /* ── Timeline / Flow ── */
+  .timeline {
+    position: relative;
+    padding-left: 28px;
+    margin-top: 8px;
+  }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 10px;
+    top: 6px;
+    bottom: 6px;
+    width: 1px;
+    background: var(--border);
+  }
+  .tl-item {
+    position: relative;
+    margin-bottom: 18px;
+    font-size: 13px;
+  }
+  .tl-item::before {
+    content: '';
+    position: absolute;
+    left: -22px;
+    top: 6px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: 1.5px solid var(--muted);
+    background: var(--bg);
+  }
+  .tl-item.active::before { background: var(--accent); border-color: var(--accent); }
+  .tl-item.danger::before { background: var(--danger); border-color: var(--danger); }
+  .tl-time {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    margin-bottom: 3px;
+  }
+  .tl-label { font-weight: 600; color: var(--text); }
+  .tl-note { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+  /* ── Section titles ── */
+  .section-title {
+    font-size: 11px;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+    margin-top: 32px;
+  }
+  .section-title:first-child { margin-top: 0; }
+
+  /* ── Responsive ── */
+  @media (max-width: 640px) {
+    .problem-grid { grid-template-columns: 1fr; }
+    .arch-boxes { flex-direction: column; }
+    .tabs { overflow-x: auto; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <header>
+    <div>
+      <div class="logo">Staff Engineer Reference</div>
+      <h1>WebSocket Horizontal Scaling</h1>
+      <p class="tagline">HAProxy · Go · Redis Pub/Sub · Kubernetes — every trap, explained.</p>
+    </div>
+    <div class="badge-row">
+      <span class="badge go">Go 1.22</span>
+      <span class="badge redis">Redis Pub/Sub</span>
+      <span class="badge ha">HAProxy 2.8</span>
+      <span class="badge k8s">K8s 1.29+</span>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('arch')">Architecture</button>
+    <button class="tab" onclick="showTab('problems')">8 Hard Problems</button>
+    <button class="tab" onclick="showTab('shutdown')">Shutdown Sequence</button>
+    <button class="tab" onclick="showTab('checklist')">Deploy Checklist</button>
+    <button class="tab" onclick="showTab('haproxy')">HAProxy Config</button>
+  </div>
+
+  <!-- ── TAB: ARCHITECTURE ── -->
+  <div id="tab-arch" class="tab-pane active">
+
+    <p class="section-title">Full System Topology</p>
+
+    <div class="arch-diagram">
+
+      <div class="arch-layer">
+        <div class="arch-layer-label">Clients (browsers, mobile, services)</div>
+        <div class="arch-boxes">
+          <div class="arch-box client" onclick="highlight('client')">
+            <div class="arch-box-title">Browser A</div>
+            <div class="arch-box-detail">ws://… persistent TCP<br>reconnect w/ backoff<br>connected to Pod-0</div>
+          </div>
+          <div class="arch-box client">
+            <div class="arch-box-title">Browser B</div>
+            <div class="arch-box-detail">ws://… persistent TCP<br>reconnect w/ backoff<br>connected to Pod-1</div>
+          </div>
+          <div class="arch-box client">
+            <div class="arch-box-title">Browser C</div>
+            <div class="arch-box-detail">ws://… persistent TCP<br>reconnect w/ backoff<br>connected to Pod-2</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="arch-arrow">↓ ↓ ↓</div>
+
+      <div class="arch-layer">
+        <div class="arch-layer-label">Load Balancing (HAProxy 2.8)</div>
+        <div class="arch-boxes">
+          <div class="arch-box ha" style="flex:3" onclick="highlight('haproxy')">
+            <div class="arch-box-title">HAProxy</div>
+            <div class="arch-box-detail">
+              balance <strong style="color:var(--warn)">leastconn</strong> ← not roundrobin<br>
+              timeout tunnel <strong style="color:var(--warn)">3600s</strong> ← not timeout client<br>
+              NO sticky sessions ← stateless pods<br>
+              option redispatch ← 503 → retry<br>
+              httpchk GET /readyz
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="arch-arrow split">↓ ↓ ↓  (leastconn)</div>
+
+      <div class="arch-layer">
+        <div class="arch-layer-label">WebSocket Pods (K8s Deployment, replicas=3+)</div>
+        <div class="arch-boxes">
+          <div class="arch-box pod" onclick="highlight('pod')">
+            <div class="arch-box-title">Pod-0  ws-broadcast-xxx</div>
+            <div class="arch-box-detail">
+              Hub: 33k local conns<br>
+              readPump × 33k goroutines<br>
+              writePump × 33k goroutines<br>
+              Broker subscriber (global+pod ch)<br>
+              Registry heartbeat / 30s
+            </div>
+          </div>
+          <div class="arch-box pod">
+            <div class="arch-box-title">Pod-1  ws-broadcast-yyy</div>
+            <div class="arch-box-detail">
+              Hub: 34k local conns<br>
+              readPump × 34k goroutines<br>
+              writePump × 34k goroutines<br>
+              Broker subscriber (global+pod ch)<br>
+              Registry heartbeat / 30s
+            </div>
+          </div>
+          <div class="arch-box pod">
+            <div class="arch-box-title">Pod-2  ws-broadcast-zzz</div>
+            <div class="arch-box-detail">
+              Hub: 33k local conns<br>
+              readPump × 33k goroutines<br>
+              writePump × 33k goroutines<br>
+              Broker subscriber (global+pod ch)<br>
+              Registry heartbeat / 30s
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="arch-arrow" style="color:var(--purple)">↕ pub/sub (all pods publish &amp; subscribe)</div>
+
+      <div class="arch-layer">
+        <div class="arch-layer-label">Shared State (Redis — must be HA: Sentinel or Cluster)</div>
+        <div class="arch-boxes">
+          <div class="arch-box redis" style="flex:2" onclick="highlight('redis')">
+            <div class="arch-box-title">Redis Pub/Sub</div>
+            <div class="arch-box-detail">
+              PUBLISH ws:broadcast:global → all pods deliver to local conns<br>
+              PUBLISH ws:broadcast:pod:&lt;id&gt; → unicast to specific pod<br>
+              at-most-once delivery (fire &amp; forget)
+            </div>
+          </div>
+          <div class="arch-box redis" style="flex:2">
+            <div class="arch-box-title">Redis Hash — Connection Registry</div>
+            <div class="arch-box-detail">
+              HSET ws:registry:users &lt;userID&gt; &lt;podID&gt;<br>
+              ZADD ws:registry:expiry score=now+90s member=userID<br>
+              Enables unicast routing without per-user channels
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-legend">
+        <div class="flow-item"><div class="flow-dot" style="background:var(--accent)"></div>Broadcast path (all pods → all clients)</div>
+        <div class="flow-item"><div class="flow-dot" style="background:var(--blue)"></div>Unicast path (publisher → registry → target pod → client)</div>
+        <div class="flow-item"><div class="flow-dot" style="background:var(--warn)"></div>Control path (heartbeat, health checks)</div>
+        <div class="flow-item"><div class="flow-dot" style="background:var(--danger)"></div>Failure path (pod dies → client reconnects)</div>
+      </div>
+    </div>
+
+    <p class="section-title" style="margin-top:28px">Broadcast Message Flow (the core of horizontal scale)</p>
+    <div class="arch-diagram" style="font-size:12px; line-height:1.9">
+<span class="cmt"># Scenario: Admin wants to send a message to room "chat-42"
+# Clients are spread across 3 pods</span>
+
+<span class="kw">Admin HTTP POST</span> /admin/broadcast?room_id=chat-42
+       │
+       ▼
+<span class="kw">Pod-1</span>: hub.PublishToRoom(ctx, "chat-42", payload)
+       │  broker.Publish("ws:broadcast:global", {RoomID:"chat-42", Payload:...})
+       │
+       ▼
+<span class="fn">Redis</span> PUBLISH ws:broadcast:global  ─────────────────────────────┐
+                                                                     │
+              ┌──────────────────────────────────────────────────────┤
+              │                                                       │
+              ▼                           ▼                           ▼
+        <span class="kw">Pod-0</span> receives            <span class="kw">Pod-1</span> receives            <span class="kw">Pod-2</span> receives
+        hub.deliver(msg)          hub.deliver(msg)          hub.deliver(msg)
+        rooms["chat-42"]          rooms["chat-42"]          rooms["chat-42"]
+             │                         │                         │
+             ▼                         ▼                         ▼
+     client.send ← payload     client.send ← payload     client.send ← payload
+     (12k clients here)        (also published here)     (11k clients here)
+
+<span class="cmt"># Pod-1 also delivers to its own chat-42 clients.
+# This is correct: every pod receives its own publishes.
+# Zero duplication at client level — each client has exactly one connection.</span>
+    </div>
+
+  </div>
+
+  <!-- ── TAB: 8 HARD PROBLEMS ── -->
+  <div id="tab-problems" class="tab-pane">
+    <p class="section-title">Real Problems — and Why the Naive Solution Fails</p>
+    <div class="problem-grid" id="problem-grid"></div>
+  </div>
+
+  <!-- ── TAB: SHUTDOWN SEQUENCE ── -->
+  <div id="tab-shutdown" class="tab-pane">
+    <p class="section-title">K8s Pod Termination — the Full 90-Second Window</p>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:24px">
+      <div class="timeline">
+        <div class="tl-item">
+          <div class="tl-time">T+0s</div>
+          <div class="tl-label">K8s marks pod Terminating</div>
+          <div class="tl-note">Pod removed from Service Endpoints. Propagation to HAProxy and kube-proxy begins (async, takes 1–10s).</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-time">T+0s (concurrent)</div>
+          <div class="tl-label">preStop hook executes: <code style="font-family:var(--mono);font-size:11px;color:var(--warn)">sleep 15</code></div>
+          <div class="tl-note">Pod is still accepting connections. HAProxy may still route to it. This is intentional — new arrivals during propagation window get served, not dropped.</div>
+        </div>
+        <div class="tl-item active">
+          <div class="tl-time">T+5–10s</div>
+          <div class="tl-label">HAProxy stops routing new connections to this pod</div>
+          <div class="tl-note">Its health check sees /readyz → 503 (we set draining=true at T+0 on SIGTERM, but SIGTERM hasn't arrived yet). Actually: /readyz still returns 200 during preStop because our Go process hasn't received SIGTERM yet — we just sleep. HAProxy's active check interval (2s) will see a failed check only if the pod became unhealthy. This is fine — the endpoint removal is the routing gate.</div>
+        </div>
+        <div class="tl-item active">
+          <div class="tl-time">T+15s</div>
+          <div class="tl-label">SIGTERM arrives at Go process</div>
+          <div class="tl-note">Manager.Wait() unblocks. Sets draining=true. /readyz now returns 503. HTTP upgrade handler returns 503 for any new WS attempts (should be none at this point).</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-time">T+15–20s</div>
+          <div class="tl-label">Additional propagation safety sleep (5s inside Go)</div>
+          <div class="tl-note">Extra margin in case any HAProxy instance hasn't processed the endpoint removal yet.</div>
+        </div>
+        <div class="tl-item active">
+          <div class="tl-time">T+20s</div>
+          <div class="tl-label">cancelHub() called — Hub drains all connections</div>
+          <div class="tl-note">Hub.drainAll() sends WebSocket CloseMessage (code 1001 "Going Away") to every connected client. Clients receive this, close their side, and reconnect via their backoff logic to a different pod.</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-time">T+20–50s</div>
+          <div class="tl-label">WaitGroup drains</div>
+          <div class="tl-note">Each writePump goroutine exits after seeing its send channel closed. The WaitGroup counter reaches zero as connections close.</div>
+        </div>
+        <div class="tl-item active">
+          <div class="tl-time">T+50s (best case)</div>
+          <div class="tl-label">Process exits cleanly (exit 0)</div>
+          <div class="tl-note">Well within terminationGracePeriodSeconds=90. K8s sees clean exit, no SIGKILL needed.</div>
+        </div>
+        <div class="tl-item danger">
+          <div class="tl-time">T+90s (wall)</div>
+          <div class="tl-label">SIGKILL — hard limit</div>
+          <div class="tl-note">If drain doesn't complete in time, K8s sends SIGKILL. Remaining connections are dropped with TCP RST. Clients reconnect. This is acceptable for stuck connections but should not happen in normal operation.</div>
+        </div>
+      </div>
+    </div>
+
+    <p class="section-title">Client-Side Reconnect Strategy (must implement for zero perceived downtime)</p>
+    <pre><span class="cmt">// Browser-side reconnect (TypeScript)
+// The server sends CloseMessage 1001 during drain.
+// The client must reconnect with exponential backoff.</span>
+
+<span class="kw">class</span> <span class="fn">ReconnectingWebSocket</span> {
+  <span class="kw">private</span> ws: WebSocket | <span class="kw">null</span> = <span class="kw">null</span>;
+  <span class="kw">private</span> attempt = <span class="num">0</span>;
+  <span class="kw">private</span> maxDelay = <span class="num">30_000</span>; <span class="cmt">// 30 seconds max backoff</span>
+
+  <span class="fn">connect</span>() {
+    <span class="kw">this</span>.ws = <span class="kw">new</span> WebSocket(<span class="str">`wss://yourapp.com/ws?user_id=${userId}&room_id=${roomId}`</span>);
+
+    <span class="kw">this</span>.ws.onclose = (event) => {
+      <span class="kw">if</span> (event.code === <span class="num">1001</span>) {
+        <span class="cmt">// Server going away (drain). Reconnect immediately once.</span>
+        setTimeout(() => <span class="kw">this</span>.<span class="fn">connect</span>(), <span class="num">100</span>);
+        <span class="kw">return</span>;
+      }
+      <span class="cmt">// Exponential backoff: 1s, 2s, 4s, 8s… up to 30s</span>
+      <span class="kw">const</span> delay = Math.<span class="fn">min</span>(<span class="num">1000</span> * <span class="num">2</span> ** <span class="kw">this</span>.attempt, <span class="kw">this</span>.maxDelay);
+      <span class="kw">this</span>.attempt++;
+      setTimeout(() => <span class="kw">this</span>.<span class="fn">connect</span>(), delay);
+    };
+
+    <span class="kw">this</span>.ws.onopen = () => { <span class="kw">this</span>.attempt = <span class="num">0</span>; }; <span class="cmt">// reset backoff on success</span>
+  }
+}</pre>
+  </div>
+
+  <!-- ── TAB: CHECKLIST ── -->
+  <div id="tab-checklist" class="tab-pane">
+    <p class="section-title">Production Deploy Checklist</p>
+    <div class="checklist" id="checklist"></div>
+  </div>
+
+  <!-- ── TAB: HAPROXY CONFIG ── -->
+  <div id="tab-haproxy" class="tab-pane">
+    <p class="section-title">Critical HAProxy Directives — What They Do and Why They Matter</p>
+    <div class="problem-grid" id="haproxy-grid"></div>
+  </div>
+
+</div>
+
+<script>
+// ── Tab control ──────────────────────────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ── Problems data ─────────────────────────────────────────────────────────────
+const problems = [
+  {
+    num: '01', color: 'danger',
+    title: 'The Stickiness Trap',
+    sub: 'HAProxy session affinity defeats horizontal scaling',
+    trap: `Everyone reaches for "cookie sticky" or "source IP hash" thinking WebSocket requires it. It does NOT. WebSocket is a persistent TCP connection — once established, it stays on the same backend for its entire lifetime automatically, no stickiness needed. Adding stickiness causes: uneven distribution (hot pods), thundering herd on pod crash (all sticky clients reconnect at once), inability to drain individual pods.`,
+    solution: `Use \`balance leastconn\` with NO sticky directives. Pods are stateless — all shared state (who's connected where) lives in Redis. A reconnecting client can land on any pod and re-registers with the hub. The leastconn algorithm naturally rebalances after pod crashes or scale events.`
+  },
+  {
+    num: '02', color: 'danger',
+    title: 'timeout tunnel vs timeout client',
+    sub: 'The #1 cause of random WebSocket drops',
+    trap: `HAProxy's \`timeout client\` (default 50s) applies to WebSocket connections after upgrade if you don't set \`timeout tunnel\`. HAProxy sees no HTTP data for 50 seconds → kills the connection. Clients see random disconnects every ~50 seconds. This trips up every team that hasn't read HAProxy's WebSocket docs carefully.`,
+    solution: `Set \`timeout tunnel 3600s\` (or longer). This directive specifically covers bidirectional tunnel connections (WebSocket, CONNECT). It replaces both \`timeout client\` and \`timeout server\` for the tunnel phase. Additionally, your Go server must send WebSocket pings at an interval shorter than this timeout to keep truly idle connections alive through the tunnel.`
+  },
+  {
+    num: '03', color: 'warn',
+    title: 'Cross-Pod Broadcast (the core problem)',
+    sub: 'In-memory connection maps don\'t span pod boundaries',
+    trap: `The naive single-process server stores connections in a map[string]*Client. Calling Broadcast() iterates that map. Add a second pod and the map on Pod-0 has zero knowledge of connections on Pod-1. A broadcast from Pod-0 silently delivers to only its own clients. You won't notice in testing (single process) and it silently breaks in production.`,
+    solution: `Every pod publishes broadcast events to a shared Redis channel. Every pod subscribes to that channel. When a message arrives from Redis, the pod delivers it to its own local connections. This is the fan-out pattern: O(pods) Redis operations for each publish, then local delivery. The broker abstraction in the codebase makes this swappable (NATS, Kafka, etc.).`
+  },
+  {
+    num: '04', color: 'warn',
+    title: 'K8s Endpoint Propagation Race',
+    sub: 'New connections arrive during the 1–10s propagation window',
+    trap: `When K8s marks a pod Terminating, it removes the pod from Service Endpoints. But kube-proxy and HAProxy don't see this instantly — propagation takes 1–10 seconds. If your Go process starts refusing connections immediately on SIGTERM, clients arriving during this window get errors instead of being routed to healthy pods.`,
+    solution: `The preStop lifecycle hook (\`sleep 15\`) delays SIGTERM by 15 seconds. Your Go process keeps accepting connections during preStop — any that arrive get served normally. By the time SIGTERM arrives, propagation is complete. After SIGTERM, set draining=true and return 503 on new upgrade attempts (HAProxy retries on another backend via \`option redispatch\`).`
+  },
+  {
+    num: '05', color: 'blue',
+    title: 'GOMAXPROCS vs Container CPU Limits',
+    sub: 'Go defaults to host CPU count, not container limit',
+    trap: `Go reads /proc/cpuinfo on start and sets GOMAXPROCS to the total logical CPU count of the HOST. In K8s, a container limited to 1 CPU on a 64-core node sets GOMAXPROCS=64, spawning 64 OS threads that compete for 1 CPU — causing severe latency spikes as the scheduler thrashes.`,
+    solution: `Either set GOMAXPROCS via downward API in the deployment manifest (\`resourceFieldRef: resource: limits.cpu\`) or import \`uber-go/automaxprocs\` which reads cgroup CPU quota automatically. For WebSocket servers that are mostly I/O bound, GOMAXPROCS=2 is often fine even on "4 CPU" containers.`
+  },
+  {
+    num: '06', color: 'warn',
+    title: 'Redis Pub/Sub is Fire-and-Forget',
+    sub: 'At-most-once delivery — slow pods miss messages',
+    trap: `Redis Pub/Sub delivers to connected subscribers only, at the moment of publish. If a pod is restarting, doing GC, or slow, it misses messages. There's no replay, no persistence, no retry. For chat/notification use cases this is usually acceptable (client can request history on reconnect). For financial or critical-event systems this is a bug.`,
+    solution: `For at-least-once delivery, use Redis Streams (XADD/XREADGROUP with consumer groups) or NATS JetStream. Each pod reads from its consumer group, processes and delivers, then ACKs. Unacked messages are re-delivered after a timeout. This adds latency (ACK round-trip) but guarantees no message loss during pod restarts.`
+  },
+  {
+    num: '07', color: 'blue',
+    title: 'Autoscaling Signal: CPU is Wrong',
+    sub: 'WebSocket connections are idle I/O — CPU stays low at 50k connections',
+    trap: `HPA default metric is CPU utilization. WebSocket connections spend 99% of their time blocked on goroutine reads (waiting for a message). CPU stays at 5% even with 100k connections. HPA sees low CPU → doesn't scale → pods OOM as connection count grows. You scale too late and lose connections during OOM kill.`,
+    solution: `Scale on active connection count (custom metric from Prometheus) or memory utilization. Each goroutine pair (read+write pump) costs ~8–12KB in Go. 100k connections × 12KB = 1.2GB just for goroutine stacks. Scale up at 70% memory utilization. Use KEDA (Kubernetes Event-Driven Autoscaler) for Redis metrics-based scaling if you track connection count there.`
+  },
+  {
+    num: '08', color: 'blue',
+    title: 'Double Load Balancing',
+    sub: 'HAProxy → K8s Service VIP → kube-proxy → Pod = two hops',
+    trap: `If external HAProxy points at K8s NodePort or ClusterIP, kube-proxy does a second round of load balancing. HAProxy's leastconn decisions are meaningless because kube-proxy randomly picks a pod. Health checks at HAProxy level check the NodePort (always healthy if any pod is healthy), not individual pods. You can't do per-pod health checks or drain individual pods.`,
+    solution: `Use HAProxy Kubernetes Ingress Controller deployed inside K8s. It watches EndpointSlices and maintains a dynamic backend list of pod IPs directly. New pods are added, terminating pods are removed, with no manual scripting. This gives you per-pod health checks, leastconn across actual pods, and per-pod draining — the full power of HAProxy applied at the right level.`
+  }
+];
+
+// ── HAProxy config explanations ──────────────────────────────────────────────
+const haproxyEntries = [
+  {
+    num: 'A', color: 'warn',
+    title: 'balance leastconn',
+    sub: 'Not roundrobin, not random',
+    trap: `roundrobin distributes new connection attempts evenly but ignores how many connections each backend already has. With long-lived WebSockets this leads to gross imbalances after any pod restart or scale event.`,
+    solution: `leastconn picks the backend with the fewest current active connections. It naturally compensates for imbalances: a freshly started pod (0 connections) gets all new traffic until it catches up. Perfect for long-lived connection workloads.`
+  },
+  {
+    num: 'B', color: 'danger',
+    title: 'timeout tunnel 3600s',
+    sub: 'The single most important WebSocket timeout',
+    trap: `Without this, HAProxy uses timeout client (and/or timeout server) for WebSocket connections. Default is 50 seconds. Any WebSocket that's idle for 50s (no data in either direction) gets killed by HAProxy with a TCP RST.`,
+    solution: `timeout tunnel applies specifically to bidirectional tunnel connections after HTTP upgrade. Set it to at least 2× your ping interval. Our Go server pings every 45s, so 3600s (1 hour) gives massive headroom for clients that receive data infrequently.`
+  },
+  {
+    num: 'C', color: 'green',
+    title: 'option redispatch',
+    sub: 'Retry 503 responses on a different backend',
+    trap: `When a pod returns 503 (either draining or health check failure), without redispatch the client receives the 503 directly. This causes the client's WebSocket upgrade to fail.`,
+    solution: `With option redispatch, HAProxy retries the HTTP upgrade request on a different backend. The client never sees the 503. Combined with the drain sequence (our pod returns 503 on new upgrades during shutdown), this enables zero-perceived-downtime deploys.`
+  },
+  {
+    num: 'D', color: 'green',
+    title: 'option http-server-close',
+    sub: 'NOT option http-tunnel or option forceclose',
+    trap: `option http-tunnel disables HTTP parsing after the request and response — HAProxy becomes dumb TCP proxy mode. You lose the ability to inspect headers, inject X-Forwarded-For, and apply ACLs. option forceclose closes the server connection after each response, which breaks WebSocket persistence.`,
+    solution: `option http-server-close is the right mode: it closes the server connection after each NON-upgrade HTTP response but allows the WebSocket tunnel (101 Upgrade) to persist. HAProxy stays HTTP-aware for health checks, header injection, and ACLs while correctly tunneling WebSocket connections.`
+  },
+  {
+    num: 'E', color: 'blue',
+    title: 'nbthread auto',
+    sub: 'HAProxy threading for high connection counts',
+    trap: `Old HAProxy (< 1.8) was single-threaded. Many tutorials show single-threaded configs. With 100k WebSocket connections, a single-threaded HAProxy is a bottleneck (most of the work is connection state management, not HTTP parsing).`,
+    solution: `nbthread auto uses all available CPU cores. Each thread handles a share of connections independently. With 4 cores and 100k connections, each thread handles ~25k. Combined with maxconn tuning and appropriate ulimit settings (file descriptor limits), this scales to millions of concurrent connections.`
+  }
+];
+
+// ── Checklist items ──────────────────────────────────────────────────────────
+const checklistItems = [
+  { title: 'timeout tunnel set in haproxy.cfg', desc: 'Must be > ping interval (45s). Recommend 3600s.', tag: 'critical', key: 'tt' },
+  { title: 'balance leastconn in haproxy.cfg', desc: 'Not roundrobin. Not source hash.', tag: 'critical', key: 'lc' },
+  { title: 'NO sticky session config in haproxy.cfg', desc: 'Remove any cookie or stick-table directives.', tag: 'critical', key: 'ns' },
+  { title: 'option redispatch in haproxy.cfg', desc: 'Enables retry on 503 (drain + health failures).', tag: 'config', key: 'rd' },
+  { title: 'preStop: sleep 15 in K8s manifest', desc: 'Delays SIGTERM to allow endpoint propagation.', tag: 'critical', key: 'ps' },
+  { title: 'terminationGracePeriodSeconds ≥ 90', desc: 'Must exceed preStop + drain timeout + buffer.', tag: 'critical', key: 'tg' },
+  { title: 'maxUnavailable: 0 in rolling update strategy', desc: 'Zero-downtime: new pod Ready before old pod removed.', tag: 'config', key: 'mu' },
+  { title: 'Pod anti-affinity across nodes', desc: 'Prevents all WS pods on same node (single node failure = total outage).', tag: 'config', key: 'pa' },
+  { title: 'GOMAXPROCS matches container CPU limit', desc: 'Use uber-go/automaxprocs or downward API env var.', tag: 'code', key: 'gm' },
+  { title: 'POD_NAME injected via downward API', desc: 'Used as pub/sub channel suffix for unicast routing.', tag: 'code', key: 'pn' },
+  { title: 'Redis is HA (Sentinel or Cluster)', desc: 'Single-node Redis is SPOF for all WebSocket broadcast.', tag: 'critical', key: 'rh' },
+  { title: 'WebSocket ping interval < timeout tunnel', desc: 'Go server pings every 45s, tunnel timeout is 3600s. ✓', tag: 'code', key: 'wp' },
+  { title: 'Client implements reconnect with backoff', desc: 'CloseCode 1001 (Going Away) → immediate reconnect. Other codes → backoff.', tag: 'code', key: 'cr' },
+  { title: 'readyz returns 503 when draining', desc: 'HAProxy drops pod from pool after 2 failed checks (×2s = 4s).', tag: 'code', key: 'rz' },
+  { title: 'PodDisruptionBudget: minAvailable=2', desc: 'Prevents K8s from draining all pods during node maintenance.', tag: 'config', key: 'pdb' },
+  { title: 'HPA scales on memory, not only CPU', desc: 'WS connections are I/O bound. CPU stays low at high connection counts.', tag: 'config', key: 'hpa' },
+];
+
+// ── Render problems ───────────────────────────────────────────────────────────
+function renderProblems(items, containerId) {
+  const grid = document.getElementById(containerId);
+  items.forEach((p, i) => {
+    const card = document.createElement('div');
+    card.className = 'problem-card';
+    card.innerHTML = `
+      <div class="problem-header" onclick="toggleCard(this.parentElement)">
+        <div class="problem-number ${p.color}">${p.num}</div>
+        <div class="problem-meta">
+          <div class="problem-title">${p.title}</div>
+          <div class="problem-subtitle">${p.sub}</div>
+        </div>
+        <div class="problem-chevron">▶</div>
+      </div>
+      <div class="problem-body">
+        <div class="trap">
+          <div class="trap-label">⚠ The Trap</div>
+          <p>${p.trap}</p>
+        </div>
+        <div class="solution">
+          <div class="solution-label">✓ The Solution</div>
+          <p>${p.solution}</p>
+        </div>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+function toggleCard(card) {
+  card.classList.toggle('expanded');
+}
+
+// ── Render checklist ──────────────────────────────────────────────────────────
+function renderChecklist() {
+  const checks = JSON.parse(localStorage.getItem('ws-checks') || '{}');
+  const list = document.getElementById('checklist');
+  checklistItems.forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'check-item' + (checks[item.key] ? ' checked' : '');
+    el.innerHTML = `
+      <div class="check-box">${checks[item.key] ? '✓' : ''}</div>
+      <div class="check-text">
+        <div class="check-title">${item.title}</div>
+        <div class="check-desc">${item.desc}</div>
+        <span class="check-tag ${item.tag}">${item.tag.toUpperCase()}</span>
+      </div>`;
+    el.onclick = () => {
+      checks[item.key] = !checks[item.key];
+      try { localStorage.setItem('ws-checks', JSON.stringify(checks)); } catch(e) {}
+      el.classList.toggle('checked');
+      el.querySelector('.check-box').textContent = checks[item.key] ? '✓' : '';
+    };
+    list.appendChild(el);
+  });
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+renderProblems(problems, 'problem-grid');
+renderProblems(haproxyEntries, 'haproxy-grid');
+renderChecklist();
+
+function highlight(component) {
+  // Could expand to highlight related sections
+}
+</script>
+</body>
+</html>

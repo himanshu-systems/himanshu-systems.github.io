@@ -38,6 +38,18 @@
         "networking"
       ],
       "file": "pages/webtransport.html"
+    },
+    {
+      "route": "/websockets",
+      "title": "WebSocket Horizontal Scaling",
+      "description": "HAProxy, Go, Redis Pub/Sub and Kubernetes: the traps in spreading persistent connections across pods.",
+      "type": "local",
+      "tags": [
+        "notes",
+        "systems",
+        "networking"
+      ],
+      "file": "pages/websockets.html"
     }
   ]
 }
