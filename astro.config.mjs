@@ -9,15 +9,14 @@ const registry = JSON.parse(readFileSync(new URL('./pages.json', import.meta.url
 const configured = process.env.BASE_PATH ?? registry.site?.base ?? '';
 const base = configured === '' ? '/' : configured;
 
-import node from '@astrojs/node';
-
 export default defineConfig({
   site: registry.site?.origin ?? 'https://himanshu-systems.github.io',
   base,
-  output: 'server',
-  adapter: node({
-    mode: 'standalone'
-  }),
+  // Static, deliberately. This site deploys to GitHub Pages, which serves
+  // files and cannot run a Node process. Switching to output:'server' with the
+  // node adapter moves every rendered route into dist/server/ and leaves the
+  // artifact root without an index.html -- which 404s the entire site.
+  output: 'static',
   integrations: [sitemap()],
   outDir: './dist',
   publicDir: './public',
