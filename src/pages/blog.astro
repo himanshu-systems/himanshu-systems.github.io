@@ -1,0 +1,88 @@
+---
+import Doc from '../layouts/Doc.astro';
+import ThemeToggle from '../components/ThemeToggle.astro';
+import { loadRegistry } from '../../tools/registry.mjs';
+import { home, collection, routeHref } from '../lib/paths';
+import { getBlogPosts } from '../lib/blog';
+
+import '../styles/masthead.css';
+import '../styles/listing.css';
+
+const { site } = await loadRegistry();
+const posts = await getBlogPosts();
+---
+
+<Doc
+  title="Blog"
+  siteTitle={site.title}
+  description="Thoughts on software architecture, systems engineering, and technical investigations."
+  chrome={false}
+  wide={true}
+  prose={false}
+>
+  <header>
+    <div class="masthead">
+      <p class="eyebrow">Blog</p>
+      <nav>
+        <a href={home}>About</a>
+        <a href={collection}>Pages</a>
+        <a href={routeHref('/tried')}>Tried</a>
+        <ThemeToggle />
+      </nav>
+    </div>
+    <h1>Writing</h1>
+    <p class="standfirst">Thoughts on software architecture, systems engineering, and technical investigations.</p>
+  </header>
+
+  <div class="controls">
+    <input
+      id="filter"
+      type="search"
+      placeholder="Filter by title, tag, or topic"
+      aria-label="Filter posts"
+      autocomplete="off"
+    />
+    <span class="count" id="count">{posts.length}</span>
+  </div>
+
+  <ol class="rows" id="index">
+    {
+      posts.map((post) => (
+        <li class="row" data-search={post.search}>
+          <a class="entry" href={post.href}>
+            <span class="date">{post.date}</span>
+            <span class="body">
+              <span class="title">{post.title}</span>
+              {post.description && <span class="blurb">{post.description}</span>}
+              {post.tags.length > 0 && <span class="domains">{post.tags.join(' · ')}</span>}
+            </span>
+            <span class="tags">
+              {post.readingTime && <span class="tag tag-liked">{post.readingTime}</span>}
+            </span>
+          </a>
+        </li>
+      ))
+    }
+  </ol>
+
+  <p class="empty" id="empty" hidden>No posts match that.</p>
+</Doc>
+
+<script>
+  import { initFilter } from '../lib/filterUI';
+  initFilter();
+</script>
+
+<style>
+  .title {
+    font-size: 1.05rem;
+    color: var(--text);
+  }
+
+  .domains {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+    color: var(--faint);
+  }
+</style>

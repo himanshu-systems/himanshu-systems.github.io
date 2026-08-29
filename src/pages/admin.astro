@@ -15,6 +15,7 @@ const { site } = await loadRegistry();
         <a href={home}>About</a>
         <a href={collection}>Pages</a>
         <a href={routeHref('/tried')}>Tried</a>
+        <a href={routeHref('/blog')}>Blog</a>
         <ThemeToggle />
       </nav>
     </div>
@@ -50,6 +51,7 @@ const { site } = await loadRegistry();
     <div class="tabs" role="tablist">
       <button type="button" class="tab" id="tab-about" data-tab="about" aria-selected="true">About page</button>
       <button type="button" class="tab" id="tab-tried" data-tab="tried" aria-selected="false">Tried entries</button>
+      <button type="button" class="tab" id="tab-blog" data-tab="blog" aria-selected="false">Blog</button>
     </div>
 
     <!-- ───────────────────────── About page ───────────────────────── -->
@@ -242,563 +244,215 @@ const { site } = await loadRegistry();
       </table>
       <p class="empty" id="list-empty" hidden>No entries yet.</p>
     </div>
+
+    <!-- ───────────────────────── Blog posts ───────────────────────── -->
+    <div id="panel-blog" class="tab-panel" role="tabpanel" hidden>
+      <div class="list-toolbar bar">
+        <button type="button" class="primary" id="btn-new-post">+ New post</button>
+        <span class="count-badge" id="b-posts-count-wrap">
+          <span id="b-posts-count">0</span> posts
+        </span>
+        <span class="notice" id="b-status" hidden></span>
+      </div>
+
+      <!-- Modal dialog for create / edit post -->
+      <div id="b-modal" class="modal-backdrop" hidden>
+        <div class="modal-dialog panel">
+          <div class="panel-head">
+            <h2 class="form-title" id="b-modal-title">New post</h2>
+            <button type="button" id="b-cancel">Close</button>
+          </div>
+
+          <form id="b-form">
+            <input type="hidden" id="b-id" />
+
+            <div class="row-fields">
+              <label class="field-narrow">
+                <span>Date</span>
+                <input type="date" id="b-date" required />
+              </label>
+              <label class="checkbox field-narrow">
+                <input type="checkbox" id="b-published" />
+                <span>Public — visible on the live site</span>
+              </label>
+            </div>
+
+            <label>
+              <span>Title</span>
+              <input type="text" id="b-title" placeholder="Post title" required />
+            </label>
+
+            <label>
+              <span>Slug <small>URL path /blog/[slug]/ — auto-generated from title</small></span>
+              <input type="text" id="b-slug" placeholder="post-slug" required />
+            </label>
+
+            <label>
+              <span>Description <small>summary shown in blog index and meta tags</small></span>
+              <textarea id="b-desc" rows="2" placeholder="Brief summary of the article"></textarea>
+            </label>
+
+            <label>
+              <span>Content <small>rich text article body</small></span>
+              <div id="b-content-editor" class="rich-editor"></div>
+            </label>
+
+            <div class="row-fields">
+              <label class="field-narrow">
+                <span>Tags <small>comma separated</small></span>
+                <input type="text" id="b-tags" placeholder="systems, rust, web" />
+              </label>
+              <label class="field-narrow">
+                <span>Reading time <small>e.g. 4 min read</small></span>
+                <input type="text" id="b-reading-time" placeholder="4 min read" />
+              </label>
+            </div>
+
+            <div class="row-fields">
+              <label class="field-narrow">
+                <span>Cover image path <small>in static/images/, or upload below</small></span>
+                <input type="text" id="b-image-src" placeholder="images/cover.jpg" />
+              </label>
+              <label class="field-narrow">
+                <span>Cover image alt text</span>
+                <input type="text" id="b-image-alt" placeholder="Descriptive alt text" />
+              </label>
+              <label class="field-narrow upload-field">
+                <span>Upload cover image</span>
+                <input type="file" id="b-image-file" accept="image/*" />
+                <span class="upload-status" id="b-image-status" hidden></span>
+              </label>
+            </div>
+
+            <div class="actions">
+              <button type="submit" class="primary" id="b-save">Save post</button>
+              <button type="button" id="b-cancel-btn">Cancel</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Table body: id="b-tbody" / id="b-posts-body", New button: id="b-new" / id="btn-new-post" -->
+      <table class="entries-table" id="b-posts-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Post</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="b-posts-body"></tbody>
+      </table>
+      <p class="empty" id="b-empty" hidden>No blog posts yet.</p>
+    </div>
   </section>
 </Doc>
 
 <script>
-  import Quill from 'quill';
-  import 'quill/dist/quill.snow.css';
-  import { supabase } from '../lib/supabaseClient';
-  import { uniqueSlug } from '../lib/slug';
+  import { initTabs } from '../lib/admin/tabs';
+  import { initAboutEditor } from '../lib/admin/aboutEditor';
+  import { initTriedEditor } from '../lib/admin/triedEditor';
+  import { initBlogEditor } from '../lib/admin/blogEditor';
+  import { initAuth } from '../lib/admin/auth';
 
   function $(id: string) {
     return document.getElementById(id)!;
   }
 
-  // ───────────────────────── rich text (Quill) ─────────────────────────
-  // Only for fields that are genuinely prose (the about page's Intro, a
-  // Tried entry's Description) -- everything else stays plain text.
-
-  function createRichEditor(containerId: string) {
-    const quill = new Quill(`#${containerId}`, {
-      theme: 'snow',
-      modules: {
-        toolbar: [[{ header: [2, 3, false] }], ['bold', 'italic', 'underline'], [{ list: 'ordered' }, { list: 'bullet' }], ['link'], ['clean']],
-      },
-    });
-    return {
-      getHTML: () => {
-        const html = quill.root.innerHTML;
-        return html === '<p><br></p>' ? '' : html;
-      },
-      setHTML: (html: string) => {
-        quill.root.innerHTML = html && html.trim() ? html : '<p><br></p>';
-      },
-    };
-  }
-
-  // ───────────────────────── photo upload ─────────────────────────
-  // Uploads straight to the site-images bucket (supabase/storage.sql) and
-  // fills the adjacent path/URL field with the result -- that field still
-  // accepts a plain static/images/ path too, typed by hand.
-
-  function wireImageUpload(fileInput: HTMLInputElement, textInput: HTMLInputElement, folder: string, statusEl: HTMLElement) {
-    fileInput.addEventListener('change', async () => {
-      const file = fileInput.files?.[0];
-      if (!file) return;
-
-      statusEl.hidden = false;
-      statusEl.classList.remove('error');
-      statusEl.textContent = 'Uploading…';
-
-      const safeName = file.name.replace(/[^a-zA-Z0-9.-]+/g, '-');
-      const path = `${folder}/${Date.now()}-${safeName}`;
-      const { error } = await supabase.storage.from('site-images').upload(path, file, { upsert: true });
-
-      if (error) {
-        statusEl.textContent = `Upload failed: ${error.message}`;
-        statusEl.classList.add('error');
-        return;
-      }
-
-      const { data } = supabase.storage.from('site-images').getPublicUrl(path);
-      textInput.value = data.publicUrl;
-      statusEl.textContent = 'Uploaded.';
-      fileInput.value = '';
-    });
-  }
-
-  // ───────────────────────── generic repeatable list editor ─────────────────────────
-
-  interface FieldSpec {
-    key: string;
-    label: string;
-    type?: 'text' | 'textarea';
-    placeholder?: string;
-    /** Full-width, own line. Omit for a compact field that shares a row with its neighbours. */
-    wide?: boolean;
-    /** Adds a file picker next to this field that uploads and fills it in. */
-    upload?: { folder: string };
-  }
-
-  function createListEditor(container: HTMLElement, fields: FieldSpec[], countEl?: HTMLElement) {
-    function updateCount() {
-      if (countEl) countEl.textContent = String(container.children.length);
+  initTabs(
+    [$('tab-about'), $('tab-tried'), $('tab-blog')],
+    {
+      about: $('panel-about'),
+      tried: $('panel-tried'),
+      blog: $('panel-blog'),
     }
-
-    function addRow(values: Record<string, string> = {}) {
-      const row = document.createElement('div');
-      row.className = 'list-row';
-
-      for (const f of fields) {
-        const wrap = document.createElement('label');
-        wrap.className = f.wide ? 'field-wide' : 'field-narrow';
-        const span = document.createElement('span');
-        span.textContent = f.label;
-        const input = f.type === 'textarea' ? document.createElement('textarea') : document.createElement('input');
-        if (input instanceof HTMLInputElement) input.type = 'text';
-        if (input instanceof HTMLTextAreaElement) input.rows = 2;
-        if (f.placeholder) (input as HTMLInputElement).placeholder = f.placeholder;
-        input.value = values[f.key] ?? '';
-        input.dataset.key = f.key;
-        wrap.append(span, input);
-        row.append(wrap);
-
-        if (f.upload) {
-          const uploadWrap = document.createElement('label');
-          uploadWrap.className = 'field-narrow upload-field';
-          const uploadSpan = document.createElement('span');
-          uploadSpan.textContent = 'Upload a photo';
-          const fileInput = document.createElement('input');
-          fileInput.type = 'file';
-          fileInput.accept = 'image/*';
-          const status = document.createElement('span');
-          status.className = 'upload-status';
-          status.hidden = true;
-          uploadWrap.append(uploadSpan, fileInput, status);
-          row.append(uploadWrap);
-          wireImageUpload(fileInput, input as HTMLInputElement, f.upload.folder, status);
-        }
-      }
-
-      const removeBtn = document.createElement('button');
-      removeBtn.type = 'button';
-      removeBtn.className = 'danger remove-row';
-      removeBtn.textContent = 'Remove';
-      removeBtn.addEventListener('click', () => {
-        row.remove();
-        updateCount();
-      });
-      row.append(removeBtn);
-
-      container.append(row);
-      updateCount();
-    }
-
-    function setItems(items: Record<string, string>[]) {
-      container.innerHTML = '';
-      for (const item of items) addRow(item);
-      updateCount();
-    }
-
-    function getItems(): Record<string, string>[] {
-      return Array.from(container.querySelectorAll<HTMLElement>('.list-row')).map((row) => {
-        const obj: Record<string, string> = {};
-        for (const f of fields) {
-          const el = row.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[data-key="${f.key}"]`);
-          obj[f.key] = el?.value.trim() ?? '';
-        }
-        return obj;
-      });
-    }
-
-    return { addRow, setItems, getItems };
-  }
-
-  const doingEditor = createListEditor(
-    $('doing-list'),
-    [
-      { key: 'label', label: 'Label' },
-      { key: 'detail', label: 'Detail', type: 'textarea', wide: true },
-    ],
-    $('count-doing'),
-  );
-  $('add-doing').addEventListener('click', () => doingEditor.addRow());
-
-  const workEditor = createListEditor(
-    $('work-list'),
-    [
-      { key: 'year', label: 'Year' },
-      { key: 'title', label: 'Title' },
-      { key: 'blurb', label: 'Blurb', type: 'textarea', wide: true },
-      { key: 'href', label: 'Link (optional)', wide: true },
-    ],
-    $('count-work'),
-  );
-  $('add-work').addEventListener('click', () => workEditor.addRow());
-
-  const galleryEditor = createListEditor(
-    $('gallery-list'),
-    [
-      { key: 'src', label: 'Image path', upload: { folder: 'gallery' } },
-      { key: 'alt', label: 'Alt text' },
-      { key: 'caption', label: 'Caption (optional)', wide: true },
-    ],
-    $('count-gallery'),
-  );
-  $('add-gallery').addEventListener('click', () => galleryEditor.addRow());
-
-  const introEditor = createRichEditor('a-intro-editor');
-  const descriptionEditor = createRichEditor('f-description-editor');
-
-  wireImageUpload(
-    $('a-portrait-upload') as HTMLInputElement,
-    $('a-portrait-src') as HTMLInputElement,
-    'portrait',
-    $('a-portrait-upload-status'),
-  );
-  wireImageUpload(
-    $('f-image-upload') as HTMLInputElement,
-    $('f-image-src') as HTMLInputElement,
-    'tried',
-    $('f-image-upload-status'),
   );
 
-  const elsewhereEditor = createListEditor(
-    $('elsewhere-list'),
-    [
-      { key: 'label', label: 'Label' },
-      { key: 'text', label: 'Text' },
-      { key: 'href', label: 'Link', wide: true },
-    ],
-    $('count-elsewhere'),
-  );
-  $('add-elsewhere').addEventListener('click', () => elsewhereEditor.addRow());
-
-  // ───────────────────────── tabs ─────────────────────────
-
-  const tabButtons = [$('tab-about'), $('tab-tried')];
-  const tabPanels: Record<string, HTMLElement> = { about: $('panel-about'), tried: $('panel-tried') };
-
-  for (const btn of tabButtons) {
-    btn.addEventListener('click', () => {
-      const target = btn.dataset.tab!;
-      for (const b of tabButtons) b.setAttribute('aria-selected', String(b === btn));
-      for (const [name, panel] of Object.entries(tabPanels)) panel.hidden = name !== target;
-    });
-  }
-
-  // ───────────────────────── about page form ─────────────────────────
-
-  const aboutForm = $('about-form') as HTMLFormElement;
-  const aboutStatus = $('about-status');
-
-  const aboutFields = {
+  const aboutEditor = initAboutEditor({
+    aboutForm: $('about-form') as HTMLFormElement,
+    aboutStatus: $('about-status'),
     name: $('a-name') as HTMLInputElement,
     role: $('a-role') as HTMLInputElement,
     now: $('a-now') as HTMLInputElement,
     portraitSrc: $('a-portrait-src') as HTMLInputElement,
     portraitAlt: $('a-portrait-alt') as HTMLInputElement,
-  };
-
-  async function loadAboutContent() {
-    const { data, error } = await supabase.from('site_content').select('*').eq('id', 1).single();
-    if (error) {
-      aboutStatus.textContent = `Could not load: ${error.message}`;
-      aboutStatus.hidden = false;
-      aboutStatus.classList.add('error');
-      return;
-    }
-
-    aboutFields.name.value = data.name ?? '';
-    aboutFields.role.value = data.role ?? '';
-    introEditor.setHTML(data.intro ?? '');
-    aboutFields.now.value = data.now ?? '';
-    aboutFields.portraitSrc.value = data.portrait_src ?? '';
-    aboutFields.portraitAlt.value = data.portrait_alt ?? '';
-
-    doingEditor.setItems(data.doing ?? []);
-    workEditor.setItems(data.work ?? []);
-    galleryEditor.setItems(data.gallery ?? []);
-    elsewhereEditor.setItems(data.elsewhere ?? []);
-  }
-
-  aboutForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const payload = {
-      id: 1,
-      name: aboutFields.name.value.trim(),
-      role: aboutFields.role.value.trim(),
-      intro: introEditor.getHTML(),
-      now: aboutFields.now.value.trim(),
-      portrait_src: aboutFields.portraitSrc.value.trim() || null,
-      portrait_alt: aboutFields.portraitAlt.value.trim() || null,
-      doing: doingEditor.getItems(),
-      work: workEditor.getItems().map((w) => ({ ...w, href: w.href || null })),
-      gallery: galleryEditor.getItems(),
-      elsewhere: elsewhereEditor.getItems(),
-    };
-
-    const { error } = await supabase.from('site_content').upsert(payload);
-    aboutStatus.hidden = false;
-    aboutStatus.classList.toggle('error', Boolean(error));
-    aboutStatus.textContent = error
-      ? `Could not save: ${error.message}`
-      : 'Saved. The site will rebuild in about a minute.';
+    portraitUpload: $('a-portrait-upload') as HTMLInputElement,
+    portraitUploadStatus: $('a-portrait-upload-status'),
+    doingList: $('doing-list'),
+    countDoing: $('count-doing'),
+    addDoing: $('add-doing'),
+    workList: $('work-list'),
+    countWork: $('count-work'),
+    addWork: $('add-work'),
+    galleryList: $('gallery-list'),
+    countGallery: $('count-gallery'),
+    addGallery: $('add-gallery'),
+    elsewhereList: $('elsewhere-list'),
+    countElsewhere: $('count-elsewhere'),
+    addElsewhere: $('add-elsewhere'),
   });
 
-  // ───────────────────────── tried entries ─────────────────────────
-
-  interface AdminEntry {
-    id: string;
-    slug: string;
-    date: string;
-    title: string;
-    note: string;
-    description: string | null;
-    image_src: string | null;
-    image_alt: string | null;
-    outcome: string;
-    liked: string;
-    tags: string[];
-    is_public: boolean;
-  }
-
-  const listEl = $('entry-list');
-  const emptyEl = $('list-empty');
-
-  const formWrapper = $('entry-form-wrapper');
-  const form = $('entry-form') as HTMLFormElement;
-  const formTitle = $('form-title');
-  const cancelBtn = $('cancel-edit');
-  const slugNote = $('f-slug-note');
-  const statusEl = $('form-status');
-  const newEntryBtn = $('new-entry-button');
-
-  const fields = {
-    date: $('f-date') as HTMLInputElement,
-    title: $('f-title') as HTMLInputElement,
-    note: $('f-note') as HTMLTextAreaElement,
-    outcome: $('f-outcome') as HTMLInputElement,
-    liked: $('f-liked') as HTMLInputElement,
-    tags: $('f-tags') as HTMLInputElement,
-    imageSrc: $('f-image-src') as HTMLInputElement,
-    imageAlt: $('f-image-alt') as HTMLInputElement,
-    isPublic: $('f-public') as HTMLInputElement,
-  };
-
-  let entries: AdminEntry[] = [];
-  let editingId: string | null = null;
-
-  function setStatus(message: string, isError = false) {
-    statusEl.textContent = message;
-    statusEl.hidden = false;
-    statusEl.classList.toggle('error', isError);
-  }
-
-  function openForm() {
-    formWrapper.hidden = false;
-  }
-
-  function closeForm() {
-    formWrapper.hidden = true;
-    editingId = null;
-    form.reset();
-    descriptionEditor.setHTML('');
-    formTitle.textContent = 'New entry';
-    slugNote.hidden = true;
-  }
-
-  newEntryBtn.addEventListener('click', () => {
-    editingId = null;
-    form.reset();
-    descriptionEditor.setHTML('');
-    formTitle.textContent = 'New entry';
-    slugNote.hidden = true;
-    openForm();
-    fields.title.focus();
+  const triedEditor = initTriedEditor({
+    listEl: $('entry-list'),
+    emptyEl: $('list-empty'),
+    formWrapper: $('entry-form-wrapper'),
+    form: $('entry-form') as HTMLFormElement,
+    formTitle: $('form-title'),
+    cancelBtn: $('cancel-edit'),
+    slugNote: $('f-slug-note'),
+    statusEl: $('form-status'),
+    newEntryBtn: $('new-entry-button'),
+    fDate: $('f-date') as HTMLInputElement,
+    fTitle: $('f-title') as HTMLInputElement,
+    fNote: $('f-note') as HTMLTextAreaElement,
+    fOutcome: $('f-outcome') as HTMLInputElement,
+    fLiked: $('f-liked') as HTMLInputElement,
+    fTags: $('f-tags') as HTMLInputElement,
+    fImageSrc: $('f-image-src') as HTMLInputElement,
+    fImageAlt: $('f-image-alt') as HTMLInputElement,
+    fPublic: $('f-public') as HTMLInputElement,
+    fImageUpload: $('f-image-upload') as HTMLInputElement,
+    fImageUploadStatus: $('f-image-upload-status'),
   });
 
-  cancelBtn.addEventListener('click', closeForm);
-
-  function startEdit(entry: AdminEntry) {
-    editingId = entry.id;
-    fields.date.value = entry.date;
-    fields.title.value = entry.title;
-    fields.note.value = entry.note;
-    descriptionEditor.setHTML(entry.description ?? '');
-    fields.outcome.value = entry.outcome;
-    fields.liked.value = entry.liked;
-    fields.tags.value = entry.tags.join(', ');
-    fields.imageSrc.value = entry.image_src ?? '';
-    fields.imageAlt.value = entry.image_alt ?? '';
-    fields.isPublic.checked = entry.is_public;
-    formTitle.textContent = `Editing "${entry.title}"`;
-    slugNote.hidden = false;
-    slugNote.textContent = `URL: /tried/${entry.slug}/ — fixed once an entry exists, so links already shared never break.`;
-    openForm();
-    formWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
-  async function loadEntries() {
-    const { data, error } = await supabase
-      .from('tried_entries')
-      .select('*')
-      .order('date', { ascending: false })
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      setStatus(`Could not load entries: ${error.message}`, true);
-      return;
-    }
-    entries = (data ?? []) as AdminEntry[];
-    renderList();
-  }
-
-  function renderList() {
-    listEl.innerHTML = '';
-    emptyEl.hidden = entries.length !== 0;
-
-    for (const entry of entries) {
-      const tr = document.createElement('tr');
-
-      const dateTd = document.createElement('td');
-      dateTd.className = 'col-date';
-      dateTd.textContent = entry.date;
-
-      const entryTd = document.createElement('td');
-      const title = document.createElement('span');
-      title.className = 'title';
-      title.textContent = entry.title;
-      const note = document.createElement('span');
-      note.className = 'blurb';
-      note.textContent = entry.note;
-      entryTd.append(title, note);
-
-      const statusTd = document.createElement('td');
-      const status = document.createElement('span');
-      status.className = entry.is_public ? 'tag tag-public' : 'tag tag-private';
-      status.textContent = entry.is_public ? 'public' : 'private';
-      statusTd.append(status);
-
-      const actionsTd = document.createElement('td');
-      actionsTd.className = 'col-actions';
-
-      const toggleBtn = document.createElement('button');
-      toggleBtn.type = 'button';
-      toggleBtn.textContent = entry.is_public ? 'Make private' : 'Publish';
-      toggleBtn.addEventListener('click', () => togglePublic(entry));
-
-      const editBtn = document.createElement('button');
-      editBtn.type = 'button';
-      editBtn.textContent = 'Edit';
-      editBtn.addEventListener('click', () => startEdit(entry));
-
-      const deleteBtn = document.createElement('button');
-      deleteBtn.type = 'button';
-      deleteBtn.className = 'danger';
-      deleteBtn.textContent = 'Delete';
-      deleteBtn.addEventListener('click', () => deleteEntry(entry));
-
-      actionsTd.append(toggleBtn, editBtn, deleteBtn);
-      tr.append(dateTd, entryTd, statusTd, actionsTd);
-      listEl.append(tr);
-    }
-  }
-
-  async function togglePublic(entry: AdminEntry) {
-    const { error } = await supabase
-      .from('tried_entries')
-      .update({ is_public: !entry.is_public })
-      .eq('id', entry.id);
-
-    if (error) {
-      setStatus(`Could not update: ${error.message}`, true);
-      return;
-    }
-    setStatus('Saved. The site will rebuild in about a minute.');
-    loadEntries();
-  }
-
-  async function deleteEntry(entry: AdminEntry) {
-    if (!confirm(`Delete "${entry.title}"? This can't be undone.`)) return;
-
-    const { error } = await supabase.from('tried_entries').delete().eq('id', entry.id);
-    if (error) {
-      setStatus(`Could not delete: ${error.message}`, true);
-      return;
-    }
-    if (editingId === entry.id) closeForm();
-    setStatus('Deleted. The site will rebuild in about a minute.');
-    loadEntries();
-  }
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const payload = {
-      date: fields.date.value,
-      title: fields.title.value.trim(),
-      note: fields.note.value.trim(),
-      description: descriptionEditor.getHTML() || null,
-      outcome: fields.outcome.value.trim(),
-      liked: fields.liked.value.trim(),
-      tags: fields.tags.value
-        .split(',')
-        .map((t) => t.trim())
-        .filter(Boolean),
-      image_src: fields.imageSrc.value.trim() || null,
-      image_alt: fields.imageAlt.value.trim() || null,
-      is_public: fields.isPublic.checked,
-    };
-
-    if (editingId) {
-      const { error } = await supabase.from('tried_entries').update(payload).eq('id', editingId);
-      if (error) {
-        setStatus(`Could not save: ${error.message}`, true);
-        return;
-      }
-    } else {
-      const taken = new Set(entries.map((e) => e.slug));
-      const slug = uniqueSlug(payload.title, taken);
-      const { error } = await supabase.from('tried_entries').insert({ ...payload, slug });
-      if (error) {
-        setStatus(`Could not save: ${error.message}`, true);
-        return;
-      }
-    }
-
-    setStatus('Saved. The site will rebuild in about a minute.');
-    closeForm();
-    loadEntries();
+  const blogEditor = initBlogEditor({
+    statusEl: $('b-status'),
+    tableBody: $('b-posts-body') || $('b-tbody'),
+    countEl: $('b-posts-count'),
+    modal: $('b-modal'),
+    modalTitle: $('b-modal-title'),
+    form: $('b-form') as HTMLFormElement,
+    fId: $('b-id') as HTMLInputElement,
+    fSlug: $('b-slug') as HTMLInputElement,
+    fTitle: $('b-title') as HTMLInputElement,
+    fDescription: $('b-desc') as HTMLTextAreaElement,
+    fDate: $('b-date') as HTMLInputElement,
+    fTags: $('b-tags') as HTMLInputElement,
+    fReadingTime: $('b-reading-time') as HTMLInputElement,
+    fImageSrc: $('b-image-src') as HTMLInputElement,
+    fImageAlt: $('b-image-alt') as HTMLInputElement,
+    fImageUpload: $('b-image-file') as HTMLInputElement,
+    fImageUploadStatus: $('b-image-status'),
+    fPublished: $('b-published') as HTMLInputElement,
+    btnNew: $('btn-new-post') || $('b-new'),
+    btnCancel: $('b-cancel'),
   });
 
-  // ───────────────────────── auth ─────────────────────────
-
-  const loginSection = $('login-section');
-  const adminSection = $('admin-section');
-  const loginForm = $('login-form') as HTMLFormElement;
-  const loginError = $('login-error');
-  const whoEl = $('who');
-
-  loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    loginError.hidden = true;
-    const email = ($('login-email') as HTMLInputElement).value;
-    const password = ($('login-password') as HTMLInputElement).value;
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      loginError.textContent = error.message;
-      loginError.hidden = false;
+  initAuth({
+    loginSection: $('login-section'),
+    adminSection: $('admin-section'),
+    loginForm: $('login-form') as HTMLFormElement,
+    loginError: $('login-error'),
+    whoEl: $('who'),
+    logoutBtn: $('logout'),
+    loginEmailInput: $('login-email') as HTMLInputElement,
+    loginPasswordInput: $('login-password') as HTMLInputElement,
+    onLogin: () => {
+      aboutEditor.loadAboutContent();
+      triedEditor.loadEntries();
+      blogEditor.loadPosts();
     }
-  });
-
-  $('logout').addEventListener('click', () => {
-    supabase.auth.signOut();
-  });
-
-  function showLoggedOut() {
-    loginSection.hidden = false;
-    adminSection.hidden = true;
-  }
-
-  function showLoggedIn(email: string) {
-    loginSection.hidden = true;
-    adminSection.hidden = false;
-    whoEl.textContent = email;
-    loadAboutContent();
-    loadEntries();
-  }
-
-  supabase.auth.getSession().then(({ data }) => {
-    if (data.session?.user.email) showLoggedIn(data.session.user.email);
-    else showLoggedOut();
-  });
-
-  supabase.auth.onAuthStateChange((_event, session) => {
-    if (session?.user.email) showLoggedIn(session.user.email);
-    else showLoggedOut();
   });
 </script>
 
@@ -1057,6 +711,10 @@ const { site } = await loadRegistry();
 
   #f-description-editor .ql-editor {
     min-height: 10rem;
+  }
+
+  #b-content-editor .ql-editor {
+    min-height: 15rem;
   }
 
   .rich-editor .ql-editor.ql-blank::before {
@@ -1410,6 +1068,41 @@ const { site } = await loadRegistry();
     padding: 1.5rem 0;
     color: var(--muted);
     font-size: .88rem;
+  }
+
+  .count-badge {
+    font-family: var(--mono);
+    font-size: .76rem;
+    color: var(--muted);
+  }
+
+  .modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(3px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 1.5rem;
+    overflow-y: auto;
+  }
+
+  .modal-backdrop[hidden] {
+    display: none;
+  }
+
+  .modal-dialog {
+    width: 100%;
+    max-width: 44rem;
+    max-height: 90vh;
+    overflow-y: auto;
+    background: var(--bg);
+    margin: auto;
   }
 
   @media (max-width: 42rem) {

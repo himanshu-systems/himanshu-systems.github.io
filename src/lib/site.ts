@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { readCache, writeCache } from './buildCache';
 
 export interface DoingItem {
   label: string;
@@ -38,21 +39,32 @@ export interface SiteContent {
 
 /** The about page's content -- a single row, always public (see supabase/site_content.sql). */
 export async function getSiteContent(): Promise<SiteContent> {
-  const { data, error } = await supabase.from('site_content').select('*').eq('id', 1).single();
+  try {
+    const { data, error } = await supabase.from('site_content').select('*').eq('id', 1).single();
 
-  if (error) {
-    throw new Error(`Could not load site_content from Supabase: ${error.message}`);
+    if (error) {
+      throw new Error(`Could not load site_content from Supabase: ${error.message}`);
+    }
+
+    const content: SiteContent = {
+      name: data.name,
+      role: data.role,
+      intro: data.intro,
+      now: data.now,
+      portrait: data.portrait_src ? { src: data.portrait_src, alt: data.portrait_alt ?? '' } : undefined,
+      doing: data.doing ?? [],
+      work: data.work ?? [],
+      gallery: data.gallery ?? [],
+      elsewhere: data.elsewhere ?? [],
+    };
+
+    writeCache('site_content', content);
+    return content;
+  } catch (err: any) {
+    const cached = readCache<SiteContent>('site_content');
+    if (cached) {
+      return cached;
+    }
+    throw new Error(`Could not load site_content from Supabase: ${err?.message || err}`);
   }
-
-  return {
-    name: data.name,
-    role: data.role,
-    intro: data.intro,
-    now: data.now,
-    portrait: data.portrait_src ? { src: data.portrait_src, alt: data.portrait_alt ?? '' } : undefined,
-    doing: data.doing ?? [],
-    work: data.work ?? [],
-    gallery: data.gallery ?? [],
-    elsewhere: data.elsewhere ?? [],
-  };
 }

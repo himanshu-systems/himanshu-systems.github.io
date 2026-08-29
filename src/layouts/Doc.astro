@@ -56,6 +56,29 @@ const shellClass = ['shell', wide && 'shell--wide', prose && 'shell--prose'].fil
     <title>{title === siteTitle ? title : `${title} · ${siteTitle}`}</title>
     {description && <meta name="description" content={description} />}
     {noindex && <meta name="robots" content="noindex, nofollow" />}
+    
+    <link rel="canonical" href={new URL(Astro.url.pathname, 'https://himanshu-systems.github.io').href} />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content={new URL(asset('og-image.png'), 'https://himanshu-systems.github.io').href} />
+    
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "Himanshu Systems",
+      "url": "https://himanshu-systems.github.io",
+      "description": description || siteTitle,
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "email": "hello@himanshu.systems",
+        "contactType": "customer service"
+      },
+      "address": {
+        "@type": "PostalAddress",
+        "addressLocality": "San Francisco",
+        "addressCountry": "US"
+      }
+    })} />
+
     <link rel="icon" href={asset('favicon.svg')} />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

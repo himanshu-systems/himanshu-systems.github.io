@@ -1,0 +1,74 @@
+---
+import Doc from '../layouts/Doc.astro';
+import '../styles/masthead.css';
+---
+
+<Doc title="Privacy Policy" siteTitle="Himanshu Systems" description="Privacy Policy and Data Usage.">
+  <div class="masthead">
+    <nav>
+      <a href="/">← Home</a>
+    </nav>
+  </div>
+
+  <h1 class="title">Privacy Policy</h1>
+  
+  <div class="prose">
+    <p><strong>Last Updated: August 2026</strong></p>
+
+    <p>
+      This Privacy Policy describes how Himanshu Systems ("we", "our", or "us") collects, uses, and protects your information when you visit our website at himanshu-systems.github.io. We are committed to ensuring that your privacy is protected and strictly adhere to minimalist data collection practices.
+    </p>
+
+    <h2>1. Information We Collect</h2>
+    <p>
+      This website is a static site hosted on GitHub Pages. We do not use intrusive tracking cookies, advertising pixels, or third-party analytics scripts that profile individual users. 
+    </p>
+    <p>
+      <strong>Log Data:</strong> Our hosting provider (GitHub) automatically collects standard server log information, which may include your IP address, browser type, operating system, referring URLs, and interaction with the site. This data is used solely for security and operational purposes.
+    </p>
+
+    <h2>2. Use of Information</h2>
+    <p>
+      Any information collected automatically by our hosting provider is used exclusively to ensure the secure and reliable operation of this website. We do not sell, rent, or trade your personal information to any third parties.
+    </p>
+
+    <h2>3. Cookies and Local Storage</h2>
+    <p>
+      We use a single, minimal <code>localStorage</code> entry strictly to remember your preference for the light or dark theme toggle. This is a functional requirement and does not track your behavior across the web. No tracking cookies are set on your device.
+    </p>
+
+    <h2>4. Third-Party Services</h2>
+    <p>
+      Some content on this site (such as images) may be loaded from external storage buckets (e.g., Supabase). These services have their own privacy policies governing data collection when they serve assets to your browser.
+    </p>
+
+    <h2>5. Contact Us</h2>
+    <p>
+      If you have any questions or concerns about this Privacy Policy or our data practices, please contact us at <a href="mailto:hello@himanshu.systems">hello@himanshu.systems</a>.
+    </p>
+  </div>
+</Doc>
+
+<style>
+  .title {
+    font-size: clamp(2rem, 1.4rem + 2.4vw, 2.9rem);
+    margin-bottom: 2rem;
+  }
+  .prose p {
+    color: var(--muted);
+    font-size: 1.05rem;
+    line-height: 1.6;
+    margin-bottom: 1rem;
+    max-width: var(--measure);
+  }
+  .prose h2 {
+    font-size: 1.25rem;
+    color: var(--text);
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+  }
+  .prose a {
+    color: var(--accent);
+    text-decoration: underline;
+  }
+</style>

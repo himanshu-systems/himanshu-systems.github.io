@@ -53,12 +53,35 @@ const {
 </div>
 
 <script>
-  import { createRipple } from '../lib/ripple';
+  const roots = document.querySelectorAll<HTMLElement>('.ripple-photo');
+  if (roots.length > 0) {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          observer.unobserve(entry.target);
+          initRipple(entry.target as HTMLElement);
+        }
+      });
+    });
+    roots.forEach((root) => observer.observe(root));
+  }
 
-  for (const root of document.querySelectorAll<HTMLElement>('.ripple-photo')) {
+  let rippleModule: any = null;
+
+  async function initRipple(root: HTMLElement) {
+    if (!rippleModule) {
+      try {
+        rippleModule = await import('../lib/ripple');
+      } catch (e) {
+        console.error('Failed to load ripple effect', e);
+        return;
+      }
+    }
+    const { createRipple } = rippleModule;
+
     const image = root.querySelector<HTMLImageElement>('img.ripple-photo-img');
     const output = root.querySelector<HTMLCanvasElement>('canvas.ripple-photo-output');
-    if (!image || !output) continue;
+    if (!image || !output) return;
 
     const instance = createRipple(
       { content: root, output, media: image },
@@ -88,7 +111,7 @@ const {
       },
     );
 
-    if (!instance) continue;
+    if (!instance) return;
 
     // Nudge the first upload once the image has actually decoded, so the very
     // first click ripples the photo rather than an empty texture.

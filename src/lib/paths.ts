@@ -27,7 +27,17 @@ export function resolveImage(src: string): string {
   return /^https?:\/\//.test(src) ? src : asset(src);
 }
 
-/** The browser-facing URL for a registered route. */
+/**
+ * Browser-facing URL for a registered route within the Astro context.
+ *
+ * NOTE on routeHref boundary:
+ * This version runs in Astro context where `import.meta.env.BASE_URL` is available,
+ * taking a single `route` argument.
+ * A separate `routeHref(base, route)` function exists in `tools/registry.mjs` for
+ * plain Node.js tooling (prepare.mjs, add.mjs) where `import.meta.env.BASE_URL`
+ * doesn't exist and the base path must be supplied explicitly.
+ * They intentionally have different signatures for their different environments.
+ */
 export function routeHref(route: string): string {
   return route === '/' ? home : `${BASE}${route}/`;
 }

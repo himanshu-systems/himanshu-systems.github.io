@@ -87,6 +87,12 @@ function normalizePage(page, i) {
         'each entry in src/data/tried.ts, not from pages.json.',
     );
   }
+  if (route.startsWith('/blog/')) {
+    throw new Error(
+      `${where} claims "${route}". Everything under /blog/ is generated from ` +
+        'the blog collection, not from pages.json.',
+    );
+  }
   const type = page.type ?? (page.url ? 'external' : 'local');
   if (type !== 'local' && type !== 'external') {
     throw new Error(`${where} ("${route}") has type "${type}"; expected "local" or "external".`);
@@ -152,6 +158,7 @@ export const RESERVED = {
   '/': 'the about page',
   '/pages': 'the generated collection index',
   '/tried': 'the experiments log',
+  '/blog': 'the blog collection index',
   '/admin': 'the admin page',
 };
 
@@ -175,7 +182,16 @@ export function routeToOutPath(route) {
   return `${route.replace(/^\//, '')}/index.html`;
 }
 
-/** Browser-facing URL for a route, including the Pages base path. */
+/**
+ * Browser-facing URL for a route, including the Pages base path, for Node.js tooling.
+ *
+ * NOTE on routeHref boundary:
+ * This version runs in plain Node.js (prepare.mjs, add.mjs) where
+ * `import.meta.env.BASE_URL` doesn't exist and takes the base path as an explicit argument.
+ * A separate `routeHref(route)` function exists in `src/lib/paths.ts` for the Astro
+ * context where `import.meta.env.BASE_URL` is available.
+ * They intentionally have different signatures for their different environments.
+ */
 export function routeHref(base, route) {
   if (route === '/') return `${base}/`;
   return `${base}${route}/`;

@@ -55,15 +55,38 @@ const {
 </div>
 
 <script>
-  import { createAsciiSweep, supportsHtmlInCanvas } from '../lib/asciiSweep';
+  const roots = document.querySelectorAll<HTMLElement>('.ascii-title');
+  if (roots.length > 0) {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          observer.unobserve(entry.target);
+          initAscii(entry.target as HTMLElement);
+        }
+      });
+    });
+    roots.forEach((root) => observer.observe(root));
+  }
 
-  const nativeCapture = supportsHtmlInCanvas();
+  let asciiSweepModule: any = null;
 
-  for (const root of document.querySelectorAll<HTMLElement>('.ascii-title')) {
+  async function initAscii(root: HTMLElement) {
+    if (!asciiSweepModule) {
+      try {
+        asciiSweepModule = await import('../lib/asciiSweep');
+      } catch (e) {
+        console.error('Failed to load ASCII sweep', e);
+        return;
+      }
+    }
+    const { createAsciiSweep, supportsHtmlInCanvas } = asciiSweepModule;
+
+    const nativeCapture = supportsHtmlInCanvas();
+
     const sources = root.querySelectorAll<HTMLCanvasElement>('canvas.ascii-source');
     const output = root.querySelector<HTMLCanvasElement>('canvas.ascii-output');
     const contents = root.querySelectorAll<HTMLElement>('[data-content]');
-    if (sources.length !== 2 || !output || contents.length !== 2) continue;
+    if (sources.length !== 2 || !output || contents.length !== 2) return;
 
     /*
      * Without html-in-canvas the <canvas> elements are just inert wrappers --
@@ -104,7 +127,7 @@ const {
       },
     );
 
-    if (!instance) continue;
+    if (!instance) return;
 
     // Fires once the fonts have settled, so the band traces the real serif
     // shapes rather than whatever fallback face was up at first paint.

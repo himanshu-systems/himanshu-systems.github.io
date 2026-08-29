@@ -9,19 +9,31 @@
 ---
 
 <script>
-  import { gsap } from 'gsap';
-  import { ScrollTrigger } from 'gsap/ScrollTrigger';
-  import { ScrollSmoother } from 'gsap/ScrollSmoother';
-
   if (document.documentElement.classList.contains('gsap-smooth')) {
-    gsap.registerPlugin(ScrollTrigger, ScrollSmoother);
-    ScrollSmoother.create({
-      wrapper: '#smooth-wrapper',
-      content: '#smooth-content',
-      smooth: 1.2,
-      // Touch devices already scroll well natively -- fighting the OS here
-      // costs more feel than it buys.
-      smoothTouch: 0,
-    });
+    const init = async () => {
+      try {
+        const { gsap } = await import('gsap');
+        const { ScrollTrigger } = await import('gsap/ScrollTrigger');
+        const { ScrollSmoother } = await import('gsap/ScrollSmoother');
+
+        gsap.registerPlugin(ScrollTrigger, ScrollSmoother);
+        ScrollSmoother.create({
+          wrapper: '#smooth-wrapper',
+          content: '#smooth-content',
+          smooth: 1.2,
+          // Touch devices already scroll well natively -- fighting the OS here
+          // costs more feel than it buys.
+          smoothTouch: 0,
+        });
+      } catch (e) {
+        console.error('Failed to load smooth scroll', e);
+      }
+    };
+
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(init);
+    } else {
+      setTimeout(init, 200);
+    }
   }
 </script>

@@ -11,6 +11,16 @@ const { site } = await loadRegistry();
   <h1>No page on that route</h1>
   <p class="lede">This route is not registered in <code>pages.json</code>.</p>
   <p><a href={collection}>See every page</a> &middot; <a href={home}>about</a></p>
+  
+  <pre style="display:none;" id="agent-recovery">
+# 404 Not Found
+This path does not exist on Himanshu Systems.
+
+Agents and crawlers, please use these recovery paths:
+- Sitemap: /sitemap-index.xml
+- Agent Instructions: /llms.txt
+- Document Collection: /pages
+  </pre>
 </Doc>
 
 <style>

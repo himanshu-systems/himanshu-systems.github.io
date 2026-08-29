@@ -1,0 +1,4 @@
+{
+  "name": "supabase-mcp-integration",
+  "description": "Provides agentic access to the Supabase database via the Model Context Protocol."
+}

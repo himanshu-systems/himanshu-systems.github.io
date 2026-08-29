@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { routeHref } from './paths';
+import { readCache, writeCache } from './buildCache';
 
 export interface TriedRow {
   date: string;
@@ -62,16 +63,26 @@ function toRow(row: Row): TriedRow {
  * of date order in the admin page.
  */
 export async function getTriedRows(): Promise<TriedRow[]> {
-  const { data, error } = await supabase
-    .from('tried_entries')
-    .select('slug, date, title, note, description, image_src, image_alt, outcome, liked, tags')
-    .eq('is_public', true)
-    .order('date', { ascending: false })
-    .order('created_at', { ascending: false });
+  try {
+    const { data, error } = await supabase
+      .from('tried_entries')
+      .select('slug, date, title, note, description, image_src, image_alt, outcome, liked, tags')
+      .eq('is_public', true)
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false });
 
-  if (error) {
-    throw new Error(`Could not load tried_entries from Supabase: ${error.message}`);
+    if (error) {
+      throw new Error(`Could not load tried_entries from Supabase: ${error.message}`);
+    }
+
+    const rows = (data ?? []).map(toRow);
+    writeCache('tried_entries', rows);
+    return rows;
+  } catch (err: any) {
+    const cached = readCache<TriedRow[]>('tried_entries');
+    if (cached) {
+      return cached;
+    }
+    throw new Error(`Could not load tried_entries from Supabase: ${err?.message || err}`);
   }
-
-  return (data ?? []).map(toRow);
 }
