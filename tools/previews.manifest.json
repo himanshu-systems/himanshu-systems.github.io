@@ -1,0 +1,47 @@
+{
+  "about": {
+    "hash": "c12a4e9bb9993c26",
+    "route": "/about",
+    "title": "About this collection"
+  },
+  "bpf": {
+    "hash": "41e150c36d718fae",
+    "route": "/bpf",
+    "title": "eBPF, from first principles"
+  },
+  "webtransport": {
+    "hash": "00a73bbfb0406b3f",
+    "route": "/webtransport",
+    "title": "The WebTransport Field Manual"
+  },
+  "websockets": {
+    "hash": "c4ca2ae033558a28",
+    "route": "/websockets",
+    "title": "WebSocket Horizontal Scaling"
+  },
+  "go-io": {
+    "hash": "d9eaab33b9a026a7",
+    "route": "/go-io",
+    "title": "Go I/O, from syscalls to composition"
+  },
+  "websockets-module-2": {
+    "hash": "e6539fe654cf5f97",
+    "route": "/websockets-module-2",
+    "title": "WebSockets Module 2 — scale, reliability, operations"
+  },
+  "webrtc": {
+    "hash": "95b911d595896843",
+    "route": "/webrtc",
+    "title": "WebRTC, actually understood"
+  },
+  "raft": {
+    "hash": "6f1917f7406012f6",
+    "route": "/raft",
+    "title": "Raft — the 2000-line algorithm"
+  },
+  "protocol-lab": {
+    "hash": "34813ae7514cbd33",
+    "route": "/protocol-lab",
+    "title": "Protocol Lab — HTTP/2 and HTTP/3 visualized"
+  }
+}

@@ -13,7 +13,8 @@
     "import": "node tools/import.mjs",
     "add": "node tools/add.mjs",
     "check": "astro check",
-    "whichnode": "node -e \"console.log(process.version + ' | ' + process.execPath)\""
+    "whichnode": "node -e \"console.log(process.version + ' | ' + process.execPath)\"",
+    "shots": "node tools/shots.mjs"
   },
   "engines": {
     "node": ">=22.12.0"

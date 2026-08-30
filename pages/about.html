@@ -59,3 +59,19 @@ npm run dev</code></pre>
 
 <p>The snapshot lands in <code>imported/</code> and is committed alongside the code,
 so a deploy never depends on the source being reachable.</p>
+
+<h2>Hover thumbnails</h2>
+
+<p>The listing shows a preview panel when you hover a row. The images are real
+screenshots, generated locally and committed &mdash; they are not fetched from a
+third-party service at hover time, so nothing outside this repo learns what a
+visitor is pointing at.</p>
+
+<pre><code>npm run shots</code></pre>
+
+<p>Run it after adding or editing a page, then commit
+<code>static/previews/</code>. It re-shoots only what changed, and it is
+deliberately kept out of <code>npm run build</code>: it needs Playwright, which
+CI does not install, so the build must never depend on it. A page added without
+a run simply gets no panel &mdash; the listing checks for the file rather than
+assuming it exists.</p>
