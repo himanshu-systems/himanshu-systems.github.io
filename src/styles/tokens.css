@@ -25,14 +25,8 @@
   --accent: #0b7a6e;
   --accent-soft: #e6f2f0;
 
-  /* Newsreader carries an optical-size axis (6..72), which is what makes the
-     font-optical-sizing rule on body meaningful: the browser thins strokes for
-     the big headline and thickens them for small text. Its italic is a true
-     drawn italic, not a slant -- that is what the blockquotes use. */
-  --serif: "Newsreader", ui-serif, Charter, Georgia, "Times New Roman", serif;
-  /* DM Mono is narrower and lower-contrast than Plex, which is the right trade
-     for how mono is used here: 0.6-0.8rem labels with wide letterspacing. */
-  --mono: "DM Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --serif: "Source Serif 4", ui-serif, Charter, Georgia, "Times New Roman", serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   --measure: 34rem;
   --page: 58rem;
