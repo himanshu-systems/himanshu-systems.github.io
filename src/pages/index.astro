@@ -8,6 +8,7 @@ import { loadRegistry } from "../../tools/registry.mjs";
 import { asset, resolveImage, collection, routeHref } from "../lib/paths";
 import { getSiteContent } from "../lib/site";
 import lqip from "../../tools/lqip.json";
+import selectedWorkJson from "../../content/selected-work.json";
 import { getTriedRows } from "../lib/tried";
 
 import '../styles/masthead.css';
@@ -19,8 +20,27 @@ const me = await getSiteContent();
 // Newest 3, as a teaser -- the full, filterable log lives at /tried.
 const recentlyTried = (await getTriedRows()).slice(0, 3);
 
-// Top 3 only -- a homepage teaser, not the full project history.
-const selectedWork = me.work.slice(0, 3);
+/*
+ * Selected work comes from content/selected-work.json in this repo, not from
+ * site_content.work in Supabase.
+ *
+ * It sits alongside pages.json, which is also repo-owned: the split here is
+ * that structural content lives in git and gets reviewed with the code, while
+ * the things that change often -- blog posts, the Tried log, the about text --
+ * live in Supabase and are edited from /admin.
+ *
+ * It moved because it could not be edited in practice. site_content's write
+ * policy needs an authenticated admin, so nothing in a build could touch it,
+ * and the row kept its scaffold defaults ("Nothing", "Another project", 20XX)
+ * long enough to ship them. A file in the repo is editable by anyone who can
+ * open a PR, and wrong content is visible in a diff.
+ *
+ * To edit: change the JSON and rebuild. `npm run seed:work` still pushes the
+ * same file into Supabase for anything else that reads site_content.work.
+ *
+ * Top 3 only -- a homepage teaser, not the full project history.
+ */
+const selectedWork = selectedWorkJson.slice(0, 3);
 ---
 
 <Doc

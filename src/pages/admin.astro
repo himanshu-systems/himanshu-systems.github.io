@@ -136,6 +136,13 @@ const { site } = await loadRegistry();
             <span class="count" id="count-work">0</span>
           </summary>
           <div class="panel-body">
+            <p class="notice">
+              The homepage no longer reads this. Selected work now comes from
+              <code>content/selected-work.json</code> in the repo &mdash; edit
+              that and rebuild, or run <code>npm run seed:work</code> to push
+              the file here too. This editor still writes
+              <code>site_content.work</code>, which nothing renders today.
+            </p>
             <div id="work-list" class="list"></div>
             <button type="button" class="add-row" id="add-work">+ Add row</button>
           </div>
