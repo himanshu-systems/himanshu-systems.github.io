@@ -29,8 +29,18 @@ import { createInterface } from 'node:readline';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 // .env holds only the publishable URL and key -- both are meant to be public.
+// .env.local is gitignored and may hold SUPABASE_SECRET_KEY, which bypasses RLS
+// and must never be committed or reach a browser bundle.
+const readEnv = (file) => {
+  try {
+    return readFileSync(join(root, file), 'utf8');
+  } catch {
+    return '';
+  }
+};
+
 const env = Object.fromEntries(
-  readFileSync(join(root, '.env'), 'utf8')
+  `${readEnv('.env')}\n${readEnv('.env.local')}`
     .split('\n')
     .filter((l) => l.trim() && !l.trim().startsWith('#'))
     .map((l) => {
@@ -71,18 +81,31 @@ for (const [i, w] of work.entries()) {
 
 console.log(`\ncontent/selected-work.json -> ${work.length} entr${work.length === 1 ? 'y' : 'ies'}:`);
 for (const w of work) console.log(`  ${w.year}  ${w.title}`);
-console.log('\nSign in as an admin to write it. Nothing is stored.\n');
+// Two ways in. A secret key in .env.local bypasses RLS outright, which is what
+// makes this runnable unattended; otherwise sign in as a human, subject to
+// exactly the same policies the browser is.
+const secret = env.SUPABASE_SECRET_KEY;
+let supabase;
 
-const email = await ask('email: ');
-const password = await ask('password: ', { silent: true });
-console.log();
+if (secret) {
+  console.log('\nUsing SUPABASE_SECRET_KEY from .env.local (bypasses RLS).\n');
+  supabase = createClient(url, secret, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+} else {
+  console.log('\nSign in as an admin to write it. Nothing is stored.\n');
 
-const supabase = createClient(url, key);
+  const email = await ask('email: ');
+  const password = await ask('password: ', { silent: true });
+  console.log();
 
-const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
-if (authError) {
-  console.error(`Sign-in failed: ${authError.message}`);
-  process.exit(1);
+  supabase = createClient(url, key);
+
+  const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+  if (authError) {
+    console.error(`Sign-in failed: ${authError.message}`);
+    process.exit(1);
+  }
 }
 
 // .select() so a policy rejection is visible. Without it an UPDATE that RLS
@@ -94,7 +117,7 @@ const { data, error } = await supabase
   .eq('id', 1)
   .select('id');
 
-await supabase.auth.signOut();
+if (!secret) await supabase.auth.signOut();
 
 if (error) {
   console.error(`Write failed: ${error.message}`);
