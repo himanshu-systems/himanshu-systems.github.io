@@ -107,16 +107,18 @@ The rules that make it work:
 Two faces, loaded from Google Fonts with real fallback stacks.
 
 ```css
---serif: "Source Serif 4", ui-serif, Charter, Georgia, "Times New Roman", serif;
+--serif: "Literata", ui-serif, Charter, Georgia, "Times New Roman", serif;
 --mono:  "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 ```
 
-**Source Serif 4** is the reading face. It was drawn for screen text rather than
-adapted from metal, so it has a large x-height, open apertures and low stroke
-contrast — the three things that decide whether small text stays legible. It
-carries a real optical-size axis (`opsz` 8–60), so `font-optical-sizing: auto` on
-`body` thickens the strokes at 17px body copy and thins them at display sizes.
-That is one font file doing the work of two.
+**Literata** is the reading face. It was commissioned for a screen reader rather
+than adapted from metal, so it has a large x-height, open apertures and low
+stroke contrast — the three things that decide whether small text stays legible.
+Its stems hold up better than Source Serif 4 did at 17px, and it does not go
+thin and grey on the dark palette. It carries a real optical-size axis
+(`opsz` 7–72), so `font-optical-sizing: auto` on `body` thickens the strokes at
+body copy and thins them at display sizes. That is one font file doing the work
+of two.
 
 **IBM Plex Mono** is the machine voice: routes, dates, counts, labels. A reader
 can tell which kind of thing they are looking at before reading a word.

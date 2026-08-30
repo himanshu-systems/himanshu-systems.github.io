@@ -163,8 +163,8 @@ export async function runTier4() {
         const tokensCss = readFileSafe('src/styles/tokens.css');
         expect(tokensCss).toBeDefined();
 
-        // 1. Font families: Source Serif 4 for prose, IBM Plex Mono for metadata
-        expect(tokensCss).toMatch(/--serif:\s*["']Source Serif 4["']/);
+        // 1. Font families: Literata for prose, IBM Plex Mono for metadata
+        expect(tokensCss).toMatch(/--serif:\s*["']Literata["']/);
         expect(tokensCss).toMatch(/--mono:\s*["']IBM Plex Mono["']/);
 
         // 2. Measure & Page constraints
