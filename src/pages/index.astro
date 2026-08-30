@@ -318,7 +318,7 @@ const selectedWork = me.work.slice(0, 3);
      --border-strong rather than --faint so they stay quieter than the labels
      they number. Dropped below the breakpoint, where there's no margin left
      to hang anything in. */
-  h2::before {
+  section h2::before {
     content: counter(section, decimal-leading-zero);
     position: absolute;
     left: -3.25rem;
@@ -330,7 +330,12 @@ const selectedWork = me.work.slice(0, 3);
     font-variant-numeric: tabular-nums;
   }
 
-  h2 {
+  /* `section h2`, not bare `h2`, deliberately. Doc.astro's global
+     `.shell--prose h2` is also (0,1,1), so a bare `h2` here only wins on
+     source order -- and the moment the CSS bundle reorders, the label silently
+     inherits the prose h2's 1.4rem instead of this 0.7rem. Descending from
+     `section` makes it (0,2,2) and settles it for good. */
+  section h2 {
     margin: 0;
     padding-bottom: 0.7rem;
     border-bottom: 1px solid var(--border-strong);

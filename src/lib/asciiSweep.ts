@@ -1192,7 +1192,12 @@ function initializeAsciiSweep(
       if (resolved) resolvedCss = config.background;
     }
     if (!resolved) {
-      let el: Element | null = states[0].content;
+      // Start at the panel's PARENT, not the panel. applyStacking() writes
+      // backgroundCss onto the panel itself as an inline style, so starting
+      // here would just read back our own previous answer -- which pins the
+      // colour to whatever theme was active at init and never updates. Walking
+      // from the parent always reaches a background the page actually owns.
+      let el: Element | null = states[0].content.parentElement;
       while (el) {
         const bg = getComputedStyle(el).backgroundColor;
         if (bg && bg !== 'transparent') {
@@ -1478,10 +1483,16 @@ function initializeAsciiSweep(
   let themeTimer = 0;
   function onThemeShift() {
     syncBacking();
+    // applyStacking writes backgroundCss onto each panel as an inline style, so
+    // the panels keep whatever theme was current when the effect started. Without
+    // re-applying here, toggling to dark leaves the light panel background behind
+    // the heading -- a white slab under near-white text.
+    applyStacking(currentSlot);
     start();
     window.clearTimeout(themeTimer);
     themeTimer = window.setTimeout(() => {
       syncBacking();
+      applyStacking(currentSlot);
       requestCapture();
       start();
     }, 300);
