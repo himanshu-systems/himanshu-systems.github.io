@@ -40,8 +40,8 @@ alter table public.blog_posts enable row level security;
 
 -- Public & Build Read Policy:
 -- Anyone -- including the anonymous build step that generates the static site --
--- can read published blog posts. The owner, logged in with the email below,
--- can also read draft (unpublished) posts.
+-- can read published blog posts. An admin can also read draft (unpublished)
+-- posts.
 drop policy if exists "blog_posts_public_read" on public.blog_posts;
 create policy "blog_posts_public_read"
   on public.blog_posts
@@ -49,18 +49,19 @@ create policy "blog_posts_public_read"
   to anon, authenticated
   using (
     published = true
-    or (auth.jwt() ->> 'email') = 'himanshuchavdacodes@gmail.com'
+    or public.is_admin()
   );
 
--- Owner Write Policy:
--- Only the owner email can insert, update, or delete blog posts.
+-- Admin Write Policy:
+-- Only an admin (a row in public.admins) can insert, update, or delete a post.
+-- See supabase/admins.sql, which must be run before this file.
 drop policy if exists "blog_posts_owner_write" on public.blog_posts;
 create policy "blog_posts_owner_write"
   on public.blog_posts
   for all
   to authenticated
-  using ((auth.jwt() ->> 'email') = 'himanshuchavdacodes@gmail.com')
-  with check ((auth.jwt() ->> 'email') = 'himanshuchavdacodes@gmail.com');
+  using (public.is_admin())
+  with check (public.is_admin());
 
 -- Performance Indexes
 create index if not exists blog_posts_published_date_idx

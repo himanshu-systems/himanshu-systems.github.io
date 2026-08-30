@@ -9,7 +9,8 @@ values ('site-images', 'site-images', true)
 on conflict (id) do nothing;
 
 -- Anyone can view an uploaded image (it has to be, to show up on the
--- public site) -- only the one owner email can add, replace, or remove one.
+-- public site) -- only an admin can add, replace, or remove one. Membership
+-- lives in public.admins; see supabase/admins.sql, run that first.
 drop policy if exists "site_images_public_read" on storage.objects;
 create policy "site_images_public_read"
   on storage.objects
@@ -22,5 +23,5 @@ create policy "site_images_owner_write"
   on storage.objects
   for all
   to authenticated
-  using (bucket_id = 'site-images' and (auth.jwt() ->> 'email') = 'himanshuchavdacodes@gmail.com')
-  with check (bucket_id = 'site-images' and (auth.jwt() ->> 'email') = 'himanshuchavdacodes@gmail.com');
+  using (bucket_id = 'site-images' and public.is_admin())
+  with check (bucket_id = 'site-images' and public.is_admin());

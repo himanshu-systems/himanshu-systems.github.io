@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient';
+import { wrote } from './wrote';
 import { uniqueSlug } from '../slug';
 import { createRichEditor } from './richEditor';
 import { wireImageUpload } from './imageUpload';
@@ -198,13 +199,16 @@ export function initBlogEditor(deps: BlogEditorDeps): { loadPosts: () => Promise
 
   async function togglePublished(post: BlogPostRow) {
     const nextState = !post.published;
-    const { error } = await supabase
-      .from('blog_posts')
-      .update({ published: nextState })
-      .eq('id', post.id);
-
-    if (error) {
-      setStatus(`Could not update: ${error.message}`, true);
+    const failure = wrote(
+      await supabase
+        .from('blog_posts')
+        .update({ published: nextState })
+        .eq('id', post.id)
+        .select('id'),
+      'Could not update',
+    );
+    if (failure) {
+      setStatus(failure.message, true);
       return;
     }
     setStatus(`Saved. Post ${nextState ? 'published' : 'moved to drafts'}. The site will rebuild in about a minute.`);
@@ -214,9 +218,12 @@ export function initBlogEditor(deps: BlogEditorDeps): { loadPosts: () => Promise
   async function deletePost(post: BlogPostRow) {
     if (!window.confirm(`Delete "${post.title}"? This cannot be undone.`)) return;
 
-    const { error } = await supabase.from('blog_posts').delete().eq('id', post.id);
-    if (error) {
-      setStatus(`Could not delete: ${error.message}`, true);
+    const failure = wrote(
+      await supabase.from('blog_posts').delete().eq('id', post.id).select('id'),
+      'Could not delete',
+    );
+    if (failure) {
+      setStatus(failure.message, true);
       return;
     }
     if (editingId === post.id) closeModal();
@@ -265,9 +272,12 @@ export function initBlogEditor(deps: BlogEditorDeps): { loadPosts: () => Promise
     };
 
     if (editingId) {
-      const { error } = await supabase.from('blog_posts').update(payload).eq('id', editingId);
-      if (error) {
-        setStatus(`Could not save: ${error.message}`, true);
+      const failure = wrote(
+        await supabase.from('blog_posts').update(payload).eq('id', editingId).select('id'),
+        'Could not save',
+      );
+      if (failure) {
+        setStatus(failure.message, true);
         return;
       }
     } else {

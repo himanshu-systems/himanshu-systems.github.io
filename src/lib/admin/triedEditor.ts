@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient';
+import { wrote } from './wrote';
 import { uniqueSlug } from '../slug';
 import { createRichEditor } from './richEditor';
 import { wireImageUpload } from './imageUpload';
@@ -163,13 +164,16 @@ export function initTriedEditor(deps: {
   }
 
   async function togglePublic(entry: AdminEntry) {
-    const { error } = await supabase
-      .from('tried_entries')
-      .update({ is_public: !entry.is_public })
-      .eq('id', entry.id);
-
-    if (error) {
-      setStatus(`Could not update: ${error.message}`, true);
+    const failure = wrote(
+      await supabase
+        .from('tried_entries')
+        .update({ is_public: !entry.is_public })
+        .eq('id', entry.id)
+        .select('id'),
+      'Could not update',
+    );
+    if (failure) {
+      setStatus(failure.message, true);
       return;
     }
     setStatus('Saved. The site will rebuild in about a minute.');
@@ -179,9 +183,12 @@ export function initTriedEditor(deps: {
   async function deleteEntry(entry: AdminEntry) {
     if (!confirm(`Delete "${entry.title}"? This can't be undone.`)) return;
 
-    const { error } = await supabase.from('tried_entries').delete().eq('id', entry.id);
-    if (error) {
-      setStatus(`Could not delete: ${error.message}`, true);
+    const failure = wrote(
+      await supabase.from('tried_entries').delete().eq('id', entry.id).select('id'),
+      'Could not delete',
+    );
+    if (failure) {
+      setStatus(failure.message, true);
       return;
     }
     if (editingId === entry.id) closeForm();
@@ -209,9 +216,12 @@ export function initTriedEditor(deps: {
     };
 
     if (editingId) {
-      const { error } = await supabase.from('tried_entries').update(payload).eq('id', editingId);
-      if (error) {
-        setStatus(`Could not save: ${error.message}`, true);
+      const failure = wrote(
+        await supabase.from('tried_entries').update(payload).eq('id', editingId).select('id'),
+        'Could not save',
+      );
+      if (failure) {
+        setStatus(failure.message, true);
         return;
       }
     } else {

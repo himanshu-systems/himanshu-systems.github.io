@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient';
+import { wrote } from './wrote';
 import { createListEditor } from './listEditor';
 import { createRichEditor } from './richEditor';
 import { wireImageUpload } from './imageUpload';
@@ -113,11 +114,16 @@ export function initAboutEditor(deps: {
       elsewhere: elsewhereEditor.getItems(),
     };
 
-    const { error } = await supabase.from('site_content').upsert(payload);
+    // .select() so a policy-rejected upsert is distinguishable from a real
+    // one -- without it this reports "Saved." over an unchanged database.
+    const failure = wrote(
+      await supabase.from('site_content').upsert(payload).select('id'),
+      'Could not save',
+    );
     deps.aboutStatus.hidden = false;
-    deps.aboutStatus.classList.toggle('error', Boolean(error));
-    deps.aboutStatus.textContent = error
-      ? `Could not save: ${error.message}`
+    deps.aboutStatus.classList.toggle('error', Boolean(failure));
+    deps.aboutStatus.textContent = failure
+      ? failure.message
       : 'Saved. The site will rebuild in about a minute.';
   });
 

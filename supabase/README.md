@@ -17,24 +17,43 @@ this doesn't change anything either until you edit it in `/admin`.
 
 Then **`storage.sql`** — creates the `site-images` bucket that the
 "Upload a photo" buttons in `/admin` write to, and the policies that let
-anyone view an uploaded image but only you add or replace one.
+anyone view an uploaded image but only an admin add or replace one.
+
+Finally **`admins.sql`** — run this **last**, after the other four. It creates
+the `admins` table and the `is_admin()` function, and repoints every policy at
+it. Before this file existed, each policy compared against one hardcoded email
+literal, so a second Auth user could sign in and then have every write silently
+rejected. Now write access is a row in a table.
 
 ## 2. Create your login — and only yours
 
-**Authentication → Users → Add user.** Use `himanshuchavdacodes@gmail.com`
-(or whatever email you want to log into the admin page with — if it's
-different, edit the two `'himanshuchavdacodes@gmail.com'` literals in
-`schema.sql` to match, and re-run just those two `create policy` blocks) and
-set a password. Toggle **"Auto confirm user"** on so you don't need to click
-an email link.
+**Authentication → Users → Add user.** Set an email and password, and toggle
+**"Auto confirm user"** on so you don't need to click an email link.
+
+Creating the Auth user is only half of it. Authentication says *who you are*;
+the RLS policies decide *what you may write*, and they check `public.admins`.
+An account that exists in Auth but not in that table logs in perfectly and then
+has every write rejected — which is exactly what "I can log in but can't edit
+anything" looks like. So add the address there too:
+
+```sql
+insert into public.admins (email, note) values ('you@example.com', 'why');
+```
+
+If a write is refused, run this to see the address the policy actually sees —
+it is often not the one you think you signed in with:
+
+```sql
+select auth.jwt() ->> 'email' as signed_in_as, public.is_admin() as can_write;
+```
 
 Then: **Authentication → Providers → Email → disable "Allow new users to
 sign up."** Without this, anyone could create their own account — the RLS
-policy above only lets *your* email write, but there's no reason to leave
-public sign-up open on a project that should only ever have one user.
+policies above only let an admin write, but there's no reason to leave public
+sign-up open on a project with a handful of trusted users.
 
-This — the RLS policy plus this one account — is what actually keeps everyone
-else out. The admin page's login form is not the security boundary; anyone
+This — the RLS policies plus the `admins` table — is what actually keeps
+everyone else out. The admin page's login form is not the security boundary; anyone
 can view its HTML. Someone without your password gets a Supabase auth error
 on every write, no matter what they do in the browser.
 

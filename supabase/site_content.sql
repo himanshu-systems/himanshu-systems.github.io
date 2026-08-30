@@ -39,14 +39,15 @@ create policy "site_content_public_read"
   to anon, authenticated
   using (true);
 
--- Same owner-only rule as tried_entries.
+-- Same admin-only rule as tried_entries. Membership lives in public.admins;
+-- see supabase/admins.sql, which must be run before this file.
 drop policy if exists "site_content_owner_write" on public.site_content;
 create policy "site_content_owner_write"
   on public.site_content
   for all
   to authenticated
-  using ((auth.jwt() ->> 'email') = 'himanshuchavdacodes@gmail.com')
-  with check ((auth.jwt() ->> 'email') = 'himanshuchavdacodes@gmail.com');
+  using (public.is_admin())
+  with check (public.is_admin());
 
 -- Seed with what's on the site today.
 insert into public.site_content (id, name, role, intro, now, portrait_src, portrait_alt, doing, work, gallery, elsewhere)

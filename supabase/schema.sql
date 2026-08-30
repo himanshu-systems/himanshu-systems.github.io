@@ -40,8 +40,8 @@ create trigger tried_entries_set_updated_at
 alter table public.tried_entries enable row level security;
 
 -- Anyone -- including the anonymous build step that generates the static
--- site -- can read rows marked public. You, logged into the admin page with
--- the email below, can also read your private ones.
+-- site -- can read rows marked public. An admin, logged into the admin page,
+-- can also read the private ones.
 drop policy if exists "tried_entries_public_read" on public.tried_entries;
 create policy "tried_entries_public_read"
   on public.tried_entries
@@ -49,20 +49,21 @@ create policy "tried_entries_public_read"
   to anon, authenticated
   using (
     is_public = true
-    or (auth.jwt() ->> 'email') = 'himanshuchavdacodes@gmail.com'
+    or public.is_admin()
   );
 
--- Only that one email can insert, update, or delete a row. Change it here
--- (and nowhere else) if you ever log into the admin page with a different
--- address. This is what actually keeps everyone else out -- not the admin
--- page's login form, which anyone can view the HTML of.
+-- Only an admin can insert, update, or delete a row. Membership is a row in
+-- public.admins -- add a person with an INSERT, not by editing this file (see
+-- supabase/admins.sql, which must be run before this one). This is what
+-- actually keeps everyone else out -- not the admin page's login form, which
+-- anyone can view the HTML of.
 drop policy if exists "tried_entries_owner_write" on public.tried_entries;
 create policy "tried_entries_owner_write"
   on public.tried_entries
   for all
   to authenticated
-  using ((auth.jwt() ->> 'email') = 'himanshuchavdacodes@gmail.com')
-  with check ((auth.jwt() ->> 'email') = 'himanshuchavdacodes@gmail.com');
+  using (public.is_admin())
+  with check (public.is_admin());
 
 -- Seed data: the six entries already live on the site, unchanged. Slugs
 -- match the URLs already deployed (/tried/hackathons/ etc.), so nothing
