@@ -501,16 +501,10 @@ const selectedWork = me.work.slice(0, 3);
       grid-template-columns: 1fr;
     }
 
-    /* order: -1 keeps the face first on a phone, which is the point of it --
-       but at 11rem it was nearly half the viewport and pushed the headline
-       off the first screen. At 5rem it reads as an avatar under the name
-       rather than a portrait competing with the sentence. */
-    /* No margin-bottom: .lede is a grid and its own gap already separates the
-       avatar from the headline. Adding one stacks on top of the gap -- that is
-       what put 45px there when 24 was wanted. */
     .portrait {
-      max-width: 5rem;
+      max-width: 11rem;
       order: -1;
+      margin-bottom: 0.5rem;
     }
 
     .pair {

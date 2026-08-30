@@ -50,24 +50,3 @@ h1 {
   text-wrap: pretty;
 }
 
-
-/* The name and the nav do not fit on one line on a phone -- together they want
-   about 390px inside a 342px column -- so flex was squeezing .eyebrow until
-   "HIMANSHU CHAVDA" broke across two lines against the nav. Give them a row
-   each instead, and keep the name unbreakable now that it has room. Matches the
-   46rem breakpoint used by the page and the collection index. */
-@media (max-width: 46rem) {
-  .masthead {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.85rem;
-  }
-
-  .eyebrow {
-    white-space: nowrap;
-  }
-
-  nav {
-    gap: 0.95rem;
-  }
-}
