@@ -501,6 +501,25 @@ const selectedWork = me.work.slice(0, 3);
       grid-template-columns: 1fr;
     }
 
+    /* The headline needs its own treatment on a phone, not just the clamp's
+       floor. At 2rem in a 327px column the sentence broke into four short
+       ragged lines -- text-wrap: balance evens line lengths, which is right for
+       a two-line desktop heading and wrong here, where it left the column
+       half-empty. And line-height 1.1 is fine at 46px but cramped at 32, with
+       descenders running into the ascenders below.
+       1.8rem with pretty fills the measure in three lines instead.
+
+       `.lede-text h1`, not a bare `h1`: Doc.astro's global `.shell--prose h1`
+       is (0,1,1) and a scoped bare `h1` compiles to the same specificity, so it
+       would win only on source order -- the same trap that silently resized the
+       section labels once already. */
+    .lede-text h1 {
+      font-size: 1.8rem;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      text-wrap: pretty;
+    }
+
     .portrait {
       max-width: 11rem;
       order: -1;
