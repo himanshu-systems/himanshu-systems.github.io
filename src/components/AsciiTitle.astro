@@ -7,11 +7,25 @@
  * same title, so there is nothing to swap -- what's left is the band itself
  * reading as a one-shot reveal over the words.
  *
- * Layout: panel A is in normal flow, so the title sizes the wrapper the way it
- * always did and nothing below it moves. Panel B and the output canvas are
- * absolutely positioned on top. That's why this doesn't use the upstream React
- * wrapper, which absolutely positions both panels and needs a fixed height --
- * wrong for a heading whose height depends on where the text wraps.
+ * PROGRESSIVE ENHANCEMENT -- the important property of this component.
+ * The server renders exactly one thing: the heading, in normal flow, styled by
+ * the page. It is readable at first paint, with no JavaScript, and stays
+ * readable if the module 404s, if WebGL is unavailable, or if the visitor never
+ * scrolls to it. Everything the effect needs -- the second panel, the source
+ * canvases, the output canvas -- is built here in the browser, and only once
+ * the module has actually loaded.
+ *
+ * It used to render the heading inside <canvas class="ascii-source">, because
+ * that is the shape the html-in-canvas path wants. But a canvas never lays out
+ * its fallback children, so the headline was invisible from first paint until
+ * the module downloaded, parsed and ran -- on a slow connection, a blank space
+ * where the largest text on the page should be.
+ *
+ * Layout: the flow panel sizes the wrapper the way the bare heading always did,
+ * so nothing below it moves when the effect attaches. The overlay panel and the
+ * output canvas are absolutely positioned on top. That is why this doesn't use
+ * the upstream React wrapper, which absolutely positions both panels and needs
+ * a fixed height -- wrong for a heading whose height depends on where it wraps.
  */
 interface Props {
   /** Seconds the band takes to cross. */
@@ -37,21 +51,10 @@ const {
   data-delay={delay}
   data-replay={replayOnClick ? 'true' : 'false'}
 >
-  {/* Panel A: in flow. This is the copy that sizes the box. */}
-  <canvas class="ascii-source" layoutsubtree="true" data-slot="0">
-    <div class="ascii-panel ascii-panel--flow" data-content="0">
-      <slot />
-    </div>
-  </canvas>
-
-  {/* Panel B: the same title, overlaid. Never read by assistive tech. */}
-  <canvas class="ascii-source" layoutsubtree="true" data-slot="1" aria-hidden="true">
-    <div class="ascii-panel ascii-panel--overlay" data-content="1">
-      <slot />
-    </div>
-  </canvas>
-
-  <canvas class="ascii-output" aria-hidden="true"></canvas>
+  {/* The only server-rendered node: the real heading, in flow and visible. */}
+  <div class="ascii-panel ascii-panel--flow" data-content="0">
+    <slot />
+  </div>
 </div>
 
 <script>
@@ -75,35 +78,61 @@ const {
       try {
         asciiSweepModule = await import('../lib/asciiSweep');
       } catch (e) {
+        // The heading is already on screen and staying there; the reveal is
+        // the only thing lost.
         console.error('Failed to load ASCII sweep', e);
         return;
       }
     }
     const { createAsciiSweep, supportsHtmlInCanvas } = asciiSweepModule;
 
+    const flow = root.querySelector<HTMLElement>('[data-content="0"]');
+    if (!flow) return;
+
     const nativeCapture = supportsHtmlInCanvas();
 
-    const sources = root.querySelectorAll<HTMLCanvasElement>('canvas.ascii-source');
-    const output = root.querySelector<HTMLCanvasElement>('canvas.ascii-output');
-    const contents = root.querySelectorAll<HTMLElement>('[data-content]');
-    if (sources.length !== 2 || !output || contents.length !== 2) return;
+    // The second panel is a copy of the first, so the two captures are
+    // identical by construction. Cloning beats rendering it server-side: no
+    // duplicate heading in the document for a crawler or a screen reader to
+    // meet before the script has had a chance to mark it aria-hidden, and
+    // nothing to keep in sync if the slotted markup changes.
+    const overlay = flow.cloneNode(true) as HTMLElement;
+    overlay.classList.remove('ascii-panel--flow');
+    overlay.classList.add('ascii-panel--overlay');
+    overlay.dataset.content = '1';
+    overlay.setAttribute('aria-hidden', 'true');
 
-    /*
-     * Without html-in-canvas the <canvas> elements are just inert wrappers --
-     * a canvas never lays out its fallback children, so the title inside would
-     * be invisible. Lift the panels out to be direct children of the root and
-     * drop the canvases; the fallback rasteriser reads the live DOM anyway.
-     */
-    if (!nativeCapture) {
-      for (const content of contents) root.append(content);
-      for (const source of sources) source.remove();
+    const output = document.createElement('canvas');
+    output.className = 'ascii-output';
+    output.setAttribute('aria-hidden', 'true');
+
+    // Source canvases exist to satisfy the engine's slot shape. Under
+    // html-in-canvas they must be in the document and must contain the panels,
+    // because that is what gets rasterised. Otherwise the fallback rasteriser
+    // reads the live DOM and these stay detached and unused.
+    const sources = [0, 1].map((slot) => {
+      const c = document.createElement('canvas');
+      c.className = 'ascii-source';
+      c.setAttribute('layoutsubtree', 'true');
+      c.dataset.slot = String(slot);
+      return c;
+    });
+
+    if (nativeCapture) {
+      root.append(sources[0], sources[1]);
+      sources[0].append(flow);
+      sources[1].append(overlay);
+      sources[1].setAttribute('aria-hidden', 'true');
+    } else {
+      root.append(overlay);
     }
+    root.append(output);
 
     const instance = createAsciiSweep(
       {
         slots: [
-          { source: sources[0], content: contents[0] },
-          { source: sources[1], content: contents[1] },
+          { source: sources[0], content: flow },
+          { source: sources[1], content: overlay },
         ],
         output,
       },
@@ -127,7 +156,22 @@ const {
       },
     );
 
-    if (!instance) return;
+    // No WebGL, or the engine declined for any other reason: put the DOM back
+    // the way the server sent it rather than leaving an inert duplicate of the
+    // heading stacked on the real one.
+    if (!instance) {
+      if (nativeCapture) {
+        root.prepend(flow);
+        sources.forEach((c) => c.remove());
+      }
+      overlay.remove();
+      output.remove();
+      return;
+    }
+
+    // Only now is the effect definitely running, so only now does the wrapper
+    // take responsibility for painting the title.
+    root.classList.add('is-live');
 
     // Fires once the fonts have settled, so the band traces the real serif
     // shapes rather than whatever fallback face was up at first paint.
@@ -154,8 +198,7 @@ const {
     position: relative;
   }
 
-  /* The source canvases only lay out their children under html-in-canvas;
-     in the fallback path the script removes them entirely. */
+  /* Only laid out under html-in-canvas, and only ever inserted by the script. */
   .ascii-source {
     display: block;
     width: 100%;
