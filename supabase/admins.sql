@@ -31,10 +31,25 @@ create table if not exists public.admins (
 
 alter table public.admins enable row level security;
 
--- Seed the current owner so this migration cannot lock everyone out. Keep this
--- in step with whatever address you actually sign in to /admin with.
+-- Bootstrap: make every account that already exists in Supabase Auth an admin.
+--
+-- This reads auth.users, which the SQL editor can do because it connects as
+-- postgres. It means you do not have to type the addresses, and it cannot lock
+-- you out of your own project.
+--
+-- It is a ONE-TIME bootstrap, not a rule. Accounts created after this runs are
+-- NOT admins -- membership is this table, and nothing keeps it in step with
+-- auth.users afterwards. That is deliberate: "anyone who can sign up can write"
+-- is exactly what the policies are here to prevent. Keep public sign-up
+-- disabled (Authentication -> Providers -> Email) and add people explicitly.
+--
+-- If you have accounts in Auth that should NOT be able to edit the site, do not
+-- run this block -- insert the specific addresses instead:
+--   insert into public.admins (email, note) values ('you@example.com', 'why');
 insert into public.admins (email, note)
-values ('himanshuchavdacodes@gmail.com', 'original owner')
+select u.email, 'bootstrapped from auth.users'
+from auth.users u
+where u.email is not null
 on conflict (email) do nothing;
 
 create or replace function public.is_admin()
@@ -135,9 +150,18 @@ create policy "site_images_owner_write"
 --
 --   delete from public.admins where email = 'them@example.com';
 --
--- Check who is currently an admin, and whether YOUR session counts:
+-- Check who is currently an admin, and whether every Auth account is covered:
 --
 --   select * from public.admins order by created_at;
+--
+--   select u.email,
+--          (a.email is not null) as is_admin
+--   from auth.users u
+--   left join public.admins a on lower(a.email) = lower(u.email)
+--   order by u.created_at;
+--
+-- And, from a signed-in session in the browser, whether YOU can write:
+--
 --   select auth.jwt() ->> 'email' as signed_in_as, public.is_admin() as can_write;
 --
 -- That last query is the one to run when /admin says a write was rejected: it
