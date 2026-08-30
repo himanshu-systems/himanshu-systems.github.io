@@ -15,7 +15,8 @@
     "check": "astro check",
     "whichnode": "node -e \"console.log(process.version + ' | ' + process.execPath)\"",
     "shots": "node tools/shots.mjs",
-    "images": "node tools/images.mjs"
+    "images": "node tools/images.mjs",
+    "seed:work": "node tools/seed-work.mjs"
   },
   "engines": {
     "node": ">=22.12.0"

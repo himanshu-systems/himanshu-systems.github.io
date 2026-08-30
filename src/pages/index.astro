@@ -107,7 +107,11 @@ const selectedWork = me.work.slice(0, 3);
                   <span class="year">{item.year}</span>
                   <span class="body">
                     <span class="title">{item.title}</span>
-                    <span class="blurb">{item.blurb}</span>
+                    {/* Guarded like Tried's note: .body is a flex column with a
+                        gap, so an empty .blurb is still a flex item and still
+                        costs its gap, leaving a row with no description looking
+                        oddly bottom-padded next to one that has it. */}
+                    {item.blurb && <span class="blurb">{item.blurb}</span>}
                   </span>
                 </Tag>
               </li>

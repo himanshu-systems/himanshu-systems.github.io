@@ -1,0 +1,20 @@
+[
+  {
+    "year": "2026",
+    "title": "nats.studio",
+    "blurb": "A desktop GUI for NATS, in Rust and Tauri: connect, publish and subscribe, and manage JetStream streams, consumers, KV and object stores from one cross-platform app.",
+    "href": "https://github.com/himanshu-systems/nats-studio"
+  },
+  {
+    "year": "2026",
+    "title": "This site",
+    "blurb": "An Astro static build on GitHub Pages, with a Supabase-backed editor at /admin and a router that serves hand-written HTML documents verbatim.",
+    "href": "https://github.com/himanshu-systems/himanshu-systems.github.io"
+  },
+  {
+    "year": "2026",
+    "title": "SEBI Hackathon",
+    "blurb": "A Python project built for the SEBI hackathon.",
+    "href": "https://github.com/himanshu-systems/SEBI-Hackathon"
+  }
+]
