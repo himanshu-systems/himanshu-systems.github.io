@@ -38,7 +38,27 @@ const { site } = await loadRegistry();
         <input type="password" id="login-password" autocomplete="current-password" required />
       </label>
       <button type="submit" class="primary">Log in</button>
+      <button type="button" id="forgot" class="linkish">Forgot password?</button>
       <p class="notice error" id="login-error" hidden></p>
+      <p class="notice" id="login-notice" hidden></p>
+    </form>
+  </section>
+
+  <!-- Shown only when Supabase reports a PASSWORD_RECOVERY session, i.e. you
+       arrived from a reset link. The link must point at THIS page: the site
+       root has no client-side Supabase (its content is read at build time), so
+       a recovery token delivered there is never consumed by anything. -->
+  <section id="recovery-section" class="panel" hidden>
+    <p class="standfirst">
+      You followed a password reset link. Set a new password to finish.
+    </p>
+    <form id="recovery-form">
+      <label>
+        <span>New password</span>
+        <input type="password" id="recovery-password" autocomplete="new-password" minlength="8" required />
+      </label>
+      <button type="submit" class="primary">Set password</button>
+      <p class="notice error" id="recovery-error" hidden></p>
     </form>
   </section>
 
@@ -448,6 +468,12 @@ const { site } = await loadRegistry();
     logoutBtn: $('logout'),
     loginEmailInput: $('login-email') as HTMLInputElement,
     loginPasswordInput: $('login-password') as HTMLInputElement,
+    loginNotice: $('login-notice'),
+    forgotBtn: $('forgot'),
+    recoverySection: $('recovery-section'),
+    recoveryForm: $('recovery-form') as HTMLFormElement,
+    recoveryPassword: $('recovery-password') as HTMLInputElement,
+    recoveryError: $('recovery-error'),
     onLogin: () => {
       aboutEditor.loadAboutContent();
       triedEditor.loadEntries();
@@ -919,6 +945,28 @@ const { site } = await loadRegistry();
 
   .notice.error {
     color: #b3453a;
+  }
+
+  /* A button that reads as prose, for the secondary action next to "Log in".
+     Still a <button>: it performs an action rather than navigating, so making
+     it an <a href="#"> would lie to assistive tech and to the keyboard. */
+  .linkish {
+    align-self: flex-start;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    font: inherit;
+    font-size: .82rem;
+    text-decoration: underline;
+    text-decoration-color: var(--border-strong);
+    text-underline-offset: .18em;
+    cursor: pointer;
+  }
+
+  .linkish:hover {
+    color: var(--text);
+    text-decoration-color: var(--accent);
   }
 
   .admin-bar {
