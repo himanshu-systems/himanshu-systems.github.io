@@ -110,6 +110,20 @@
         "networking"
       ],
       "file": "pages/protocol-lab.html"
+    },
+    {
+      "route": "/backend-first-principles",
+      "title": "Backend from First Principles",
+      "description": "A 24-chapter series on backend engineering, from HTTP and CORS to Kafka and WebSockets. By DsThakurRawat and contributors.",
+      "type": "external",
+      "tags": [
+        "notes",
+        "backend",
+        "systems",
+        "external"
+      ],
+      "url": "https://backend-from-first-principle.vercel.app/",
+      "mode": "redirect"
     }
   ]
 }
