@@ -7,6 +7,7 @@ import RipplePhoto from "../components/RipplePhoto.astro";
 import { loadRegistry } from "../../tools/registry.mjs";
 import { asset, resolveImage, collection, routeHref } from "../lib/paths";
 import { getSiteContent } from "../lib/site";
+import lqip from "../../tools/lqip.json";
 import { getTriedRows } from "../lib/tried";
 
 import '../styles/masthead.css';
@@ -28,6 +29,7 @@ const selectedWork = me.work.slice(0, 3);
   description={`${me.name} — ${me.role}`}
   chrome={false}
   wide
+  preloadImage={me.portrait ? resolveImage(me.portrait.src) : undefined}
 >
   <header>
     <div class="masthead">
@@ -61,7 +63,11 @@ const selectedWork = me.work.slice(0, 3);
       {
         me.portrait && (
           <div class="portrait">
-            <RipplePhoto src={me.portrait.src} alt={me.portrait.alt} />
+            <RipplePhoto
+  src={me.portrait.src}
+  alt={me.portrait.alt}
+  placeholder={(lqip as Record<string, string>)[me.portrait.src] ?? ''}
+/>
           </div>
         )
       }

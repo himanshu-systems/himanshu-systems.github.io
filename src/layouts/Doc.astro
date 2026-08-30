@@ -30,6 +30,12 @@ interface Props {
    * the fight would just be the same fight, later.
    */
   prose?: boolean;
+  /**
+   * Absolute URL of the page's largest above-the-fold image. Emitted as a
+   * <link rel="preload">, so the browser starts it during head parsing rather
+   * than after it has reached the <img> further down the document.
+   */
+  preloadImage?: string;
 }
 
 const {
@@ -44,6 +50,7 @@ const {
   smoothScroll = true,
   instrument = true,
   prose = true,
+  preloadImage,
 } = Astro.props;
 
 const shellClass = ['shell', wide && 'shell--wide', prose && 'shell--prose'].filter(Boolean).join(' ');
@@ -80,6 +87,7 @@ const shellClass = ['shell', wide && 'shell--wide', prose && 'shell--prose'].fil
     })} />
 
     <link rel="icon" href={asset('favicon.svg')} />
+    {preloadImage && <link rel="preload" as="image" href={preloadImage} fetchpriority="high" />}
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

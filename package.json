@@ -14,7 +14,8 @@
     "add": "node tools/add.mjs",
     "check": "astro check",
     "whichnode": "node -e \"console.log(process.version + ' | ' + process.execPath)\"",
-    "shots": "node tools/shots.mjs"
+    "shots": "node tools/shots.mjs",
+    "images": "node tools/images.mjs"
   },
   "engines": {
     "node": ">=22.12.0"
