@@ -43,5 +43,10 @@
     "hash": "34813ae7514cbd33",
     "route": "/protocol-lab",
     "title": "Protocol Lab — HTTP/2 and HTTP/3 visualized"
+  },
+  "backend-first-principles": {
+    "hash": "35a37a333cf8a7a6",
+    "route": "/backend-first-principles",
+    "title": "Backend from First Principles"
   }
 }

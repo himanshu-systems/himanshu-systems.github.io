@@ -62,7 +62,16 @@ async function main() {
     if (owner === 'passthrough') {
       const { html, fetchedAt } = await passthroughHtml(page);
       const chrome = page.chrome
-        ? chromeMarkup({ collection, sourceUrl: page.type === 'external' ? page.url : null, title: site.title })
+        // An external page's source is its url. A local one usually has no
+        // source -- but a local file that is a copy of someone else's page can
+        // declare `source`, and then the bar links back to the original. That
+        // link is the attribution, so it should not depend on which of the two
+        // import routes the file happened to arrive by.
+        ? chromeMarkup({
+            collection,
+            sourceUrl: page.type === 'external' ? page.url : (page.source ?? null),
+            title: site.title,
+          })
         : '';
       await emit(page.route, chrome ? injectChrome(html, chrome) : html);
       entry.fetchedAt = fetchedAt ?? null;
