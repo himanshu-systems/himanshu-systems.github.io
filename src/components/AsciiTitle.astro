@@ -193,18 +193,31 @@ const {
   }
 </script>
 
-<style>
+<style is:global>
+  /* is:global, and every selector is namespaced under .ascii-title so nothing
+     leaks. This is not a preference -- it is required. The script builds the
+     source canvases and the output canvas with document.createElement, so they
+     carry no data-astro-cid attribute, and Astro's scoped selectors compile to
+     .ascii-output[data-astro-cid-xxxx] and never match them. Scoped rules did
+     match while these elements were server-rendered; the moment they moved into
+     JS, .ascii-output silently fell back to position: static and sat in normal
+     flow at a canvas's intrinsic 300x150, pushing the whole page down 150px.
+
+     The overlay panel happens to survive scoping because it is cloned from a
+     server-rendered node and inherits its cid, but it is kept here too so the
+     component's internals are all styled the same way. */
+
   .ascii-title {
     position: relative;
   }
 
   /* Only laid out under html-in-canvas, and only ever inserted by the script. */
-  .ascii-source {
+  .ascii-title .ascii-source {
     display: block;
     width: 100%;
   }
 
-  .ascii-source[data-slot='1'] {
+  .ascii-title .ascii-source[data-slot='1'] {
     position: absolute;
     inset: 0;
   }
@@ -215,20 +228,20 @@ const {
      box. The two captures then have different heights, the shader samples both
      with the same UVs, and the title ghosts against a vertically offset copy
      of itself. Containing the margin makes both boxes identical. */
-  .ascii-panel {
+  .ascii-title .ascii-panel {
     display: flow-root;
   }
 
-  .ascii-panel--flow {
+  .ascii-title .ascii-panel--flow {
     position: relative;
   }
 
-  .ascii-panel--overlay {
+  .ascii-title .ascii-panel--overlay {
     position: absolute;
     inset: 0;
   }
 
-  .ascii-output {
+  .ascii-title .ascii-output {
     position: absolute;
     inset: 0;
     width: 100%;
