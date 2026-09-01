@@ -10,6 +10,17 @@ on:
   # gets an edit live without a manual push.
   repository_dispatch:
     types: [content-updated]
+  # Fallback for when the webhook above is not firing. It has fired exactly once
+  # in this project's history (2026-08-22), so an admin save has never actually
+  # reached the live site: the write lands in Supabase and nothing rebuilds.
+  #
+  # This picks the content up on a timer instead. It is a workaround, not the
+  # design -- it rebuilds whether or not anything changed, and an edit waits up
+  # to 15 minutes instead of ~40 seconds. Once steps 3 and 4 of
+  # supabase/README.md are done and a save shows up as a repository_dispatch
+  # run, delete this block.
+  schedule:
+    - cron: '*/15 * * * *'
 
 # Builds from the committed snapshots in imported/, so a deploy never depends on
 # an external host being up. Use "Refresh imported pages" to update them.
